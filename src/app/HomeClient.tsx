@@ -20,6 +20,37 @@ type Member = {
   display_name: string | null;
 };
 
+const getPlaceLabel = (slug: string) => {
+  switch (slug) {
+    case 'fridge':
+      return '냉장고';
+    case 'table':
+      return '식탁';
+    case 'toilet':
+      return '화장실';
+    default:
+      return slug;
+  }
+};
+
+const formatDateTime = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
+  const year = d.getFullYear();
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const date = d.getDate().toString().padStart(2, '0');
+  const weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const weekday = weekdayNames[d.getDay()];
+
+  const hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  const ampm = hours < 12 ? '오전' : '오후';
+  const hour12 = hours % 12 || 12;
+
+  return `${year}.${month}.${date} (${weekday}) · ${ampm} ${hour12}:${minutes}`;
+};
+
 export default function HomeClient() {
   const searchParams = useSearchParams();
   const placeSlug = searchParams.get('place') ?? 'fridge';
@@ -29,6 +60,7 @@ export default function HomeClient() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<'all' | 'me' | string>('all');
+  const [placeScope, setPlaceScope] = useState<'current' | 'all'>('current');
 
   const [action, setAction] = useState('');
   const [loading, setLoading] = useState(false);
@@ -94,14 +126,17 @@ export default function HomeClient() {
   }, []);
 
   const loadLogs = useCallback(
-    async (hid: string, slug: string, actorUserId?: string) => {
+    async (hid: string, slug: string | undefined, actorUserId?: string) => {
       let query = supabase
         .from('logs')
         .select('*')
         .eq('household_id', hid)
-        .eq('place_slug', slug)
         .order('created_at', { ascending: false })
         .limit(30);
+
+      if (slug) {
+        query = query.eq('place_slug', slug);
+      }
 
       if (actorUserId) {
         query = query.eq('actor_user_id', actorUserId);
@@ -130,8 +165,10 @@ export default function HomeClient() {
       actorFilter = selectedMemberId;
     }
 
-    loadLogs(householdId, placeSlug, actorFilter);
-  }, [householdId, placeSlug, selectedMemberId, user, loadLogs]);
+    const placeFilterSlug = placeScope === 'current' ? placeSlug : undefined;
+
+    loadLogs(householdId, placeFilterSlug, actorFilter);
+  }, [householdId, placeSlug, placeScope, selectedMemberId, user, loadLogs]);
 
   const handleInsert = async () => {
     if (!user || !householdId) return;
@@ -153,9 +190,10 @@ export default function HomeClient() {
     }
 
     setAction('');
+    const placeFilterSlug = placeScope === 'current' ? placeSlug : undefined;
     await loadLogs(
       householdId,
-      placeSlug,
+      placeFilterSlug,
       selectedMemberId === 'me' ? user.id : selectedMemberId === 'all' ? undefined : selectedMemberId
     );
     setStatus('로그가 추가되었습니다.');
@@ -200,6 +238,7 @@ export default function HomeClient() {
 
   const meDisplayName =
     profileName || (user?.email ? user.email.split('@')[0] : '나');
+  const placeLabel = getPlaceLabel(placeSlug);
 
   return (
     <main
@@ -257,11 +296,8 @@ export default function HomeClient() {
             </div>
           </div>
           <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
-            Place: <span style={{ color: '#38bdf8' }}>{placeSlug}</span>
+            장소: <span style={{ color: '#38bdf8' }}>{placeLabel}</span>
           </h1>
-          <p style={{ fontSize: 13, color: '#94a3b8' }}>
-            URL 예시: <code>/?place=fridge</code>
-          </p>
         </header>
 
         {status && (
@@ -439,9 +475,6 @@ export default function HomeClient() {
                 }}
               >
                 <h2 style={{ fontSize: 14, fontWeight: 600 }}>최근 로그 (30)</h2>
-                <span style={{ fontSize: 11, color: '#64748b' }}>
-                  household_id: {householdId.slice(0, 8)}...
-                </span>
               </div>
 
               <div
@@ -453,6 +486,41 @@ export default function HomeClient() {
                   fontSize: 11,
                 }}
               >
+                <button
+                  onClick={() => setPlaceScope('current')}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                    border:
+                      placeScope === 'current'
+                        ? '1px solid #22c55e'
+                        : '1px solid #1f2937',
+                    backgroundColor:
+                      placeScope === 'current' ? 'rgba(34,197,94,0.2)' : 'transparent',
+                    color: '#e5e7eb',
+                    cursor: 'pointer',
+                  }}
+                >
+                  이 장소
+                </button>
+                <button
+                  onClick={() => setPlaceScope('all')}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                    border:
+                      placeScope === 'all'
+                        ? '1px solid #22c55e'
+                        : '1px solid #1f2937',
+                    backgroundColor:
+                      placeScope === 'all' ? 'rgba(34,197,94,0.2)' : 'transparent',
+                    color: '#e5e7eb',
+                    cursor: 'pointer',
+                  }}
+                >
+                  모든 장소
+                </button>
+
                 <button
                   onClick={() => setSelectedMemberId('all')}
                   style={{
@@ -564,7 +632,7 @@ export default function HomeClient() {
                         {getMemberName(log.actor_user_id)}
                       </span>
                       <span style={{ color: '#9ca3af' }}>
-                        {new Date(log.created_at).toLocaleString()}
+                        {formatDateTime(log.created_at)}
                       </span>
                     </div>
                   </div>
