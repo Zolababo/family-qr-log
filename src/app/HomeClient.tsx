@@ -20,16 +20,27 @@ type Member = {
   display_name: string | null;
 };
 
+const PLACES = [
+  { slug: 'fridge', label: '냉장고' },
+  { slug: 'table', label: '식탁' },
+  { slug: 'toilet', label: '화장실' },
+] as const;
+
 const getPlaceLabel = (slug: string) => {
+  const p = PLACES.find((x) => x.slug === slug);
+  return p ? p.label : slug;
+};
+
+const getPlaceChipStyle = (slug: string) => {
   switch (slug) {
     case 'fridge':
-      return '냉장고';
+      return { background: 'rgba(56,189,248,0.25)', color: '#7dd3fc', border: '1px solid rgba(56,189,248,0.5)' };
     case 'table':
-      return '식탁';
+      return { background: 'rgba(34,197,94,0.2)', color: '#86efac', border: '1px solid rgba(34,197,94,0.5)' };
     case 'toilet':
-      return '화장실';
+      return { background: 'rgba(251,191,36,0.2)', color: '#fde047', border: '1px solid rgba(251,191,36,0.5)' };
     default:
-      return slug;
+      return { background: 'rgba(148,163,184,0.2)', color: '#cbd5e1', border: '1px solid rgba(148,163,184,0.4)' };
   }
 };
 
@@ -61,6 +72,7 @@ export default function HomeClient() {
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<'all' | 'me' | string>('all');
   const [placeScope, setPlaceScope] = useState<'current' | 'all'>('current');
+  const [selectedPlaceSlug, setSelectedPlaceSlug] = useState<string>(placeSlug);
 
   const [action, setAction] = useState('');
   const [loading, setLoading] = useState(false);
@@ -125,6 +137,12 @@ export default function HomeClient() {
     init();
   }, []);
 
+  useEffect(() => {
+    setSelectedPlaceSlug(placeSlug);
+  }, [placeSlug]);
+
+  const effectivePlaceSlug = selectedPlaceSlug;
+
   const loadLogs = useCallback(
     async (hid: string, slug: string | undefined, actorUserId?: string) => {
       let query = supabase
@@ -165,10 +183,10 @@ export default function HomeClient() {
       actorFilter = selectedMemberId;
     }
 
-    const placeFilterSlug = placeScope === 'current' ? placeSlug : undefined;
+    const placeFilterSlug = placeScope === 'current' ? effectivePlaceSlug : undefined;
 
     loadLogs(householdId, placeFilterSlug, actorFilter);
-  }, [householdId, placeSlug, placeScope, selectedMemberId, user, loadLogs]);
+  }, [householdId, effectivePlaceSlug, placeScope, selectedMemberId, user, loadLogs]);
 
   const handleInsert = async () => {
     if (!user || !householdId) return;
@@ -178,7 +196,7 @@ export default function HomeClient() {
 
     const { error } = await supabase.from('logs').insert({
       household_id: householdId,
-      place_slug: placeSlug,
+      place_slug: effectivePlaceSlug,
       action: action || 'clicked',
       actor_user_id: user.id,
     });
@@ -190,7 +208,7 @@ export default function HomeClient() {
     }
 
     setAction('');
-    const placeFilterSlug = placeScope === 'current' ? placeSlug : undefined;
+    const placeFilterSlug = placeScope === 'current' ? effectivePlaceSlug : undefined;
     await loadLogs(
       householdId,
       placeFilterSlug,
@@ -238,7 +256,21 @@ export default function HomeClient() {
 
   const meDisplayName =
     profileName || (user?.email ? user.email.split('@')[0] : '나');
-  const placeLabel = getPlaceLabel(placeSlug);
+  const placeLabel = getPlaceLabel(effectivePlaceSlug);
+
+  const logsByDate = logs.reduce<{ dateKey: string; dateLabel: string; items: Log[] }[]>((acc, log) => {
+    const d = new Date(log.created_at);
+    const dateKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+    const weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dateLabel = `${dateKey.slice(0, 4)}.${dateKey.slice(5, 7)}.${dateKey.slice(8, 10)} (${weekdayNames[d.getDay()]})`;
+    let group = acc.find((g) => g.dateKey === dateKey);
+    if (!group) {
+      group = { dateKey, dateLabel, items: [] };
+      acc.push(group);
+    }
+    group.items.push(log);
+    return acc;
+  }, []);
 
   return (
     <main
@@ -283,20 +315,78 @@ export default function HomeClient() {
             >
               Family QR Log
             </div>
-            <div style={{ fontSize: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
               <Link
                 href="/qr"
-                style={{ color: '#38bdf8', textDecoration: 'none', marginRight: 12 }}
+                style={{ color: '#38bdf8', textDecoration: 'none' }}
               >
                 QR코드
               </Link>
               <Link href="/invite" style={{ color: '#38bdf8', textDecoration: 'none' }}>
                 가족초대
               </Link>
+              {user && (
+                <div
+                  title={meDisplayName}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                    background: 'rgba(56,189,248,0.15)',
+                    border: '1px solid rgba(56,189,248,0.4)',
+                    fontSize: 12,
+                    color: '#7dd3fc',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: 'rgba(56,189,248,0.4)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 600,
+                      fontSize: 11,
+                    }}
+                  >
+                    {meDisplayName.slice(0, 1)}
+                  </span>
+                  <span style={{ maxWidth: 72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {meDisplayName}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
-          <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
-            장소: <span style={{ color: '#38bdf8' }}>{placeLabel}</span>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            {PLACES.map((p) => {
+              const active = effectivePlaceSlug === p.slug;
+              return (
+                <button
+                  key={p.slug}
+                  onClick={() => setSelectedPlaceSlug(p.slug)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 10,
+                    border: active ? '2px solid #38bdf8' : '1px solid #334155',
+                    background: active ? 'rgba(56,189,248,0.2)' : 'rgba(15,23,42,0.8)',
+                    color: active ? '#7dd3fc' : '#94a3b8',
+                    fontSize: 13,
+                    fontWeight: active ? 600 : 400,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+          <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 0, color: '#94a3b8' }}>
+            장소: <span style={{ color: '#e5e7eb' }}>{placeLabel}</span>
           </h1>
         </header>
 
@@ -461,7 +551,7 @@ export default function HomeClient() {
                   transition: 'transform 0.08s ease-out, box-shadow 0.08s ease-out',
                 }}
               >
-                {loading ? '저장 중...' : '이 장소에 로그 남기기'}
+                {loading ? '저장 중...' : `"${placeLabel}"에 로그 남기기`}
               </button>
             </section>
 
@@ -583,7 +673,7 @@ export default function HomeClient() {
 
               <div
                 style={{
-                  maxHeight: 280,
+                  maxHeight: 320,
                   overflowY: 'auto',
                   borderRadius: 12,
                   border: '1px solid rgba(30,41,59,0.9)',
@@ -604,37 +694,73 @@ export default function HomeClient() {
                   </div>
                 )}
 
-                {logs.map((log) => (
-                  <div
-                    key={log.id}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: 10,
-                      border: '1px solid rgba(30,64,175,0.7)',
-                      background:
-                        'radial-gradient(circle at top left, rgba(59,130,246,0.4), rgba(15,23,42,0.9))',
-                      marginBottom: 6,
-                      fontSize: 12,
-                    }}
-                  >
+                {logsByDate.map((group) => (
+                  <div key={group.dateKey} style={{ marginBottom: 12 }}>
                     <div
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        marginBottom: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#64748b',
+                        marginBottom: 6,
+                        paddingBottom: 4,
+                        borderBottom: '1px solid rgba(51,65,85,0.8)',
                       }}
                     >
-                      <span style={{ fontWeight: 600, color: '#e5e7eb' }}>{log.action}</span>
-                      <span style={{ color: '#bae6fd' }}>{log.place_slug}</span>
+                      {group.dateLabel}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#9ca3af' }}>
-                        {getMemberName(log.actor_user_id)}
-                      </span>
-                      <span style={{ color: '#9ca3af' }}>
-                        {formatDateTime(log.created_at)}
-                      </span>
-                    </div>
+                    {group.items.map((log) => (
+                      <div
+                        key={log.id}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: 10,
+                          border: '1px solid rgba(30,64,175,0.5)',
+                          background: 'rgba(15,23,42,0.9)',
+                          marginBottom: 6,
+                          fontSize: 13,
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, color: '#e5e7eb', marginBottom: 6 }}>
+                          {log.action}
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            alignItems: 'center',
+                            gap: 8,
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 11,
+                              padding: '2px 8px',
+                              borderRadius: 999,
+                              ...getPlaceChipStyle(log.place_slug),
+                            }}
+                          >
+                            {getPlaceLabel(log.place_slug)}
+                          </span>
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                            {formatDateTime(log.created_at)}
+                          </span>
+                        </div>
+                        <div style={{ marginTop: 4 }}>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: '#64748b',
+                              padding: '2px 8px',
+                              borderRadius: 6,
+                              background: 'rgba(51,65,85,0.6)',
+                            }}
+                          >
+                            {getMemberName(log.actor_user_id)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
