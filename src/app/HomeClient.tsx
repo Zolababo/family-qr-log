@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
@@ -14,6 +14,7 @@ type Log = {
   action: string;
   actor_user_id: string;
   created_at: string;
+  image_url?: string | null;
 };
 
 type Member = {
@@ -63,7 +64,11 @@ const formatDateTime = (iso: string) => {
   return `${year}.${month}.${date} (${weekday}) · ${ampm} ${hour12}:${minutes}`;
 };
 
+const QUICK_PHRASES_KEY = 'family_qr_log_quick_phrases';
+
 export default function HomeClient() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const urlPlace = searchParams.get('place');
   const hasPlaceFromUrl = urlPlace === 'fridge' || urlPlace === 'table' || urlPlace === 'toilet';
@@ -79,6 +84,11 @@ export default function HomeClient() {
   const [action, setAction] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [logImageFile, setLogImageFile] = useState<File | null>(null);
+  const [logImagePreview, setLogImagePreview] = useState<string | null>(null);
+  const [quickPhrases, setQuickPhrases] = useState<string[]>([]);
+  const [showPhraseManager, setShowPhraseManager] = useState(false);
+  const [newPhraseInput, setNewPhraseInput] = useState('');
 
   const [profileName, setProfileName] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
@@ -150,6 +160,23 @@ export default function HomeClient() {
     };
 
     init();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(QUICK_PHRASES_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setQuickPhrases(Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : []);
+    } catch {
+      setQuickPhrases([]);
+    }
+  }, []);
+
+  const saveQuickPhrases = useCallback((next: string[]) => {
+    setQuickPhrases(next);
+    try {
+      localStorage.setItem(QUICK_PHRASES_KEY, JSON.stringify(next));
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -254,11 +281,29 @@ export default function HomeClient() {
     setLoading(true);
     setStatus(null);
 
+    let imageUrl: string | null = null;
+    if (logImageFile) {
+      const ext = logImageFile.name.split('.').pop() || 'jpg';
+      const path = `${householdId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('log-images').upload(path, logImageFile, {
+        contentType: logImageFile.type,
+        upsert: false,
+      });
+      if (uploadError) {
+        setStatus(`사진 업로드 실패: ${uploadError.message}`);
+        setLoading(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from('log-images').getPublicUrl(path);
+      imageUrl = urlData.publicUrl;
+    }
+
     const { error } = await supabase.from('logs').insert({
       household_id: householdId,
       place_slug: placeSlug,
       action: action || 'clicked',
       actor_user_id: user.id,
+      ...(imageUrl && { image_url: imageUrl }),
     });
 
     if (error) {
@@ -268,10 +313,13 @@ export default function HomeClient() {
     }
 
     setAction('');
+    setLogImageFile(null);
+    setLogImagePreview(null);
     const placeSlugFilter = placeViewFilter === 'all' ? undefined : placeViewFilter;
     await loadLogs(householdId, placeSlugFilter, selectedMemberId === 'me' ? user.id : selectedMemberId);
     setStatus('로그가 추가되었습니다.');
     setLoading(false);
+    router.replace(pathname || '/');
   };
 
   const refreshLogs = useCallback(() => {
@@ -670,6 +718,50 @@ export default function HomeClient() {
                 <p style={{ fontSize: 12, color: '#475569', marginBottom: 10 }}>
                   현재 장소: <strong style={{ color: '#0f172a' }}>{currentPlaceLabel}</strong> (QR로 접속됨)
                 </p>
+
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, letterSpacing: '0.03em', color: '#64748b' }}>자주 쓰는 문구</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPhraseManager(true)}
+                      style={{
+                        fontSize: 12,
+                        color: '#3b82f6',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '2px 6px',
+                      }}
+                    >
+                      {quickPhrases.length > 0 ? '관리' : '추가'}
+                    </button>
+                  </div>
+                  {quickPhrases.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {quickPhrases.map((phrase, i) => (
+                        <button
+                          key={`${i}-${phrase}`}
+                          type="button"
+                          onClick={() => setAction((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                          style={{
+                            padding: '8px 14px',
+                            borderRadius: 999,
+                            border: '1px solid #e2e8f0',
+                            background: '#fff',
+                            color: '#475569',
+                            fontSize: 13,
+                            cursor: 'pointer',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                          }}
+                        >
+                          {phrase}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <textarea
                   value={action}
                   onChange={(e) => setAction(e.target.value)}
@@ -689,6 +781,81 @@ export default function HomeClient() {
                     marginBottom: 10,
                   }}
                 />
+
+                <div style={{ marginBottom: 12 }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    id="log-image-input"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      setLogImageFile(f);
+                      const reader = new FileReader();
+                      reader.onload = () => setLogImagePreview(reader.result as string);
+                      reader.readAsDataURL(f);
+                      e.target.value = '';
+                    }}
+                  />
+                  {logImagePreview ? (
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <img
+                        src={logImagePreview}
+                        alt="미리보기"
+                        style={{
+                          width: 120,
+                          height: 120,
+                          objectFit: 'cover',
+                          borderRadius: 12,
+                          border: '1px solid #e2e8f0',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setLogImageFile(null); setLogImagePreview(null); }}
+                        aria-label="사진 제거"
+                        style={{
+                          position: 'absolute',
+                          top: 6,
+                          right: 6,
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          border: 'none',
+                          background: 'rgba(0,0,0,0.6)',
+                          color: '#fff',
+                          fontSize: 16,
+                          lineHeight: 1,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="log-image-input"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '12px 18px',
+                        borderRadius: 12,
+                        border: '1px dashed #cbd5e1',
+                        background: '#f8fafc',
+                        color: '#64748b',
+                        fontSize: 14,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span style={{ fontSize: 20 }}>📷</span>
+                      사진 추가
+                    </label>
+                  )}
+                </div>
+
                 <button
                   type="button"
                   onClick={handleInsert}
@@ -716,7 +883,7 @@ export default function HomeClient() {
               <section
                 style={{
                   marginBottom: 20,
-                  padding: 20,
+                  padding: '24px 20px',
                   borderRadius: 16,
                   background: '#f8fafc',
                   border: '1px solid #e2e8f0',
@@ -725,9 +892,14 @@ export default function HomeClient() {
                   textAlign: 'center',
                 }}
               >
-                <p style={{ margin: '0 0 16px' }}>
-                  로그를 남기려면 해당 장소의 <strong style={{ color: '#0f172a' }}>QR코드를 스캔</strong>해 접속해 주세요.
-                </p>
+                <div style={{ maxWidth: 280, margin: '0 auto 20px', lineHeight: 1.6 }}>
+                  <p style={{ margin: 0, fontSize: 14, color: '#0f172a' }}>
+                    로그를 남기려면 해당 장소의
+                  </p>
+                  <p style={{ margin: '4px 0 0', fontSize: 14, color: '#0f172a' }}>
+                    <strong>QR코드를 스캔</strong>해 접속해 주세요.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowScanner(true)}
@@ -749,9 +921,14 @@ export default function HomeClient() {
                   <span style={{ fontSize: 22 }}>📷</span>
                   QR 스캔
                 </button>
-                <p style={{ margin: '12px 0 0', fontSize: 12, color: '#94a3b8' }}>
-                  카메라가 켜지면 QR 코드를 사각형 안에 맞춰 주세요.
-                </p>
+                <div style={{ maxWidth: 280, margin: '16px auto 0', lineHeight: 1.6 }}>
+                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
+                    카메라가 켜지면
+                  </p>
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>
+                    QR코드를 사각형 안에 맞춰 주세요.
+                  </p>
+                </div>
               </section>
             )}
 
@@ -926,6 +1103,20 @@ export default function HomeClient() {
                               <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
                                 {log.action}
                               </div>
+                              {log.image_url && (
+                                <a
+                                  href={log.image_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ display: 'block', marginBottom: 8, borderRadius: 10, overflow: 'hidden', maxWidth: 200 }}
+                                >
+                                  <img
+                                    src={log.image_url}
+                                    alt=""
+                                    style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }}
+                                  />
+                                </a>
+                              )}
                               <div
                                 style={{
                                   display: 'flex',
@@ -1105,6 +1296,135 @@ export default function HomeClient() {
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {showPhraseManager && (
+        <div
+          role="presentation"
+          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => { setShowPhraseManager(false); setNewPhraseInput(''); }}
+        >
+          <div
+            role="dialog"
+            style={{
+              width: '100%',
+              maxWidth: 360,
+              maxHeight: '80vh',
+              overflow: 'auto',
+              padding: 24,
+              borderRadius: 20,
+              background: '#fff',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
+              border: '1px solid #e2e8f0',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700, color: '#0f172a' }}>
+              자주 쓰는 문구
+            </h3>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748b' }}>
+              저장한 문구는 로그 입력 시 탭해서 바로 넣을 수 있어요.
+            </p>
+            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', maxHeight: 200, overflowY: 'auto' }}>
+              {quickPhrases.map((phrase, i) => (
+                <li
+                  key={`${i}-${phrase}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    marginBottom: 8,
+                    borderRadius: 12,
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  <span style={{ fontSize: 14, color: '#0f172a' }}>{phrase}</span>
+                  <button
+                    type="button"
+                    onClick={() => saveQuickPhrases(quickPhrases.filter((_, j) => j !== i))}
+                    aria-label="삭제"
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 8,
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#94a3b8',
+                      fontSize: 18,
+                      cursor: 'pointer',
+                      lineHeight: 1,
+                    }}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <input
+                type="text"
+                value={newPhraseInput}
+                onChange={(e) => setNewPhraseInput(e.target.value)}
+                placeholder="예: 약 먹음, 문 잠금"
+                style={{
+                  flex: 1,
+                  padding: '12px 14px',
+                  borderRadius: 12,
+                  border: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  color: '#0f172a',
+                  fontSize: 14,
+                  outline: 'none',
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const t = newPhraseInput.trim();
+                    if (t) { saveQuickPhrases([...quickPhrases, t]); setNewPhraseInput(''); }
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const t = newPhraseInput.trim();
+                  if (t) { saveQuickPhrases([...quickPhrases, t]); setNewPhraseInput(''); }
+                }}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: 12,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                추가
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setShowPhraseManager(false); setNewPhraseInput(''); }}
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: 20,
+                padding: 12,
+                borderRadius: 12,
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                color: '#475569',
+                fontSize: 14,
+                cursor: 'pointer',
+              }}
+            >
+              닫기
+            </button>
           </div>
         </div>
       )}
