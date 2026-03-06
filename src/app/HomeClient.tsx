@@ -615,6 +615,18 @@ export default function HomeClient() {
     return acc;
   }, []);
 
+  const langShort: Record<Lang, string> = { ko: '한국어', en: 'EN', ja: '日本語', zh: '中文', vi: 'VI' };
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!langMenuOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) setLangMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [langMenuOpen]);
+
   return (
     <main
       style={{
@@ -623,10 +635,10 @@ export default function HomeClient() {
         justifyContent: 'center',
         alignItems: 'flex-start',
         padding: '24px 16px',
-        background: highContrast ? '#000' : 'linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)',
-        color: highContrast ? '#ffff00' : '#0f172a',
+        background: highContrast ? '#0f0f0f' : 'linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)',
+        color: highContrast ? '#ffffff' : '#0f172a',
         fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-        fontSize: fontScale === 1 ? undefined : `${fontScale * 100}%`,
+        ...(fontScale > 1 && { zoom: fontScale, minWidth: 0 } as React.CSSProperties),
       }}
       data-accessibility-root
       data-high-contrast={highContrast ? 'true' : 'false'}
@@ -636,16 +648,17 @@ export default function HomeClient() {
       role="main"
     >
       <style>{`
-        [data-accessibility-root][data-high-contrast="true"] { background: #000 !important; color: #ffff00 !important; }
-        [data-accessibility-root][data-high-contrast="true"] a { color: #ffff00 !important; text-decoration: underline; }
+        [data-accessibility-root][data-high-contrast="true"] { background: #0f0f0f !important; color: #ffffff !important; }
+        [data-accessibility-root][data-high-contrast="true"] a { color: #ffc107 !important; text-decoration: underline; }
         [data-accessibility-root][data-high-contrast="true"] button,
         [data-accessibility-root][data-high-contrast="true"] input,
         [data-accessibility-root][data-high-contrast="true"] textarea,
-        [data-accessibility-root][data-high-contrast="true"] [role="button"] { background: #333 !important; color: #ffff00 !important; border: 2px solid #ffff00 !important; }
-        [data-accessibility-root][data-high-contrast="true"] label { color: #ffff00 !important; }
-        [data-accessibility-root][data-high-contrast="true"] h1, [data-accessibility-root][data-high-contrast="true"] h2, [data-accessibility-root][data-high-contrast="true"] strong { color: #ffff00 !important; }
-        [data-accessibility-root][data-high-contrast="true"] .acc-inner { background: #000 !important; color: #ffff00 !important; border: 2px solid #ffff00 !important; box-shadow: none !important; }
-        [data-accessibility-root] *:focus { outline: 3px solid #ffff00 !important; outline-offset: 2px; }
+        [data-accessibility-root][data-high-contrast="true"] [role="button"] { background: #1e1e1e !important; color: #ffffff !important; border: 2px solid #ffc107 !important; }
+        [data-accessibility-root][data-high-contrast="true"] label { color: #e0e0e0 !important; }
+        [data-accessibility-root][data-high-contrast="true"] h1, [data-accessibility-root][data-high-contrast="true"] h2, [data-accessibility-root][data-high-contrast="true"] strong { color: #ffffff !important; }
+        [data-accessibility-root][data-high-contrast="true"] .acc-inner { background: #0f0f0f !important; color: #ffffff !important; border: 2px solid #ffc107 !important; box-shadow: none !important; }
+        [data-accessibility-root][data-high-contrast="true"] select { background: #1e1e1e !important; color: #fff !important; border-color: #ffc107 !important; }
+        [data-accessibility-root] *:focus { outline: 3px solid #ffc107 !important; outline-offset: 2px; }
       `}</style>
       <a
         href="#main-content"
@@ -655,8 +668,8 @@ export default function HomeClient() {
           top: 8,
           zIndex: 9999,
           padding: '8px 16px',
-          background: '#2563eb',
-          color: '#fff',
+          background: highContrast ? '#ffc107' : '#2563eb',
+          color: highContrast ? '#0f0f0f' : '#fff',
           fontSize: 14,
           borderRadius: 8,
           textDecoration: 'none',
@@ -672,16 +685,16 @@ export default function HomeClient() {
         style={{
           width: '100%',
           maxWidth: 420,
-          background: highContrast ? '#000' : '#fff',
+          background: highContrast ? '#0f0f0f' : '#fff',
           borderRadius: 24,
           padding: 20,
           boxShadow: highContrast ? 'none' : '0 25px 50px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)',
-          color: highContrast ? '#ffff00' : undefined,
-          border: highContrast ? '2px solid #ffff00' : undefined,
+          color: highContrast ? '#ffffff' : undefined,
+          border: highContrast ? '2px solid #ffc107' : undefined,
         }}
       >
         <header style={{ marginBottom: 16, position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
             <h1
               id="app-title"
               style={{
@@ -689,13 +702,83 @@ export default function HomeClient() {
                 fontSize: 22,
                 fontWeight: 700,
                 letterSpacing: '-0.02em',
-                color: highContrast ? '#ffff00' : '#0f172a',
+                color: highContrast ? '#ffffff' : '#0f172a',
+                flex: 1,
+                minWidth: 0,
               }}
             >
               {t('appTitle')}
             </h1>
+            <div ref={langMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setLangMenuOpen((o) => !o)}
+                aria-label={t('language')}
+                aria-haspopup="listbox"
+                aria-expanded={langMenuOpen}
+                style={{
+                  height: 40,
+                  padding: '0 12px',
+                  borderRadius: 12,
+                  border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+                  background: highContrast ? '#1e1e1e' : '#f8fafc',
+                  color: highContrast ? '#ffffff' : '#475569',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <span aria-hidden>🌐</span>
+                <span>{langShort[language]}</span>
+              </button>
+              {langMenuOpen && (
+                <div
+                  role="listbox"
+                  aria-label={t('language')}
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: 6,
+                    minWidth: 140,
+                    padding: '8px 0',
+                    borderRadius: 12,
+                    background: highContrast ? '#1e1e1e' : '#fff',
+                    border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                    zIndex: 55,
+                  }}
+                >
+                  {(Object.keys(langLabels) as Lang[]).map((lang) => (
+                    <button
+                      key={lang}
+                      role="option"
+                      aria-selected={language === lang}
+                      type="button"
+                      onClick={() => { setLanguage(lang); setLangMenuOpen(false); }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: '10px 14px',
+                        border: 'none',
+                        background: language === lang ? (highContrast ? '#333' : '#f1f5f9') : 'transparent',
+                        color: highContrast ? '#ffffff' : '#0f172a',
+                        fontSize: 14,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {langLabels[lang]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             {user && (
-              <div ref={menuRef} style={{ position: 'relative' }}>
+              <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
                 <button
                   type="button"
                   onClick={() => setMenuOpen((o) => !o)}
@@ -704,9 +787,9 @@ export default function HomeClient() {
                     width: 40,
                     height: 40,
                     borderRadius: 12,
-                    border: '1px solid #e2e8f0',
-                    background: '#f8fafc',
-                    color: '#475569',
+                    border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+                    background: highContrast ? '#1e1e1e' : '#f8fafc',
+                    color: highContrast ? '#ffffff' : '#475569',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -727,8 +810,9 @@ export default function HomeClient() {
                       minWidth: 180,
                       padding: '12px 0',
                       borderRadius: 16,
-                      background: '#fff',
-                      boxShadow: '0 20px 40px rgba(0,0,0,0.15), 0 0 0 1px #e2e8f0',
+                      background: highContrast ? '#1e1e1e' : '#fff',
+                      border: highContrast ? '2px solid #ffc107' : undefined,
+                      boxShadow: highContrast ? 'none' : '0 20px 40px rgba(0,0,0,0.15), 0 0 0 1px #e2e8f0',
                       zIndex: 50,
                     }}
                   >
@@ -740,8 +824,8 @@ export default function HomeClient() {
                           style={{
                             display: 'block',
                             padding: '12px 16px',
-                            color: '#0f172a',
-                            textDecoration: 'none',
+                            color: highContrast ? '#ffc107' : '#0f172a',
+                            textDecoration: highContrast ? 'underline' : 'none',
                             fontSize: 14,
                           }}
                         >
@@ -753,8 +837,8 @@ export default function HomeClient() {
                           style={{
                             display: 'block',
                             padding: '12px 16px',
-                            color: highContrast ? '#ffff00' : '#0f172a',
-                            textDecoration: 'none',
+                            color: highContrast ? '#ffc107' : '#0f172a',
+                            textDecoration: highContrast ? 'underline' : 'none',
                             fontSize: 14,
                           }}
                         >
@@ -769,7 +853,7 @@ export default function HomeClient() {
                             padding: '12px 16px',
                             border: 'none',
                             background: 'none',
-                            color: '#0f172a',
+                            color: highContrast ? '#ffffff' : '#0f172a',
                             fontSize: 14,
                             cursor: 'pointer',
                           }}
@@ -785,7 +869,7 @@ export default function HomeClient() {
                             padding: '12px 16px',
                             border: 'none',
                             background: 'none',
-                            color: '#0f172a',
+                            color: highContrast ? '#ffffff' : '#0f172a',
                             fontSize: 14,
                             cursor: 'pointer',
                           }}
@@ -796,7 +880,7 @@ export default function HomeClient() {
                       </>
                     ) : (
                       <div style={{ padding: '0 16px 12px' }}>
-                        <div style={{ fontSize: 12, color: highContrast ? '#ffff00' : '#94a3b8', marginBottom: 8 }}>{t('nameForFamily')}</div>
+                        <div style={{ fontSize: 12, color: highContrast ? '#e0e0e0' : '#94a3b8', marginBottom: 8 }}>{t('nameForFamily')}</div>
                         <input
                           value={profileName}
                           onChange={(e) => setProfileName(e.target.value)}
@@ -950,15 +1034,15 @@ export default function HomeClient() {
         )}
 
         {!user && (
-          <div style={{ fontSize: 13, color: highContrast ? '#ffff00' : '#475569' }}>
+          <div style={{ fontSize: 13, color: highContrast ? '#e0e0e0' : '#475569' }}>
             <Link
               href="/login"
-              style={{ color: highContrast ? '#ffff00' : '#2563eb', textDecoration: 'none', fontWeight: 600 }}
+              style={{ color: highContrast ? '#ffc107' : '#2563eb', textDecoration: 'underline', fontWeight: 600 }}
             >
               {t('login')}
             </Link>
             {t('loginOrJoin')}{' '}
-            <Link href="/join" style={{ color: highContrast ? '#ffff00' : '#2563eb', textDecoration: 'none' }}>
+            <Link href="/join" style={{ color: highContrast ? '#ffc107' : '#2563eb', textDecoration: 'underline' }}>
               {t('join')}
             </Link>
             {t('please')}
@@ -978,23 +1062,23 @@ export default function HomeClient() {
                   boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
-                <div style={{ fontSize: 11, letterSpacing: '0.05em', color: highContrast ? '#ffff00' : '#64748b', marginBottom: 8 }}>
+                <div style={{ fontSize: 11, letterSpacing: '0.05em', color: highContrast ? '#ffffff' : '#64748b', marginBottom: 8 }}>
                   {t('recordHere')}
                 </div>
-                <p style={{ fontSize: 12, color: highContrast ? '#ffff00' : '#475569', marginBottom: 10 }}>
-                  {t('currentPlace')}: <strong style={{ color: highContrast ? '#ffff00' : '#0f172a' }}>{currentPlaceLabel}</strong> ({t('qrAccessed')})
+                <p style={{ fontSize: 12, color: highContrast ? '#ffffff' : '#475569', marginBottom: 10 }}>
+                  {t('currentPlace')}: <strong style={{ color: highContrast ? '#ffffff' : '#0f172a' }}>{currentPlaceLabel}</strong> ({t('qrAccessed')})
                 </p>
 
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, letterSpacing: '0.03em', color: highContrast ? '#ffff00' : '#64748b' }}>{t('quickPhrases')}</span>
+                    <span style={{ fontSize: 11, letterSpacing: '0.03em', color: highContrast ? '#ffffff' : '#64748b' }}>{t('quickPhrases')}</span>
                     <button
                       type="button"
                       onClick={() => setShowPhraseManager(true)}
                       aria-label={quickPhrases.length > 0 ? t('manage') : t('add')}
                       style={{
                         fontSize: 12,
-                        color: highContrast ? '#ffff00' : '#3b82f6',
+                        color: highContrast ? '#ffc107' : '#3b82f6',
                         background: 'none',
                         border: 'none',
                         cursor: 'pointer',
@@ -1239,10 +1323,10 @@ export default function HomeClient() {
                 }}
               >
                 <div style={{ maxWidth: 280, margin: '0 auto 20px', lineHeight: 1.6 }}>
-                  <p style={{ margin: 0, fontSize: 14, color: highContrast ? '#ffff00' : '#0f172a' }}>
+                  <p style={{ margin: 0, fontSize: 14, color: highContrast ? '#ffffff' : '#0f172a' }}>
                     {t('scanQrFirst')}
                   </p>
-                  <p style={{ margin: '4px 0 0', fontSize: 14, color: highContrast ? '#ffff00' : '#0f172a' }}>
+                  <p style={{ margin: '4px 0 0', fontSize: 14, color: highContrast ? '#ffffff' : '#0f172a' }}>
                     <strong>{t('scanQrSecond')}</strong>
                   </p>
                 </div>
@@ -1269,10 +1353,10 @@ export default function HomeClient() {
                   {t('qrScan')}
                 </button>
                 <div style={{ maxWidth: 280, margin: '16px auto 0', lineHeight: 1.6 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: highContrast ? '#ffff00' : '#64748b' }}>
+                  <p style={{ margin: 0, fontSize: 12, color: highContrast ? '#ffffff' : '#64748b' }}>
                     {t('scanHint1')}
                   </p>
-                  <p style={{ margin: '4px 0 0', fontSize: 12, color: highContrast ? '#ffff00' : '#64748b' }}>
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: highContrast ? '#ffffff' : '#64748b' }}>
                     {t('scanHint2')}
                   </p>
                 </div>
@@ -1280,7 +1364,7 @@ export default function HomeClient() {
             )}
 
             <section aria-label={t('recentLogs')}>
-              <div style={{ fontSize: 11, letterSpacing: '0.05em', color: highContrast ? '#ffff00' : '#94a3b8', marginBottom: 10 }}>
+              <div style={{ fontSize: 11, letterSpacing: '0.05em', color: highContrast ? '#ffffff' : '#94a3b8', marginBottom: 10 }}>
                 {t('recentLogs')}
               </div>
               <div
@@ -1555,7 +1639,7 @@ export default function HomeClient() {
                                 </span>
                               </div>
                               {isMine && (
-                                <div style={{ marginTop: 6, fontSize: 11, color: highContrast ? '#ffff00' : '#94a3b8' }}>
+                                <div style={{ marginTop: 6, fontSize: 11, color: highContrast ? '#ffffff' : '#94a3b8' }}>
                                   {t('longPressEdit')}
                                 </div>
                               )}
@@ -1667,7 +1751,7 @@ export default function HomeClient() {
                       border: 'none',
                       background: 'none',
                       fontSize: 15,
-                      color: highContrast ? '#ffff00' : '#0f172a',
+                      color: highContrast ? '#ffffff' : '#0f172a',
                       cursor: 'pointer',
                       textAlign: 'left',
                     }}
@@ -1882,6 +1966,7 @@ export default function HomeClient() {
 
             <div style={{ marginBottom: 20 }}>
               <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{t('bigFont')}</p>
+              <p style={{ margin: '0 0 10px', fontSize: 12, color: '#64748b' }}>{t('bigFontHint')}</p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {FONT_SCALES.map((s) => (
                   <button
@@ -1924,6 +2009,7 @@ export default function HomeClient() {
               <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
                 {t('language')}
               </label>
+              <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b' }}>{t('languageHeaderHint')}</p>
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as Lang)}
