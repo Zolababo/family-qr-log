@@ -15,7 +15,22 @@ type Log = {
   actor_user_id: string;
   created_at: string;
   image_url?: string | null;
+  image_urls?: string | null;
+  video_url?: string | null;
 };
+
+function getLogMedia(log: Log): { imageUrls: string[]; videoUrl: string | null } {
+  let imageUrls: string[] = [];
+  if (log.image_urls) {
+    try {
+      const parsed = JSON.parse(log.image_urls);
+      imageUrls = Array.isArray(parsed) ? parsed.filter((u): u is string => typeof u === 'string') : [];
+    } catch {}
+  }
+  if (imageUrls.length === 0 && log.image_url) imageUrls = [log.image_url];
+  const videoUrl = log.video_url && log.video_url.trim() ? log.video_url : null;
+  return { imageUrls, videoUrl };
+}
 
 type Member = {
   user_id: string;
@@ -66,6 +81,58 @@ const formatDateTime = (iso: string) => {
 
 const QUICK_PHRASES_KEY = 'family_qr_log_quick_phrases';
 
+const MAX_IMAGE_SIDE = 1200;
+const JPEG_QUALITY = 0.82;
+const VIDEO_MAX_MB = 20;
+
+function compressImageFile(file: File): Promise<{ file: File; previewUrl: string }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width;
+      let h = img.height;
+      if (w > MAX_IMAGE_SIDE || h > MAX_IMAGE_SIDE) {
+        if (w >= h) {
+          h = Math.round((h * MAX_IMAGE_SIDE) / w);
+          w = MAX_IMAGE_SIDE;
+        } else {
+          w = Math.round((w * MAX_IMAGE_SIDE) / h);
+          h = MAX_IMAGE_SIDE;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('canvas'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('blob'));
+            return;
+          }
+          const name = file.name.replace(/\.[^.]+$/, '') || 'photo';
+          const out = new File([blob], `${name}.jpg`, { type: 'image/jpeg' });
+          resolve({ file: out, previewUrl: URL.createObjectURL(blob) });
+        },
+        'image/jpeg',
+        JPEG_QUALITY
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('image load'));
+    };
+    img.src = url;
+  });
+}
+
 export default function HomeClient() {
   const router = useRouter();
   const pathname = usePathname();
@@ -84,8 +151,11 @@ export default function HomeClient() {
   const [action, setAction] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [logImageFile, setLogImageFile] = useState<File | null>(null);
-  const [logImagePreview, setLogImagePreview] = useState<string | null>(null);
+  const [logImageFiles, setLogImageFiles] = useState<File[]>([]);
+  const [logImagePreviews, setLogImagePreviews] = useState<string[]>([]);
+  const [logVideoFile, setLogVideoFile] = useState<File | null>(null);
+  const [logVideoPreview, setLogVideoPreview] = useState<string | null>(null);
+  const [imageCompressing, setImageCompressing] = useState(false);
   const [quickPhrases, setQuickPhrases] = useState<string[]>([]);
   const [showPhraseManager, setShowPhraseManager] = useState(false);
   const [newPhraseInput, setNewPhraseInput] = useState('');
@@ -105,6 +175,7 @@ export default function HomeClient() {
   const streamRef = useRef<MediaStream | null>(null);
   const scanLoopRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logPreviewUrlsRef = useRef<string[]>([]);
 
   useEffect(() => {
     const init = async () => {
@@ -275,18 +346,65 @@ export default function HomeClient() {
     loadLogs(householdId, placeSlugFilter, actorId);
   }, [householdId, placeViewFilter, selectedMemberId, user, loadLogs]);
 
+  const handleMediaSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>, _fromCamera: boolean) => {
+      const fileList = e.target.files;
+      if (!fileList?.length || imageCompressing) return;
+      const files = Array.from(fileList);
+      const imageFiles = files.filter((f) => f.type.startsWith('image/'));
+      const videoFiles = files.filter((f) => f.type.startsWith('video/'));
+      const videoFile = videoFiles[0] ?? null;
+
+      if (videoFile) {
+        if (videoFile.size > VIDEO_MAX_MB * 1024 * 1024) {
+          setStatus(`영상은 ${VIDEO_MAX_MB}MB 이하로 선택해 주세요.`);
+        } else {
+          if (logVideoPreview) URL.revokeObjectURL(logVideoPreview);
+          setLogVideoFile(videoFile);
+          setLogVideoPreview(URL.createObjectURL(videoFile));
+        }
+      }
+
+      if (imageFiles.length === 0) {
+        e.target.value = '';
+        if (imageFiles.length === 0 && videoFile) setStatus('사진/영상이 준비되었습니다.');
+        return;
+      }
+
+      setImageCompressing(true);
+      setStatus(null);
+      Promise.all(imageFiles.map((f) => compressImageFile(f)))
+        .then((results) => {
+          const newFiles = results.map((r) => r.file);
+          const newUrls = results.map((r) => r.previewUrl);
+          newUrls.forEach((u) => logPreviewUrlsRef.current.push(u));
+          setLogImageFiles((prev) => [...prev, ...newFiles]);
+          setLogImagePreviews((prev) => [...prev, ...newUrls]);
+          setStatus(
+            `사진 ${newFiles.length}장${videoFile ? '·영상 1개 ' : ''}준비됐어요. 로그 남기기를 누르면 올라갑니다.`
+          );
+        })
+        .catch(() => setStatus('사진 처리에 실패했어요. 다시 선택해 주세요.'))
+        .finally(() => {
+          setImageCompressing(false);
+        });
+      e.target.value = '';
+    },
+    [imageCompressing, logVideoPreview]
+  );
+
   const handleInsert = async () => {
     if (!user || !householdId) return;
 
     setLoading(true);
     setStatus(null);
 
-    let imageUrl: string | null = null;
-    if (logImageFile) {
-      const ext = logImageFile.name.split('.').pop() || 'jpg';
-      const path = `${householdId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from('log-images').upload(path, logImageFile, {
-        contentType: logImageFile.type,
+    const imageUrls: string[] = [];
+    for (let i = 0; i < logImageFiles.length; i++) {
+      const file = logImageFiles[i];
+      const path = `${householdId}/${Date.now()}-${i}-${Math.random().toString(36).slice(2, 10)}.jpg`;
+      const { error: uploadError } = await supabase.storage.from('log-images').upload(path, file, {
+        contentType: file.type,
         upsert: false,
       });
       if (uploadError) {
@@ -295,16 +413,39 @@ export default function HomeClient() {
         return;
       }
       const { data: urlData } = supabase.storage.from('log-images').getPublicUrl(path);
-      imageUrl = urlData.publicUrl;
+      imageUrls.push(urlData.publicUrl);
     }
 
-    const { error } = await supabase.from('logs').insert({
+    let videoUrl: string | null = null;
+    if (logVideoFile) {
+      const ext = logVideoFile.name.split('.').pop() || 'mp4';
+      const path = `${householdId}/v/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('log-images').upload(path, logVideoFile, {
+        contentType: logVideoFile.type,
+        upsert: false,
+      });
+      if (uploadError) {
+        setStatus(`영상 업로드 실패: ${uploadError.message}`);
+        setLoading(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from('log-images').getPublicUrl(path);
+      videoUrl = urlData.publicUrl;
+    }
+
+    const payload: Record<string, unknown> = {
       household_id: householdId,
       place_slug: placeSlug,
       action: action || 'clicked',
       actor_user_id: user.id,
-      ...(imageUrl && { image_url: imageUrl }),
-    });
+    };
+    if (imageUrls.length > 0) {
+      payload.image_url = imageUrls[0];
+      payload.image_urls = JSON.stringify(imageUrls);
+    }
+    if (videoUrl) payload.video_url = videoUrl;
+
+    const { error } = await supabase.from('logs').insert(payload);
 
     if (error) {
       setStatus(`logs insert 실패: ${error.message}`);
@@ -313,8 +454,13 @@ export default function HomeClient() {
     }
 
     setAction('');
-    setLogImageFile(null);
-    setLogImagePreview(null);
+    logPreviewUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+    logPreviewUrlsRef.current = [];
+    if (logVideoPreview) URL.revokeObjectURL(logVideoPreview);
+    setLogImageFiles([]);
+    setLogImagePreviews([]);
+    setLogVideoFile(null);
+    setLogVideoPreview(null);
     const placeSlugFilter = placeViewFilter === 'all' ? undefined : placeViewFilter;
     await loadLogs(householdId, placeSlugFilter, selectedMemberId === 'me' ? user.id : selectedMemberId);
     setStatus('로그가 추가되었습니다.');
@@ -785,74 +931,150 @@ export default function HomeClient() {
                 <div style={{ marginBottom: 12 }}>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,video/*"
                     capture="environment"
-                    id="log-image-input"
+                    id="log-camera-input"
                     style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (!f) return;
-                      setLogImageFile(f);
-                      const reader = new FileReader();
-                      reader.onload = () => setLogImagePreview(reader.result as string);
-                      reader.readAsDataURL(f);
-                      e.target.value = '';
-                    }}
+                    multiple
+                    onChange={(e) => handleMediaSelect(e, true)}
                   />
-                  {logImagePreview ? (
-                    <div style={{ position: 'relative', display: 'inline-block' }}>
-                      <img
-                        src={logImagePreview}
-                        alt="미리보기"
-                        style={{
-                          width: 120,
-                          height: 120,
-                          objectFit: 'cover',
-                          borderRadius: 12,
-                          border: '1px solid #e2e8f0',
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => { setLogImageFile(null); setLogImagePreview(null); }}
-                        aria-label="사진 제거"
-                        style={{
-                          position: 'absolute',
-                          top: 6,
-                          right: 6,
-                          width: 28,
-                          height: 28,
-                          borderRadius: '50%',
-                          border: 'none',
-                          background: 'rgba(0,0,0,0.6)',
-                          color: '#fff',
-                          fontSize: 16,
-                          lineHeight: 1,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : (
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    id="log-gallery-input"
+                    style={{ display: 'none' }}
+                    multiple
+                    onChange={(e) => handleMediaSelect(e, false)}
+                  />
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
                     <label
-                      htmlFor="log-image-input"
+                      htmlFor={imageCompressing ? undefined : 'log-camera-input'}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 8,
                         padding: '12px 18px',
                         borderRadius: 12,
-                        border: '1px dashed #cbd5e1',
-                        background: '#f8fafc',
-                        color: '#64748b',
+                        border: '1px solid #e2e8f0',
+                        background: imageCompressing ? '#e2e8f0' : '#f8fafc',
+                        color: imageCompressing ? '#94a3b8' : '#475569',
                         fontSize: 14,
-                        cursor: 'pointer',
+                        cursor: imageCompressing ? 'wait' : 'pointer',
+                        pointerEvents: imageCompressing ? 'none' : 'auto',
                       }}
                     >
-                      <span style={{ fontSize: 20 }}>📷</span>
-                      사진 추가
+                      <span style={{ fontSize: 18 }}>📷</span>
+                      촬영
                     </label>
+                    <label
+                      htmlFor={imageCompressing ? undefined : 'log-gallery-input'}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '12px 18px',
+                        borderRadius: 12,
+                        border: '1px solid #e2e8f0',
+                        background: imageCompressing ? '#e2e8f0' : '#f8fafc',
+                        color: imageCompressing ? '#94a3b8' : '#475569',
+                        fontSize: 14,
+                        cursor: imageCompressing ? 'wait' : 'pointer',
+                        pointerEvents: imageCompressing ? 'none' : 'auto',
+                      }}
+                    >
+                      <span style={{ fontSize: 18 }}>🖼️</span>
+                      앨범에서 선택
+                    </label>
+                  </div>
+                  {(logImagePreviews.length > 0 || logVideoPreview) && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+                      {logImagePreviews.map((url, i) => (
+                        <div key={i} style={{ position: 'relative', display: 'inline-block' }}>
+                          <img
+                            src={url}
+                            alt="미리보기"
+                            style={{
+                              width: 80,
+                              height: 80,
+                              objectFit: 'cover',
+                              borderRadius: 10,
+                              border: '1px solid #e2e8f0',
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              URL.revokeObjectURL(url);
+                              logPreviewUrlsRef.current = logPreviewUrlsRef.current.filter((u) => u !== url);
+                              setLogImageFiles((prev) => prev.filter((_, j) => j !== i));
+                              setLogImagePreviews((prev) => prev.filter((_, j) => j !== i));
+                            }}
+                            aria-label="제거"
+                            style={{
+                              position: 'absolute',
+                              top: 4,
+                              right: 4,
+                              width: 24,
+                              height: 24,
+                              borderRadius: '50%',
+                              border: 'none',
+                              background: 'rgba(0,0,0,0.6)',
+                              color: '#fff',
+                              fontSize: 14,
+                              lineHeight: 1,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {logVideoPreview && (
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <video
+                            src={logVideoPreview}
+                            style={{
+                              width: 80,
+                              height: 80,
+                              objectFit: 'cover',
+                              borderRadius: 10,
+                              border: '1px solid #e2e8f0',
+                            }}
+                            muted
+                            playsInline
+                            preload="metadata"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              URL.revokeObjectURL(logVideoPreview);
+                              setLogVideoFile(null);
+                              setLogVideoPreview(null);
+                            }}
+                            aria-label="영상 제거"
+                            style={{
+                              position: 'absolute',
+                              top: 4,
+                              right: 4,
+                              width: 24,
+                              height: 24,
+                              borderRadius: '50%',
+                              border: 'none',
+                              background: 'rgba(0,0,0,0.6)',
+                              color: '#fff',
+                              fontSize: 14,
+                              lineHeight: 1,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {imageCompressing && (
+                    <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b' }}>사진 처리 중...</p>
                   )}
                 </div>
 
@@ -1103,20 +1325,74 @@ export default function HomeClient() {
                               <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
                                 {log.action}
                               </div>
-                              {log.image_url && (
-                                <a
-                                  href={log.image_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{ display: 'block', marginBottom: 8, borderRadius: 10, overflow: 'hidden', maxWidth: 200 }}
-                                >
-                                  <img
-                                    src={log.image_url}
-                                    alt=""
-                                    style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }}
-                                  />
-                                </a>
-                              )}
+                              {(() => {
+                                const { imageUrls, videoUrl } = getLogMedia(log);
+                                if (imageUrls.length === 0 && !videoUrl) return null;
+                                return (
+                                  <div
+                                    style={{
+                                      marginBottom: 8,
+                                      display: 'flex',
+                                      flexWrap: 'wrap',
+                                      gap: 8,
+                                      maxWidth: '100%',
+                                    }}
+                                  >
+                                    {imageUrls.map((url, i) => (
+                                      <a
+                                        key={i}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          display: 'block',
+                                          borderRadius: 10,
+                                          overflow: 'hidden',
+                                          maxWidth: '100%',
+                                          flex: '1 1 120px',
+                                          minWidth: 0,
+                                        }}
+                                      >
+                                        <img
+                                          src={url}
+                                          alt=""
+                                          style={{
+                                            width: '100%',
+                                            maxHeight: 240,
+                                            objectFit: 'contain',
+                                            display: 'block',
+                                            background: '#f1f5f9',
+                                          }}
+                                        />
+                                      </a>
+                                    ))}
+                                    {videoUrl && (
+                                      <div
+                                        style={{
+                                          flex: '1 1 200px',
+                                          minWidth: 0,
+                                          maxWidth: '100%',
+                                          borderRadius: 10,
+                                          overflow: 'hidden',
+                                          background: '#000',
+                                        }}
+                                      >
+                                        <video
+                                          src={videoUrl}
+                                          controls
+                                          playsInline
+                                          preload="metadata"
+                                          style={{
+                                            width: '100%',
+                                            maxHeight: 240,
+                                            display: 'block',
+                                          }}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                               <div
                                 style={{
                                   display: 'flex',

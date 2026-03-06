@@ -55,12 +55,32 @@ git push origin main
    SQL Editor에서 실행:
    ```sql
    ALTER TABLE logs ADD COLUMN IF NOT EXISTS image_url TEXT;
+   -- 여러 사진 + 영상 지원 (선택)
+   ALTER TABLE logs ADD COLUMN IF NOT EXISTS image_urls TEXT;
+   ALTER TABLE logs ADD COLUMN IF NOT EXISTS video_url TEXT;
    ```
+   (`image_urls`는 JSON 배열 문자열 예: `["url1","url2"]`, `video_url`은 영상 URL 한 개)
 
 2. **Storage 버킷 생성**  
    - Storage → New bucket → 이름: `log-images`  
-   - Public bucket 체크 (또는 RLS로 읽기 허용)  
-   - 버킷 정책에서 `log-images`에 대한 insert/update는 인증된 사용자만 허용하도록 설정
+   - Public bucket 체크 (또는 아래 정책으로 읽기 허용)
+
+3. **Storage 업로드/읽기 허용 (RLS 정책)**  
+   사진 업로드 시 "new row violates row-level security policy" 가 나오면, Supabase **SQL Editor**에서 아래를 **한 번에 실행**하세요.
+   ```sql
+   -- 로그인한 사용자만 log-images 버킷에 업로드 허용
+   CREATE POLICY "Allow authenticated upload to log-images"
+   ON storage.objects FOR INSERT
+   TO authenticated
+   WITH CHECK (bucket_id = 'log-images');
+
+   -- 누구나 log-images 버킷에서 조회(이미지 보기) 허용
+   CREATE POLICY "Allow public read log-images"
+   ON storage.objects FOR SELECT
+   TO public
+   USING (bucket_id = 'log-images');
+   ```
+   이미 같은 이름 정책이 있다는 에러가 나오면, Supabase **Storage → log-images → Policies** 에서 수동으로 위와 같은 규칙을 추가하면 됩니다.
 
 ## 7. 자주 쓰는 명령어 요약
 
