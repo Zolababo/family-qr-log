@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import jsQR from 'jsqr';
+import { getT, langLabels, type Lang } from './translations';
 
 type Log = {
   id: string;
@@ -80,6 +81,33 @@ const formatDateTime = (iso: string) => {
 };
 
 const QUICK_PHRASES_KEY = 'family_qr_log_quick_phrases';
+const ACCESSIBILITY_KEY = 'family_qr_log_accessibility';
+const FONT_SCALES = [1, 1.25, 1.5, 2] as const;
+type FontScale = (typeof FONT_SCALES)[number];
+
+function loadAccessibility(): {
+  highContrast: boolean;
+  fontScale: FontScale;
+  simpleMode: boolean;
+  language: Lang;
+} {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(ACCESSIBILITY_KEY) : null;
+    if (!raw) return { highContrast: false, fontScale: 1, simpleMode: false, language: 'ko' };
+    const p = JSON.parse(raw);
+    const lang = p.language && ['ko', 'en', 'ja', 'zh', 'vi'].includes(p.language) ? p.language : 'ko';
+    const scale = typeof p.fontScale === 'number' && FONT_SCALES.includes(p.fontScale as FontScale)
+      ? (p.fontScale as FontScale) : 1;
+    return {
+      highContrast: !!p.highContrast,
+      fontScale: scale,
+      simpleMode: !!p.simpleMode,
+      language: lang,
+    };
+  } catch {
+    return { highContrast: false, fontScale: 1, simpleMode: false, language: 'ko' };
+  }
+}
 
 const MAX_IMAGE_SIDE = 1200;
 const JPEG_QUALITY = 0.82;
@@ -164,6 +192,11 @@ export default function HomeClient() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showNameEditInMenu, setShowNameEditInMenu] = useState(false);
+  const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
+  const [highContrast, setHighContrast] = useState(false);
+  const [fontScale, setFontScale] = useState<FontScale>(1);
+  const [simpleMode, setSimpleMode] = useState(false);
+  const [language, setLanguage] = useState<Lang>('ko');
   const menuRef = useRef<HTMLDivElement>(null);
 
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
@@ -242,6 +275,30 @@ export default function HomeClient() {
       setQuickPhrases([]);
     }
   }, []);
+
+  const accessibilityLoadedRef = useRef(false);
+  useEffect(() => {
+    const a = loadAccessibility();
+    setHighContrast(a.highContrast);
+    setFontScale(a.fontScale);
+    setSimpleMode(a.simpleMode);
+    setLanguage(a.language);
+    accessibilityLoadedRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!accessibilityLoadedRef.current) return;
+    try {
+      localStorage.setItem(ACCESSIBILITY_KEY, JSON.stringify({
+        highContrast,
+        fontScale,
+        simpleMode,
+        language,
+      }));
+    } catch {}
+  }, [highContrast, fontScale, simpleMode, language]);
+
+  const t = useMemo(() => getT(language), [language]);
 
   const saveQuickPhrases = useCallback((next: string[]) => {
     setQuickPhrases(next);
@@ -490,7 +547,7 @@ export default function HomeClient() {
 
   const handleDeleteLog = async (logId: string) => {
     if (!user || !householdId) return;
-    if (!window.confirm('이 로그를 삭제할까요?')) return;
+    if (!window.confirm(t('deleteConfirm'))) return;
     const { error } = await supabase.from('logs').delete().eq('id', logId).eq('actor_user_id', user.id);
     if (error) {
       setStatus(`삭제 실패: ${error.message}`);
@@ -539,8 +596,10 @@ export default function HomeClient() {
   };
 
   const meDisplayName =
-    profileName || (user?.email ? user.email.split('@')[0] : '나');
-  const currentPlaceLabel = getPlaceLabel(placeSlug);
+    profileName || (user?.email ? user.email.split('@')[0] : t('me'));
+  const getPlaceLabelKey = (slug: string) =>
+    slug === 'fridge' ? 'fridge' : slug === 'table' ? 'table' : slug === 'toilet' ? 'toilet' : 'allPlaces';
+  const currentPlaceLabel = t(getPlaceLabelKey(placeSlug));
 
   const logsByDate = logs.reduce<{ dateKey: string; dateLabel: string; items: Log[] }[]>((acc, log) => {
     const d = new Date(log.created_at);
@@ -564,40 +623,83 @@ export default function HomeClient() {
         justifyContent: 'center',
         alignItems: 'flex-start',
         padding: '24px 16px',
-        background: 'linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)',
-        color: '#0f172a',
+        background: highContrast ? '#000' : 'linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)',
+        color: highContrast ? '#ffff00' : '#0f172a',
         fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+        fontSize: fontScale === 1 ? undefined : `${fontScale * 100}%`,
       }}
+      data-accessibility-root
+      data-high-contrast={highContrast ? 'true' : 'false'}
+      data-font-scale={String(fontScale)}
+      data-simple-mode={simpleMode ? 'true' : 'false'}
+      id="main-content"
+      role="main"
     >
+      <style>{`
+        [data-accessibility-root][data-high-contrast="true"] { background: #000 !important; color: #ffff00 !important; }
+        [data-accessibility-root][data-high-contrast="true"] a { color: #ffff00 !important; text-decoration: underline; }
+        [data-accessibility-root][data-high-contrast="true"] button,
+        [data-accessibility-root][data-high-contrast="true"] input,
+        [data-accessibility-root][data-high-contrast="true"] textarea,
+        [data-accessibility-root][data-high-contrast="true"] [role="button"] { background: #333 !important; color: #ffff00 !important; border: 2px solid #ffff00 !important; }
+        [data-accessibility-root][data-high-contrast="true"] label { color: #ffff00 !important; }
+        [data-accessibility-root][data-high-contrast="true"] h1, [data-accessibility-root][data-high-contrast="true"] h2, [data-accessibility-root][data-high-contrast="true"] strong { color: #ffff00 !important; }
+        [data-accessibility-root][data-high-contrast="true"] .acc-inner { background: #000 !important; color: #ffff00 !important; border: 2px solid #ffff00 !important; box-shadow: none !important; }
+        [data-accessibility-root] *:focus { outline: 3px solid #ffff00 !important; outline-offset: 2px; }
+      `}</style>
+      <a
+        href="#main-content"
+        style={{
+          position: 'absolute',
+          left: -9999,
+          top: 8,
+          zIndex: 9999,
+          padding: '8px 16px',
+          background: '#2563eb',
+          color: '#fff',
+          fontSize: 14,
+          borderRadius: 8,
+          textDecoration: 'none',
+        }}
+        className="skip-link"
+        onFocus={(e) => { e.currentTarget.style.left = '8px'; }}
+        onBlur={(e) => { e.currentTarget.style.left = '-9999px'; }}
+      >
+        {t('skipToContent')}
+      </a>
       <div
+        className={highContrast ? 'acc-inner' : ''}
         style={{
           width: '100%',
           maxWidth: 420,
-          background: '#fff',
+          background: highContrast ? '#000' : '#fff',
           borderRadius: 24,
           padding: 20,
-          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)',
+          boxShadow: highContrast ? 'none' : '0 25px 50px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)',
+          color: highContrast ? '#ffff00' : undefined,
+          border: highContrast ? '2px solid #ffff00' : undefined,
         }}
       >
         <header style={{ marginBottom: 16, position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <h1
+              id="app-title"
               style={{
                 margin: 0,
                 fontSize: 22,
                 fontWeight: 700,
                 letterSpacing: '-0.02em',
-                color: '#0f172a',
+                color: highContrast ? '#ffff00' : '#0f172a',
               }}
             >
-              Family QR log
+              {t('appTitle')}
             </h1>
             {user && (
               <div ref={menuRef} style={{ position: 'relative' }}>
                 <button
                   type="button"
                   onClick={() => setMenuOpen((o) => !o)}
-                  aria-label="메뉴"
+                  aria-label={t('menu')}
                   style={{
                     width: 40,
                     height: 40,
@@ -643,7 +745,7 @@ export default function HomeClient() {
                             fontSize: 14,
                           }}
                         >
-                          QR코드
+                          {t('qrCode')}
                         </Link>
                         <Link
                           href="/invite"
@@ -651,12 +753,12 @@ export default function HomeClient() {
                           style={{
                             display: 'block',
                             padding: '12px 16px',
-                            color: '#0f172a',
+                            color: highContrast ? '#ffff00' : '#0f172a',
                             textDecoration: 'none',
                             fontSize: 14,
                           }}
                         >
-                          가족초대
+                          {t('inviteFamily')}
                         </Link>
                         <button
                           type="button"
@@ -672,16 +774,34 @@ export default function HomeClient() {
                             cursor: 'pointer',
                           }}
                         >
-                          이름 수정
+                          {t('editName')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setMenuOpen(false); setShowAccessibilityModal(true); }}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '12px 16px',
+                            border: 'none',
+                            background: 'none',
+                            color: '#0f172a',
+                            fontSize: 14,
+                            cursor: 'pointer',
+                          }}
+                          aria-label={t('accessibility')}
+                        >
+                          ♿ {t('accessibility')}
                         </button>
                       </>
                     ) : (
                       <div style={{ padding: '0 16px 12px' }}>
-                        <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>가족에게 보일 이름</div>
+                        <div style={{ fontSize: 12, color: highContrast ? '#ffff00' : '#94a3b8', marginBottom: 8 }}>{t('nameForFamily')}</div>
                         <input
                           value={profileName}
                           onChange={(e) => setProfileName(e.target.value)}
-                          placeholder="예: 아빠, 엄마"
+                          placeholder={t('namePlaceholder')}
+                          aria-label={t('nameForFamily')}
                           style={{
                             width: '100%',
                             boxSizing: 'border-box',
@@ -711,7 +831,7 @@ export default function HomeClient() {
                             cursor: profileSaving ? 'not-allowed' : 'pointer',
                           }}
                         >
-                          {profileSaving ? '저장 중' : '저장'}
+                          {profileSaving ? t('saving') : t('save')}
                         </button>
                       </div>
                     )}
@@ -752,7 +872,7 @@ export default function HomeClient() {
                     color: '#fff',
                   }}
                 >
-                  나
+                  {t('me')}
                 </span>
                 <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {meDisplayName}
@@ -830,18 +950,18 @@ export default function HomeClient() {
         )}
 
         {!user && (
-          <div style={{ fontSize: 13, color: '#475569' }}>
+          <div style={{ fontSize: 13, color: highContrast ? '#ffff00' : '#475569' }}>
             <Link
               href="/login"
-              style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}
+              style={{ color: highContrast ? '#ffff00' : '#2563eb', textDecoration: 'none', fontWeight: 600 }}
             >
-              로그인
+              {t('login')}
             </Link>
-            하거나, 가족 초대 링크로{' '}
-            <Link href="/join" style={{ color: '#2563eb', textDecoration: 'none' }}>
-              참여
+            {t('loginOrJoin')}{' '}
+            <Link href="/join" style={{ color: highContrast ? '#ffff00' : '#2563eb', textDecoration: 'none' }}>
+              {t('join')}
             </Link>
-            하세요.
+            {t('please')}
           </div>
         )}
 
@@ -858,29 +978,30 @@ export default function HomeClient() {
                   boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
-                <div style={{ fontSize: 11, letterSpacing: '0.05em', color: '#64748b', marginBottom: 8 }}>
-                  이 QR 장소에 기록하기
+                <div style={{ fontSize: 11, letterSpacing: '0.05em', color: highContrast ? '#ffff00' : '#64748b', marginBottom: 8 }}>
+                  {t('recordHere')}
                 </div>
-                <p style={{ fontSize: 12, color: '#475569', marginBottom: 10 }}>
-                  현재 장소: <strong style={{ color: '#0f172a' }}>{currentPlaceLabel}</strong> (QR로 접속됨)
+                <p style={{ fontSize: 12, color: highContrast ? '#ffff00' : '#475569', marginBottom: 10 }}>
+                  {t('currentPlace')}: <strong style={{ color: highContrast ? '#ffff00' : '#0f172a' }}>{currentPlaceLabel}</strong> ({t('qrAccessed')})
                 </p>
 
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, letterSpacing: '0.03em', color: '#64748b' }}>자주 쓰는 문구</span>
+                    <span style={{ fontSize: 11, letterSpacing: '0.03em', color: highContrast ? '#ffff00' : '#64748b' }}>{t('quickPhrases')}</span>
                     <button
                       type="button"
                       onClick={() => setShowPhraseManager(true)}
+                      aria-label={quickPhrases.length > 0 ? t('manage') : t('add')}
                       style={{
                         fontSize: 12,
-                        color: '#3b82f6',
+                        color: highContrast ? '#ffff00' : '#3b82f6',
                         background: 'none',
                         border: 'none',
                         cursor: 'pointer',
                         padding: '2px 6px',
                       }}
                     >
-                      {quickPhrases.length > 0 ? '관리' : '추가'}
+                      {quickPhrases.length > 0 ? t('manage') : t('add')}
                     </button>
                   </div>
                   {quickPhrases.length > 0 && (
@@ -911,7 +1032,8 @@ export default function HomeClient() {
                 <textarea
                   value={action}
                   onChange={(e) => setAction(e.target.value)}
-                  placeholder="예: 문 닫음, 약 복용함 등"
+                  placeholder={t('logPlaceholder')}
+                  aria-label={t('logPlaceholder')}
                   rows={2}
                   style={{
                     width: '100%',
@@ -949,6 +1071,7 @@ export default function HomeClient() {
                   <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
                     <label
                       htmlFor={imageCompressing ? undefined : 'log-camera-input'}
+                      aria-label={t('takePhoto')}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -968,6 +1091,7 @@ export default function HomeClient() {
                     </label>
                     <label
                       htmlFor={imageCompressing ? undefined : 'log-gallery-input'}
+                      aria-label={t('fromAlbum')}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -983,7 +1107,7 @@ export default function HomeClient() {
                       }}
                     >
                       <span style={{ fontSize: 18 }}>🖼️</span>
-                      앨범에서 선택
+                      {t('fromAlbum')}
                     </label>
                   </div>
                   {(logImagePreviews.length > 0 || logVideoPreview) && (
@@ -1098,7 +1222,7 @@ export default function HomeClient() {
                     boxShadow: '0 4px 14px rgba(34,197,94,0.35)',
                   }}
                 >
-                  {loading ? '저장 중...' : `"${currentPlaceLabel}"에 로그 남기기`}
+                  {loading ? t('savingLog') : `"${currentPlaceLabel}" ${t('addLog')}`}
                 </button>
               </section>
             ) : (
@@ -1115,16 +1239,17 @@ export default function HomeClient() {
                 }}
               >
                 <div style={{ maxWidth: 280, margin: '0 auto 20px', lineHeight: 1.6 }}>
-                  <p style={{ margin: 0, fontSize: 14, color: '#0f172a' }}>
-                    로그를 남기려면 해당 장소의
+                  <p style={{ margin: 0, fontSize: 14, color: highContrast ? '#ffff00' : '#0f172a' }}>
+                    {t('scanQrFirst')}
                   </p>
-                  <p style={{ margin: '4px 0 0', fontSize: 14, color: '#0f172a' }}>
-                    <strong>QR코드를 스캔</strong>해 접속해 주세요.
+                  <p style={{ margin: '4px 0 0', fontSize: 14, color: highContrast ? '#ffff00' : '#0f172a' }}>
+                    <strong>{t('scanQrSecond')}</strong>
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowScanner(true)}
+                  aria-label={t('qrScan')}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -1141,22 +1266,22 @@ export default function HomeClient() {
                   }}
                 >
                   <span style={{ fontSize: 22 }}>📷</span>
-                  QR 스캔
+                  {t('qrScan')}
                 </button>
                 <div style={{ maxWidth: 280, margin: '16px auto 0', lineHeight: 1.6 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
-                    카메라가 켜지면
+                  <p style={{ margin: 0, fontSize: 12, color: highContrast ? '#ffff00' : '#64748b' }}>
+                    {t('scanHint1')}
                   </p>
-                  <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>
-                    QR코드를 사각형 안에 맞춰 주세요.
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: highContrast ? '#ffff00' : '#64748b' }}>
+                    {t('scanHint2')}
                   </p>
                 </div>
               </section>
             )}
 
-            <section>
-              <div style={{ fontSize: 11, letterSpacing: '0.05em', color: '#94a3b8', marginBottom: 10 }}>
-                최근 로그 (30)
+            <section aria-label={t('recentLogs')}>
+              <div style={{ fontSize: 11, letterSpacing: '0.05em', color: highContrast ? '#ffff00' : '#94a3b8', marginBottom: 10 }}>
+                {t('recentLogs')}
               </div>
               <div
                 style={{
@@ -1167,11 +1292,11 @@ export default function HomeClient() {
                 }}
               >
                 {[
-                  { key: 'fridge' as const, label: '냉장고', bg: 'rgba(56,189,248,0.2)', border: 'rgba(56,189,248,0.6)', color: '#0369a1' },
-                  { key: 'table' as const, label: '식탁', bg: 'rgba(34,197,94,0.2)', border: 'rgba(34,197,94,0.6)', color: '#166534' },
-                  { key: 'toilet' as const, label: '화장실', bg: 'rgba(251,191,36,0.25)', border: 'rgba(251,191,36,0.6)', color: '#a16207' },
-                  { key: 'all' as const, label: '모든 장소', bg: '#f1f5f9', border: '#cbd5e1', color: '#475569' },
-                ].map(({ key, label, bg, border, color }) => {
+                  { key: 'fridge' as const, labelKey: 'fridge' as const, bg: 'rgba(56,189,248,0.2)', border: 'rgba(56,189,248,0.6)', color: '#0369a1' },
+                  { key: 'table' as const, labelKey: 'table' as const, bg: 'rgba(34,197,94,0.2)', border: 'rgba(34,197,94,0.6)', color: '#166534' },
+                  { key: 'toilet' as const, labelKey: 'toilet' as const, bg: 'rgba(251,191,36,0.25)', border: 'rgba(251,191,36,0.6)', color: '#a16207' },
+                  { key: 'all' as const, labelKey: 'allPlaces' as const, bg: '#f1f5f9', border: '#cbd5e1', color: '#475569' },
+                ].map(({ key, labelKey, bg, border, color }) => {
                   const active = placeViewFilter === key;
                   return (
                     <button
@@ -1189,7 +1314,7 @@ export default function HomeClient() {
                         cursor: 'pointer',
                       }}
                     >
-                      {label}
+                      {t(labelKey)}
                     </button>
                   );
                 })}
@@ -1214,7 +1339,7 @@ export default function HomeClient() {
                       textAlign: 'center',
                     }}
                   >
-                    아직 로그가 없습니다.
+                    {t('noLogsYet')}
                   </div>
                 )}
 
@@ -1301,7 +1426,7 @@ export default function HomeClient() {
                                     cursor: 'pointer',
                                   }}
                                 >
-                                  저장
+                                  {t('save')}
                                 </button>
                                 <button
                                   type="button"
@@ -1316,7 +1441,7 @@ export default function HomeClient() {
                                     cursor: 'pointer',
                                   }}
                                 >
-                                  취소
+                                  {t('cancel')}
                                 </button>
                               </div>
                             </>
@@ -1410,7 +1535,7 @@ export default function HomeClient() {
                                     ...getPlaceChipStyle(log.place_slug),
                                   }}
                                 >
-                                  {getPlaceLabel(log.place_slug)}
+                                  {t(getPlaceLabelKey(log.place_slug))}
                                 </span>
                                 <span style={{ fontSize: 11, color: '#64748b' }}>
                                   {formatDateTime(log.created_at)}
@@ -1430,8 +1555,8 @@ export default function HomeClient() {
                                 </span>
                               </div>
                               {isMine && (
-                                <div style={{ marginTop: 6, fontSize: 11, color: '#94a3b8' }}>
-                                  길게 누르면 수정·삭제
+                                <div style={{ marginTop: 6, fontSize: 11, color: highContrast ? '#ffff00' : '#94a3b8' }}>
+                                  {t('longPressEdit')}
                                 </div>
                               )}
                             </>
@@ -1461,7 +1586,7 @@ export default function HomeClient() {
             padding: 20,
           }}
         >
-          <div style={{ fontSize: 16, color: '#fff', marginBottom: 12 }}>QR 코드를 사각형 안에 맞춰 주세요</div>
+          <div style={{ fontSize: 16, color: '#fff', marginBottom: 12 }}>{t('qrScanTitle')}</div>
           <div
             style={{
               width: 280,
@@ -1495,7 +1620,7 @@ export default function HomeClient() {
               cursor: 'pointer',
             }}
           >
-            닫기
+            {t('close')}
           </button>
         </div>
       )}
@@ -1542,12 +1667,12 @@ export default function HomeClient() {
                       border: 'none',
                       background: 'none',
                       fontSize: 15,
-                      color: '#0f172a',
+                      color: highContrast ? '#ffff00' : '#0f172a',
                       cursor: 'pointer',
                       textAlign: 'left',
                     }}
                   >
-                    수정
+                    {t('edit')}
                   </button>
                   <button
                     type="button"
@@ -1567,7 +1692,7 @@ export default function HomeClient() {
                       textAlign: 'left',
                     }}
                   >
-                    삭제
+                    {t('delete')}
                   </button>
                 </>
               );
@@ -1598,10 +1723,10 @@ export default function HomeClient() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700, color: '#0f172a' }}>
-              자주 쓰는 문구
+              {t('phraseManageTitle')}
             </h3>
             <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748b' }}>
-              저장한 문구는 로그 입력 시 탭해서 바로 넣을 수 있어요.
+              {t('phraseManageHint')}
             </p>
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', maxHeight: 200, overflowY: 'auto' }}>
               {quickPhrases.map((phrase, i) => (
@@ -1622,7 +1747,7 @@ export default function HomeClient() {
                   <button
                     type="button"
                     onClick={() => saveQuickPhrases(quickPhrases.filter((_, j) => j !== i))}
-                    aria-label="삭제"
+                    aria-label={t('delete')}
                     style={{
                       width: 32,
                       height: 32,
@@ -1645,7 +1770,7 @@ export default function HomeClient() {
                 type="text"
                 value={newPhraseInput}
                 onChange={(e) => setNewPhraseInput(e.target.value)}
-                placeholder="예: 약 먹음, 문 잠금"
+                placeholder={t('phrasePlaceholder')}
                 style={{
                   flex: 1,
                   padding: '12px 14px',
@@ -1680,7 +1805,7 @@ export default function HomeClient() {
                   cursor: 'pointer',
                 }}
               >
-                추가
+                {t('add')}
               </button>
             </div>
             <button
@@ -1699,7 +1824,145 @@ export default function HomeClient() {
                 cursor: 'pointer',
               }}
             >
-              닫기
+              {t('close')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showAccessibilityModal && (
+        <div
+          role="dialog"
+          aria-labelledby="accessibility-title"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 70,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+          onClick={() => setShowAccessibilityModal(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 380,
+              maxHeight: '90vh',
+              overflow: 'auto',
+              padding: 24,
+              borderRadius: 20,
+              background: '#fff',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+              border: '1px solid #e2e8f0',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="accessibility-title" style={{ margin: '0 0 20px', fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
+              ♿ {t('accessibility')}
+            </h2>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', marginBottom: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={highContrast}
+                  onChange={(e) => setHighContrast(e.target.checked)}
+                  aria-describedby="high-contrast-desc"
+                />
+                <span style={{ fontSize: 15, color: '#0f172a' }}>{t('highContrast')}</span>
+              </label>
+              <p id="high-contrast-desc" style={{ margin: '0 0 0 28px', fontSize: 12, color: '#64748b' }}>
+                {t('highContrastDesc')}
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{t('bigFont')}</p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {FONT_SCALES.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setFontScale(s)}
+                    aria-pressed={fontScale === s}
+                    style={{
+                      padding: '10px 16px',
+                      borderRadius: 10,
+                      border: fontScale === s ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                      background: fontScale === s ? '#eff6ff' : '#f8fafc',
+                      color: '#0f172a',
+                      fontSize: 14,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t(s === 1 ? 'font100' : s === 1.25 ? 'font125' : s === 1.5 ? 'font150' : 'font200')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', marginBottom: 4 }}>
+                <input
+                  type="checkbox"
+                  checked={simpleMode}
+                  onChange={(e) => setSimpleMode(e.target.checked)}
+                  aria-describedby="simple-mode-desc"
+                />
+                <span style={{ fontSize: 15, color: '#0f172a' }}>{t('simpleMode')}</span>
+              </label>
+              <p id="simple-mode-desc" style={{ margin: '0 0 0 28px', fontSize: 12, color: '#64748b' }}>
+                {t('simpleModeHint')}
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
+                {t('language')}
+              </label>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as Lang)}
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  borderRadius: 10,
+                  border: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  color: '#0f172a',
+                  fontSize: 14,
+                }}
+                aria-label={t('language')}
+              >
+                {(Object.keys(langLabels) as Lang[]).map((lang) => (
+                  <option key={lang} value={lang}>
+                    {langLabels[lang]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAccessibilityModal(false)}
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: 14,
+                borderRadius: 12,
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                color: '#0f172a',
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              {t('close')}
             </button>
           </div>
         </div>
