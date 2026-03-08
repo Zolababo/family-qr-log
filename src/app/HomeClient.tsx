@@ -82,6 +82,7 @@ const formatDateTime = (iso: string) => {
 
 const QUICK_PHRASES_KEY = 'family_qr_log_quick_phrases';
 const ACCESSIBILITY_KEY = 'family_qr_log_accessibility';
+const MEMO_KEY = 'family_qr_log_memo';
 const FONT_SCALES = [1, 1.25, 1.5, 2] as const;
 type FontScale = (typeof FONT_SCALES)[number];
 
@@ -203,12 +204,19 @@ export default function HomeClient() {
   const [editingAction, setEditingAction] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [actionPopupLogId, setActionPopupLogId] = useState<string | null>(null);
+  type TabId = 'home' | 'calendar' | 'qr' | 'search';
+  const [activeTab, setActiveTab] = useState<TabId>('home');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [memoContent, setMemoContent] = useState('');
+  const [showMemoPanel, setShowMemoPanel] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scanLoopRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logPreviewUrlsRef = useRef<string[]>([]);
+  const logVideoPreviewUrlRef = useRef<string | null>(null);
+  const swipeStartRef = useRef<number | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -275,6 +283,18 @@ export default function HomeClient() {
       setQuickPhrases([]);
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MEMO_KEY);
+      if (raw != null) setMemoContent(raw);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem(MEMO_KEY, memoContent);
+    } catch {}
+  }, [memoContent]);
 
   const accessibilityLoadedRef = useRef(false);
   useEffect(() => {
@@ -372,7 +392,7 @@ export default function HomeClient() {
         .select('*')
         .eq('household_id', hid)
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(500);
 
       if (slug) {
         query = query.eq('place_slug', slug);
@@ -416,15 +436,20 @@ export default function HomeClient() {
         if (videoFile.size > VIDEO_MAX_MB * 1024 * 1024) {
           setStatus(`영상은 ${VIDEO_MAX_MB}MB 이하로 선택해 주세요.`);
         } else {
-          if (logVideoPreview) URL.revokeObjectURL(logVideoPreview);
+          if (logVideoPreviewUrlRef.current) {
+            URL.revokeObjectURL(logVideoPreviewUrlRef.current);
+            logVideoPreviewUrlRef.current = null;
+          }
+          const url = URL.createObjectURL(videoFile);
+          logVideoPreviewUrlRef.current = url;
           setLogVideoFile(videoFile);
-          setLogVideoPreview(URL.createObjectURL(videoFile));
+          setLogVideoPreview(url);
         }
       }
 
       if (imageFiles.length === 0) {
         e.target.value = '';
-        if (imageFiles.length === 0 && videoFile) setStatus('사진/영상이 준비되었습니다.');
+        if (videoFile) setStatus('영상이 준비되었습니다. 로그 남기기를 누르면 올라갑니다.');
         return;
       }
 
@@ -447,7 +472,7 @@ export default function HomeClient() {
         });
       e.target.value = '';
     },
-    [imageCompressing, logVideoPreview]
+    [imageCompressing]
   );
 
   const handleInsert = async () => {
@@ -513,7 +538,10 @@ export default function HomeClient() {
     setAction('');
     logPreviewUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     logPreviewUrlsRef.current = [];
-    if (logVideoPreview) URL.revokeObjectURL(logVideoPreview);
+    if (logVideoPreviewUrlRef.current) {
+      URL.revokeObjectURL(logVideoPreviewUrlRef.current);
+      logVideoPreviewUrlRef.current = null;
+    }
     setLogImageFiles([]);
     setLogImagePreviews([]);
     setLogVideoFile(null);
@@ -601,7 +629,11 @@ export default function HomeClient() {
     slug === 'fridge' ? 'fridge' : slug === 'table' ? 'table' : slug === 'toilet' ? 'toilet' : 'allPlaces';
   const currentPlaceLabel = t(getPlaceLabelKey(placeSlug));
 
-  const logsByDate = logs.reduce<{ dateKey: string; dateLabel: string; items: Log[] }[]>((acc, log) => {
+  const logsForList =
+    activeTab === 'search' && searchQuery.trim()
+      ? logs.filter((l) => l.action.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+      : logs;
+  const logsByDate = logsForList.reduce<{ dateKey: string; dateLabel: string; items: Log[] }[]>((acc, log) => {
     const d = new Date(log.created_at);
     const dateKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
     const weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
@@ -616,6 +648,7 @@ export default function HomeClient() {
   }, []);
 
   const langShort: Record<Lang, string> = { ko: '한국어', en: 'EN', ja: '日本語', zh: '中文', vi: 'VI' };
+  const langFlags: Record<Lang, string> = { ko: '🇰🇷', en: '🇺🇸', ja: '🇯🇵', zh: '🇨🇳', vi: '🇻🇳' };
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -632,9 +665,9 @@ export default function HomeClient() {
       style={{
         minHeight: '100vh',
         display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        padding: '24px 16px',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        padding: '12px 12px 80px',
         background: highContrast ? '#0f0f0f' : 'linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)',
         color: highContrast ? '#ffffff' : '#0f172a',
         fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
@@ -684,11 +717,12 @@ export default function HomeClient() {
         className={highContrast ? 'acc-inner' : ''}
         style={{
           width: '100%',
-          maxWidth: 420,
+          maxWidth: '100%',
+          flex: 1,
           background: highContrast ? '#0f0f0f' : '#fff',
-          borderRadius: 24,
-          padding: 20,
-          boxShadow: highContrast ? 'none' : '0 25px 50px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)',
+          borderRadius: 20,
+          padding: 16,
+          boxShadow: highContrast ? 'none' : '0 1px 3px rgba(0,0,0,0.08)',
           color: highContrast ? '#ffffff' : undefined,
           border: highContrast ? '2px solid #ffc107' : undefined,
         }}
@@ -731,7 +765,7 @@ export default function HomeClient() {
                   gap: 4,
                 }}
               >
-                <span aria-hidden>🌐</span>
+                <span aria-hidden>{langFlags[language]}</span>
                 <span>{langShort[language]}</span>
               </button>
               {langMenuOpen && (
@@ -877,6 +911,25 @@ export default function HomeClient() {
                         >
                           ♿ {t('accessibility')}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => { setMenuOpen(false); setShowMemoPanel(true); }}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '12px 16px',
+                            border: 'none',
+                            background: 'none',
+                            color: highContrast ? '#ffffff' : '#0f172a',
+                            fontSize: 14,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          📝 메모
+                        </button>
+                        <div style={{ padding: '8px 16px', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', borderTop: '1px solid #e2e8f0', marginTop: 4 }}>
+                          장소 추가/삭제 (master 전용) — 다음 업데이트 예정
+                        </div>
                       </>
                     ) : (
                       <div style={{ padding: '0 16px 12px' }}>
@@ -1255,7 +1308,10 @@ export default function HomeClient() {
                           <button
                             type="button"
                             onClick={() => {
-                              URL.revokeObjectURL(logVideoPreview);
+                              if (logVideoPreviewUrlRef.current) {
+                                URL.revokeObjectURL(logVideoPreviewUrlRef.current);
+                                logVideoPreviewUrlRef.current = null;
+                              }
                               setLogVideoFile(null);
                               setLogVideoPreview(null);
                             }}
@@ -1309,27 +1365,25 @@ export default function HomeClient() {
                   {loading ? t('savingLog') : `"${currentPlaceLabel}" ${t('addLog')}`}
                 </button>
               </section>
-            ) : (
+            ) : activeTab === 'home' ? (
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: highContrast ? '#e0e0e0' : '#64748b', textAlign: 'center' }}>
+                👇 아래 QR 탭에서 스캔 후 로그를 남기세요
+              </p>
+            ) : null}
+            {activeTab === 'qr' && !hasPlaceFromUrl && (
               <section
                 style={{
                   marginBottom: 20,
-                  padding: '24px 20px',
+                  padding: '20px 16px',
                   borderRadius: 16,
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  color: '#475569',
+                  background: highContrast ? '#1e1e1e' : '#f8fafc',
+                  border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+                  color: highContrast ? '#ffffff' : '#475569',
                   fontSize: 14,
                   textAlign: 'center',
                 }}
               >
-                <div style={{ maxWidth: 280, margin: '0 auto 20px', lineHeight: 1.6 }}>
-                  <p style={{ margin: 0, fontSize: 14, color: highContrast ? '#ffffff' : '#0f172a' }}>
-                    {t('scanQrFirst')}
-                  </p>
-                  <p style={{ margin: '4px 0 0', fontSize: 14, color: highContrast ? '#ffffff' : '#0f172a' }}>
-                    <strong>{t('scanQrSecond')}</strong>
-                  </p>
-                </div>
+                <p style={{ margin: '0 0 16px', fontSize: 14 }}>{t('scanQrFirst')} {t('scanQrSecond')}</p>
                 <button
                   type="button"
                   onClick={() => setShowScanner(true)}
@@ -1337,35 +1391,81 @@ export default function HomeClient() {
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 10,
-                    padding: '14px 24px',
+                    gap: 8,
+                    padding: '14px 20px',
                     borderRadius: 14,
                     border: 'none',
-                    background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
-                    color: '#fff',
+                    background: highContrast ? '#ffc107' : 'linear-gradient(135deg, #3b82f6, #06b6d4)',
+                    color: highContrast ? '#0f0f0f' : '#fff',
                     fontSize: 15,
                     fontWeight: 600,
                     cursor: 'pointer',
-                    boxShadow: '0 4px 14px rgba(59,130,246,0.4)',
                   }}
                 >
-                  <span style={{ fontSize: 22 }}>📷</span>
+                  <span style={{ fontSize: 20 }}>📷</span>
                   {t('qrScan')}
                 </button>
-                <div style={{ maxWidth: 280, margin: '16px auto 0', lineHeight: 1.6 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: highContrast ? '#ffffff' : '#64748b' }}>
-                    {t('scanHint1')}
-                  </p>
-                  <p style={{ margin: '4px 0 0', fontSize: 12, color: highContrast ? '#ffffff' : '#64748b' }}>
-                    {t('scanHint2')}
-                  </p>
-                </div>
+                <p style={{ margin: '12px 0 0', fontSize: 12, color: highContrast ? '#e0e0e0' : '#64748b' }}>{t('scanHint1')} {t('scanHint2')}</p>
               </section>
             )}
 
+            {activeTab === 'calendar' && (
+              <section aria-label="캘린더" style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, color: highContrast ? '#fff' : '#0f172a' }}>
+                  📅 {new Date().getFullYear()}년 {new Date().getMonth() + 1}월
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {logsByDate.slice(0, 31).map((group) => (
+                    <div
+                      key={group.dateKey}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 12,
+                        background: highContrast ? '#1e1e1e' : '#f8fafc',
+                        border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                        minWidth: 120,
+                      }}
+                    >
+                      <div style={{ fontSize: 12, fontWeight: 600, color: highContrast ? '#ffc107' : '#64748b', marginBottom: 4 }}>
+                        {group.dateLabel}
+                      </div>
+                      <div style={{ fontSize: 13, color: highContrast ? '#fff' : '#0f172a' }}>
+                        {group.items.length}건
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ marginTop: 12, fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>
+                  날짜별 로그 수. 구글/네이버 캘린더 연동은 추후 지원 예정입니다.
+                </p>
+              </section>
+            )}
+
+            {(activeTab === 'home' || activeTab === 'search') && (
             <section aria-label={t('recentLogs')}>
+              {activeTab === 'search' && (
+                <input
+                  type="search"
+                  placeholder="로그 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+                    background: highContrast ? '#1e1e1e' : '#f8fafc',
+                    color: highContrast ? '#fff' : '#0f172a',
+                    fontSize: 15,
+                    marginBottom: 12,
+                    outline: 'none',
+                  }}
+                  aria-label="로그 검색"
+                />
+              )}
               <div style={{ fontSize: 11, letterSpacing: '0.05em', color: highContrast ? '#ffffff' : '#94a3b8', marginBottom: 10 }}>
-                {t('recentLogs')}
+                {activeTab === 'search' ? (searchQuery ? `검색: ${searchQuery}` : t('recentLogs')) : t('recentLogs')}
               </div>
               <div
                 style={{
@@ -1406,12 +1506,12 @@ export default function HomeClient() {
 
               <div
                 style={{
-                  maxHeight: 340,
+                  maxHeight: '50vh',
                   overflowY: 'auto',
                   borderRadius: 16,
                   border: '1px solid #e2e8f0',
-                  background: '#f8fafc',
-                  padding: 10,
+                  background: highContrast ? '#1e1e1e' : '#f8fafc',
+                  padding: 12,
                 }}
               >
                 {logs.length === 0 && (
@@ -1419,7 +1519,7 @@ export default function HomeClient() {
                     style={{
                       padding: 24,
                       fontSize: 13,
-                      color: '#64748b',
+                      color: highContrast ? '#94a3b8' : '#64748b',
                       textAlign: 'center',
                     }}
                   >
@@ -1428,18 +1528,20 @@ export default function HomeClient() {
                 )}
 
                 {logsByDate.map((group) => (
-                  <div key={group.dateKey} style={{ marginBottom: 14 }}>
+                  <div key={group.dateKey} style={{ marginBottom: 20 }}>
                     <div
                       style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: '#475569',
-                        marginBottom: 8,
-                        paddingBottom: 6,
-                        borderBottom: '1px solid #e2e8f0',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: highContrast ? '#ffc107' : '#0f172a',
+                        marginBottom: 10,
+                        padding: '8px 12px',
+                        borderRadius: 10,
+                        background: highContrast ? 'rgba(255,193,7,0.15)' : '#e2e8f0',
+                        borderLeft: highContrast ? '4px solid #ffc107' : '4px solid #64748b',
                       }}
                     >
-                      {group.dateLabel}
+                      📅 {group.dateLabel} · {group.items.length}건
                     </div>
                     {group.items.map((log) => {
                       const isMine = user && log.actor_user_id === user.id;
@@ -1466,12 +1568,12 @@ export default function HomeClient() {
                             }
                           }}
                           style={{
-                            padding: '12px 14px',
+                            padding: '14px 16px',
                             borderRadius: 12,
-                            border: '1px solid #e2e8f0',
-                            background: '#fff',
-                            marginBottom: 8,
-                            fontSize: 13,
+                            border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                            background: highContrast ? '#1e1e1e' : '#fff',
+                            marginBottom: 10,
+                            fontSize: 14,
                             cursor: isMine ? 'pointer' : 'default',
                           }}
                         >
@@ -1531,7 +1633,23 @@ export default function HomeClient() {
                             </>
                           ) : (
                             <>
-                              <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                                <span
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    padding: '5px 12px',
+                                    borderRadius: 999,
+                                    ...getPlaceChipStyle(log.place_slug),
+                                  }}
+                                >
+                                  {t(getPlaceLabelKey(log.place_slug))}
+                                </span>
+                                <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>
+                                  {formatDateTime(log.created_at)}
+                                </span>
+                              </div>
+                              <div style={{ fontWeight: 600, color: highContrast ? '#fff' : '#0f172a', marginBottom: 6, fontSize: 15 }}>
                                 {log.action}
                               </div>
                               {(() => {
@@ -1602,40 +1720,17 @@ export default function HomeClient() {
                                   </div>
                                 );
                               })()}
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  flexWrap: 'wrap',
-                                  alignItems: 'center',
-                                  gap: 8,
-                                  justifyContent: 'space-between',
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    fontSize: 11,
-                                    padding: '3px 10px',
-                                    borderRadius: 999,
-                                    ...getPlaceChipStyle(log.place_slug),
-                                  }}
-                                >
-                                  {t(getPlaceLabelKey(log.place_slug))}
-                                </span>
-                                <span style={{ fontSize: 11, color: '#64748b' }}>
-                                  {formatDateTime(log.created_at)}
-                                </span>
-                              </div>
                               <div style={{ marginTop: 6 }}>
                                 <span
                                   style={{
-                                    fontSize: 11,
-                                    color: '#64748b',
-                                    padding: '3px 10px',
+                                    fontSize: 12,
+                                    color: highContrast ? '#94a3b8' : '#64748b',
+                                    padding: '4px 10px',
                                     borderRadius: 8,
-                                    background: '#f1f5f9',
+                                    background: highContrast ? 'rgba(255,255,255,0.1)' : '#f1f5f9',
                                   }}
                                 >
-                                  {getMemberName(log.actor_user_id)}
+                                  👤 {getMemberName(log.actor_user_id)}
                                 </span>
                               </div>
                               {isMine && (
@@ -1652,9 +1747,152 @@ export default function HomeClient() {
                 ))}
               </div>
             </section>
+            )}
           </>
         )}
       </div>
+
+      {user && (
+        <nav
+          role="navigation"
+          aria-label="하단 메뉴"
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 64,
+            background: highContrast ? '#1e1e1e' : '#fff',
+            borderTop: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+            display: 'flex',
+            justifyContent: 'space-around',
+            alignItems: 'center',
+            padding: '8px 0',
+            zIndex: 40,
+          }}
+        >
+          {[
+            { id: 'home' as TabId, label: '홈', icon: '🏠' },
+            { id: 'calendar' as TabId, label: '캘린더', icon: '📅' },
+            { id: 'qr' as TabId, label: 'QR', icon: '📷' },
+            { id: 'search' as TabId, label: '검색', icon: '🔍' },
+          ].map(({ id, label, icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActiveTab(id)}
+              aria-current={activeTab === id}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                padding: '8px 16px',
+                border: 'none',
+                background: 'none',
+                color: activeTab === id ? (highContrast ? '#ffc107' : '#2563eb') : (highContrast ? '#94a3b8' : '#64748b'),
+                fontSize: 11,
+                fontWeight: activeTab === id ? 600 : 400,
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ fontSize: 22 }}>{icon}</span>
+              {label}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {showMemoPanel && (
+        <>
+          <div
+            role="presentation"
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 58 }}
+            onClick={() => setShowMemoPanel(false)}
+          />
+          <div
+            role="dialog"
+            aria-label="메모"
+            style={{
+              position: 'fixed',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 'min(320px, 85vw)',
+              background: highContrast ? '#1e1e1e' : '#fff',
+              borderLeft: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+              boxShadow: '-10px 0 30px rgba(0,0,0,0.15)',
+              zIndex: 59,
+              display: 'flex',
+              flexDirection: 'column',
+              padding: 16,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>📝 메모</h3>
+              <button
+                type="button"
+                onClick={() => setShowMemoPanel(false)}
+                aria-label="닫기"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  border: 'none',
+                  background: highContrast ? '#333' : '#f1f5f9',
+                  color: highContrast ? '#fff' : '#64748b',
+                  fontSize: 18,
+                  cursor: 'pointer',
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <textarea
+              value={memoContent}
+              onChange={(e) => setMemoContent(e.target.value)}
+              placeholder="메모를 입력하세요..."
+              style={{
+                flex: 1,
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: 12,
+                borderRadius: 12,
+                border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+                background: highContrast ? '#0f0f0f' : '#f8fafc',
+                color: highContrast ? '#fff' : '#0f172a',
+                fontSize: 14,
+                resize: 'none',
+                outline: 'none',
+              }}
+            />
+            <p style={{ margin: '8px 0 0', fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>우→좌 스와이프로 열 수 있어요. 자동 저장됩니다.</p>
+          </div>
+        </>
+      )}
+
+      <div
+        role="presentation"
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: 28,
+          zIndex: 35,
+          touchAction: 'pan-y',
+        }}
+        onTouchStart={(e) => { const t = e.changedTouches?.[0]; if (t) swipeStartRef.current = t.clientX; }}
+        onTouchEnd={(e) => {
+          const t = e.changedTouches?.[0];
+          if (!t || swipeStartRef.current == null) return;
+          const start = swipeStartRef.current;
+          const end = t.clientX;
+          swipeStartRef.current = null;
+          if (start > window.innerWidth - 80 && start - end > 50) setShowMemoPanel(true);
+        }}
+      />
 
       {showScanner && (
         <div
@@ -2003,33 +2241,6 @@ export default function HomeClient() {
               <p id="simple-mode-desc" style={{ margin: '0 0 0 28px', fontSize: 12, color: '#64748b' }}>
                 {t('simpleModeHint')}
               </p>
-            </div>
-
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
-                {t('language')}
-              </label>
-              <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b' }}>{t('languageHeaderHint')}</p>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as Lang)}
-                style={{
-                  width: '100%',
-                  padding: '12px 14px',
-                  borderRadius: 10,
-                  border: '1px solid #e2e8f0',
-                  background: '#f8fafc',
-                  color: '#0f172a',
-                  fontSize: 14,
-                }}
-                aria-label={t('language')}
-              >
-                {(Object.keys(langLabels) as Lang[]).map((lang) => (
-                  <option key={lang} value={lang}>
-                    {langLabels[lang]}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <button
