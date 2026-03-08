@@ -209,6 +209,12 @@ export default function HomeClient() {
   const [searchQuery, setSearchQuery] = useState('');
   const [memoContent, setMemoContent] = useState('');
   const [showMemoPanel, setShowMemoPanel] = useState(false);
+  const [calendarYearMonth, setCalendarYearMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
+  const [calendarPlaceFilter, setCalendarPlaceFilter] = useState<'fridge' | 'table' | 'toilet' | 'all'>('all');
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -527,8 +533,15 @@ export default function HomeClient() {
     }
     if (videoUrl) payload.video_url = videoUrl;
 
-    const { error } = await supabase.from('logs').insert(payload);
-
+    let { error } = await supabase.from('logs').insert(payload);
+    // DB에 image_urls 컬럼이 없을 때: image_url만 넣고 재시도
+    if (error && imageUrls.length > 0 && /image_urls|schema\s*cache|column/i.test(error.message)) {
+      const fallback = { ...payload };
+      delete fallback.image_urls;
+      (fallback as Record<string, unknown>).image_url = imageUrls[0];
+      const res = await supabase.from('logs').insert(fallback);
+      error = res.error;
+    }
     if (error) {
       setStatus(`logs insert 실패: ${error.message}`);
       setLoading(false);
@@ -646,6 +659,29 @@ export default function HomeClient() {
     group.items.push(log);
     return acc;
   }, []);
+
+  const logsForCalendar =
+    calendarPlaceFilter === 'all' ? logs : logs.filter((l) => l.place_slug === calendarPlaceFilter);
+  const [calYear, calMonth] = calendarYearMonth.split('-').map(Number);
+  const calendarFirstDay = new Date(calYear, calMonth - 1, 1);
+  const calendarLastDay = new Date(calYear, calMonth, 0);
+  const startWeekday = calendarFirstDay.getDay();
+  const daysInMonth = calendarLastDay.getDate();
+  const calendarDayLogsMap = useMemo(() => {
+    const map: Record<string, Log[]> = {};
+    const prefix = `${calYear}-${String(calMonth).padStart(2, '0')}-`;
+    logsForCalendar.forEach((log) => {
+      const d = new Date(log.created_at);
+      if (d.getFullYear() !== calYear || d.getMonth() !== calMonth - 1) return;
+      const dateKey = `${prefix}${String(d.getDate()).padStart(2, '0')}`;
+      if (!map[dateKey]) map[dateKey] = [];
+      map[dateKey].push(log);
+    });
+    return map;
+  }, [logsForCalendar, calYear, calMonth]);
+  const selectedDayLogs = selectedCalendarDate ? (calendarDayLogsMap[selectedCalendarDate] || []).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  ) : [];
 
   const langShort: Record<Lang, string> = { ko: '한국어', en: 'EN', ja: '日本語', zh: '中文', vi: 'VI' };
   const langFlags: Record<Lang, string> = { ko: '🇰🇷', en: '🇺🇸', ja: '🇯🇵', zh: '🇨🇳', vi: '🇻🇳' };
@@ -1411,33 +1447,254 @@ export default function HomeClient() {
 
             {activeTab === 'calendar' && (
               <section aria-label="캘린더" style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, color: highContrast ? '#fff' : '#0f172a' }}>
-                  📅 {new Date().getFullYear()}년 {new Date().getMonth() + 1}월
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const [y, m] = calendarYearMonth.split('-').map(Number);
+                      const d = new Date(y, m - 2, 1);
+                      setCalendarYearMonth(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                      borderRadius: 10,
+                      background: highContrast ? '#1e1e1e' : '#f8fafc',
+                      color: highContrast ? '#ffc107' : '#64748b',
+                      fontSize: 14,
+                      cursor: 'pointer',
+                    }}
+                    aria-label="이전 달"
+                  >
+                    ‹
+                  </button>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>
+                    📅 {calYear}년 {calMonth}월
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const [y, m] = calendarYearMonth.split('-').map(Number);
+                      const d = new Date(y, m, 1);
+                      setCalendarYearMonth(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                      borderRadius: 10,
+                      background: highContrast ? '#1e1e1e' : '#f8fafc',
+                      color: highContrast ? '#ffc107' : '#64748b',
+                      fontSize: 14,
+                      cursor: 'pointer',
+                    }}
+                    aria-label="다음 달"
+                  >
+                    ›
+                  </button>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {logsByDate.slice(0, 31).map((group) => (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                  {[
+                    { key: 'fridge' as const, labelKey: 'fridge' as const },
+                    { key: 'table' as const, labelKey: 'table' as const },
+                    { key: 'toilet' as const, labelKey: 'toilet' as const },
+                    { key: 'all' as const, labelKey: 'allPlaces' as const },
+                  ].map(({ key, labelKey }) => {
+                    const active = calendarPlaceFilter === key;
+                    const chipStyle = key === 'fridge' ? { bg: 'rgba(56,189,248,0.2)', border: 'rgba(56,189,248,0.6)', color: '#0369a1' } :
+                      key === 'table' ? { bg: 'rgba(34,197,94,0.2)', border: 'rgba(34,197,94,0.6)', color: '#166534' } :
+                      key === 'toilet' ? { bg: 'rgba(251,191,36,0.25)', border: 'rgba(251,191,36,0.6)', color: '#a16207' } :
+                      { bg: '#f1f5f9', border: '#cbd5e1', color: '#475569' };
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setCalendarPlaceFilter(key)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 10,
+                          border: active ? `2px solid ${chipStyle.border}` : '1px solid #e2e8f0',
+                          background: active ? chipStyle.bg : highContrast ? '#1e1e1e' : '#f8fafc',
+                          color: active ? chipStyle.color : highContrast ? '#94a3b8' : '#64748b',
+                          fontSize: 12,
+                          fontWeight: active ? 600 : 400,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {t(labelKey)}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, 1fr)',
+                    gap: 4,
+                    background: highContrast ? '#1e1e1e' : '#f8fafc',
+                    borderRadius: 12,
+                    padding: 10,
+                    border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                  }}
+                >
+                  {['일', '월', '화', '수', '목', '금', '토'].map((w) => (
                     <div
-                      key={group.dateKey}
+                      key={w}
                       style={{
-                        padding: '12px 14px',
-                        borderRadius: 12,
-                        background: highContrast ? '#1e1e1e' : '#f8fafc',
-                        border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                        minWidth: 120,
+                        textAlign: 'center',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: highContrast ? '#ffc107' : '#64748b',
+                        padding: '6px 0',
                       }}
                     >
-                      <div style={{ fontSize: 12, fontWeight: 600, color: highContrast ? '#ffc107' : '#64748b', marginBottom: 4 }}>
-                        {group.dateLabel}
-                      </div>
-                      <div style={{ fontSize: 13, color: highContrast ? '#fff' : '#0f172a' }}>
-                        {group.items.length}건
-                      </div>
+                      {w}
                     </div>
                   ))}
+                  {Array.from({ length: 42 }, (_, i) => {
+                    const dayNum = i < startWeekday ? null : i - startWeekday + 1;
+                    const isInMonth = dayNum !== null && dayNum <= daysInMonth;
+                    const dateKey = isInMonth ? `${calYear}-${String(calMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}` : null;
+                    const count = dateKey ? (calendarDayLogsMap[dateKey]?.length ?? 0) : 0;
+                    const selected = dateKey === selectedCalendarDate;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setSelectedCalendarDate(isInMonth && dateKey ? dateKey : null)}
+                        style={{
+                          minHeight: 40,
+                          padding: 4,
+                          border: 'none',
+                          borderRadius: 8,
+                          background: selected ? (highContrast ? 'rgba(255,193,7,0.3)' : 'rgba(59,130,246,0.2)') :
+                            !isInMonth ? 'transparent' : highContrast ? '#2a2a2a' : '#fff',
+                          color: !isInMonth ? (highContrast ? '#555' : '#cbd5e1') : selected ? (highContrast ? '#ffc107' : '#1d4ed8') : highContrast ? '#fff' : '#0f172a',
+                          fontSize: 13,
+                          fontWeight: selected ? 700 : 500,
+                          cursor: isInMonth ? 'pointer' : 'default',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: highContrast && selected ? '0 0 0 2px #ffc107' : undefined,
+                        }}
+                      >
+                        {isInMonth ? dayNum : ''}
+                        {count > 0 && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              marginTop: 2,
+                              color: highContrast ? '#ffc107' : '#64748b',
+                            }}
+                          >
+                            {count}건
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-                <p style={{ marginTop: 12, fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>
-                  날짜별 로그 수. 구글/네이버 캘린더 연동은 추후 지원 예정입니다.
-                </p>
+                {selectedCalendarDate && (
+                  <div style={{ marginTop: 16 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        marginBottom: 10,
+                        padding: '8px 12px',
+                        borderRadius: 10,
+                        background: highContrast ? 'rgba(255,193,7,0.15)' : '#e2e8f0',
+                        borderLeft: highContrast ? '4px solid #ffc107' : '4px solid #64748b',
+                        color: highContrast ? '#ffc107' : '#0f172a',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <span>
+                        📅 {selectedCalendarDate.replace(/-/g, '.')} 상세
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCalendarDate(null)}
+                        style={{
+                          padding: '4px 10px',
+                          border: 'none',
+                          borderRadius: 8,
+                          background: highContrast ? '#333' : '#cbd5e1',
+                          color: highContrast ? '#fff' : '#475569',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        닫기
+                      </button>
+                    </div>
+                    <div
+                      style={{
+                        maxHeight: '45vh',
+                        overflowY: 'auto',
+                        borderRadius: 12,
+                        border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                        background: highContrast ? '#1e1e1e' : '#f8fafc',
+                        padding: 10,
+                      }}
+                    >
+                      {selectedDayLogs.length === 0 ? (
+                        <div style={{ padding: 16, fontSize: 13, color: highContrast ? '#94a3b8' : '#64748b', textAlign: 'center' }}>
+                          이 날짜에 기록된 로그가 없습니다.
+                        </div>
+                      ) : (
+                        selectedDayLogs.map((log) => {
+                          const isMine = user && log.actor_user_id === user.id;
+                          const isEditing = editingLogId === log.id;
+                          return (
+                            <div
+                              key={log.id}
+                              style={{
+                                padding: '12px 14px',
+                                borderRadius: 12,
+                                border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                                background: highContrast ? '#2a2a2a' : '#fff',
+                                marginBottom: 10,
+                                fontSize: 14,
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999, ...getPlaceChipStyle(log.place_slug) }}>
+                                  {t(getPlaceLabelKey(log.place_slug))}
+                                </span>
+                                <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>{formatDateTime(log.created_at)}</span>
+                              </div>
+                              <div style={{ fontWeight: 600, color: highContrast ? '#fff' : '#0f172a', marginBottom: 6 }}>{log.action}</div>
+                              {(() => {
+                                const { imageUrls, videoUrl } = getLogMedia(log);
+                                if (imageUrls.length === 0 && !videoUrl) return null;
+                                return (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxWidth: '100%' }}>
+                                    {imageUrls.slice(0, 3).map((url, i) => (
+                                      <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', borderRadius: 8, overflow: 'hidden', maxWidth: 100 }}>
+                                        <img src={url} alt="" style={{ width: '100%', maxHeight: 120, objectFit: 'contain', display: 'block', background: '#f1f5f9' }} />
+                                      </a>
+                                    ))}
+                                    {imageUrls.length > 3 && <span style={{ fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>+{imageUrls.length - 3}</span>}
+                                    {videoUrl && (
+                                      <div style={{ borderRadius: 8, overflow: 'hidden', background: '#000', maxWidth: 160 }}>
+                                        <video src={videoUrl} controls playsInline preload="metadata" style={{ width: '100%', maxHeight: 120, display: 'block' }} />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                              <div style={{ fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', marginTop: 6 }}>{getMemberName(log.actor_user_id)}</div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
               </section>
             )}
 
