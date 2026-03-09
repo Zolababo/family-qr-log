@@ -812,7 +812,11 @@ export default function HomeClient() {
         upsert: true,
       });
       if (uploadError) {
-        setStatus(`프로필 사진 업로드 실패: ${uploadError.message}`);
+        const msg = uploadError.message || '';
+        const hint = /bucket|policy|row-level|RLS|storage/i.test(msg)
+          ? ' → Supabase Storage에 "avatars" 버킷을 만들고, DEPLOY.md 프로필 사진 ②·③을 했는지 확인해 주세요.'
+          : '';
+        setStatus(`프로필 사진 업로드 실패: ${msg}${hint}`);
         setProfileAvatarUploading(false);
         return;
       }
@@ -824,7 +828,11 @@ export default function HomeClient() {
         .eq('household_id', householdId)
         .eq('user_id', user.id);
       if (updateError) {
-        setStatus(`프로필 저장 실패: ${updateError.message}`);
+        const msg = updateError.message || '';
+        const hint = /avatar_url|column|does not exist/i.test(msg)
+          ? ' → SQL Editor에서 실행: ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar_url TEXT;'
+          : '';
+        setStatus(`프로필 저장 실패: ${msg}${hint}`);
         setProfileAvatarUploading(false);
         return;
       }
