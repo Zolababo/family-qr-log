@@ -1250,6 +1250,7 @@ export default function HomeClient() {
           </div>
           {user && householdId && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+              {/* 아이콘 크기 통일: 모두 40x40 원 */}
               <button
                 type="button"
                 onClick={() => setSelectedMemberId('all')}
@@ -1266,7 +1267,21 @@ export default function HomeClient() {
                   fontSize: 13,
                 }}
               >
-                <span style={{ fontSize: 14 }}>👥</span>
+                <span
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '50%',
+                    background: selectedMemberId === 'all' ? 'rgba(100,116,139,0.25)' : '#e2e8f0',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 18,
+                    flexShrink: 0,
+                  }}
+                >
+                  👥
+                </span>
                 <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {t('allMembers')}
                 </span>
@@ -1277,8 +1292,8 @@ export default function HomeClient() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 10,
-                  padding: '8px 14px',
+                  gap: 8,
+                  padding: '6px 12px',
                   borderRadius: 999,
                   border: selectedMemberId === 'me' ? '2px solid #818cf8' : '1px solid #e2e8f0',
                   background: selectedMemberId === 'me' ? 'rgba(129,140,248,0.2)' : '#f8fafc',
@@ -1289,15 +1304,15 @@ export default function HomeClient() {
               >
                 <span
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: 40,
+                    height: 40,
                     borderRadius: '50%',
                     background: profileAvatarUrl ? 'transparent' : 'linear-gradient(135deg, #818cf8, #6366f1)',
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 700,
-                    fontSize: 18,
+                    fontSize: 16,
                     color: profileAvatarUrl ? undefined : '#fff',
                     overflow: 'hidden',
                     flexShrink: 0,
@@ -1339,15 +1354,15 @@ export default function HomeClient() {
                     >
                       <span
                         style={{
-                          width: 36,
-                          height: 36,
+                          width: 40,
+                          height: 40,
                           borderRadius: '50%',
                           background: avatarUrl ? 'transparent' : (active ? 'rgba(56,189,248,0.35)' : '#e2e8f0'),
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontWeight: 600,
-                          fontSize: 12,
+                          fontSize: 14,
                           color: avatarUrl ? undefined : (active ? '#0369a1' : '#64748b'),
                           overflow: 'hidden',
                           flexShrink: 0,

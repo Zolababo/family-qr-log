@@ -84,31 +84,64 @@ git push origin main
 
 ### 프로필 사진 사용 시 (선택)
 
-헤더/필터에 보이는 **프로필 원형 사진**을 등록·수정하려면 다음이 필요합니다.
+헤더/필터에 보이는 **프로필 원형 사진**을 등록·수정하려면 아래를 **순서대로** 하면 됩니다.
 
-1. **members 테이블에 컬럼 추가** (SQL Editor에서 실행):
+---
+
+#### ① members 테이블에 컬럼 추가
+
+1. Supabase 대시보드 왼쪽에서 **SQL Editor** 클릭  
+2. **New query** 클릭 후 아래 SQL을 붙여넣고 **Run** 실행  
    ```sql
    ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar_url TEXT;
    ```
 
-2. **Storage 버킷**  
-   - Storage → New bucket → 이름: `avatars`  
-   - Public bucket 체크
+---
 
-3. **Storage 정책** (SQL Editor에서 실행):
-   ```sql
-   CREATE POLICY "Allow authenticated upload avatars"
-   ON storage.objects FOR INSERT TO authenticated
-   WITH CHECK (bucket_id = 'avatars');
+#### ② Storage에 avatars 버킷 만들기
 
-   CREATE POLICY "Allow public read avatars"
-   ON storage.objects FOR SELECT TO public
-   USING (bucket_id = 'avatars');
+1. Supabase 대시보드 왼쪽에서 **Storage** 클릭  
+2. **New bucket** 버튼 클릭  
+3. **Name**에 `avatars` 입력 (정확히 이 이름으로)  
+4. **Public bucket** 체크박스 **체크** (프로필 사진을 앱에서 보이게 하려면 꼭 체크)  
+5. **Create bucket** 클릭  
 
-   CREATE POLICY "Allow authenticated update avatars"
-   ON storage.objects FOR UPDATE TO authenticated
-   USING (bucket_id = 'avatars');
-   ```
+---
+
+#### ③ Storage 정책(권한) 추가 — "이걸 어떻게 하라는 거지?"
+
+버킷만 만들면 프로필 사진 업로드가 막혀 있어서, **Supabase에게 "avatars 버킷은 이렇게 쓰게 해줘"라고 알려주는 단계**입니다.  
+방법은 **SQL Editor에서 코드 한 번 실행**하는 것입니다.
+
+**하는 방법 (한 줄 요약: SQL Editor 열고 → 아래 코드 통째로 붙여넣고 → Run 누르기)**
+
+1. Supabase 화면 **왼쪽 메뉴**에서 **SQL Editor**를 클릭합니다.
+2. **New query** 버튼을 누르면, 가운데에 **빈 칸(코드 입력창)**이 나옵니다.
+3. **아래 회색 칸 안의 코드 전체**를 드래그해서 복사합니다. (`CREATE POLICY`부터 마지막 `;`까지 전부.)
+4. 2번의 **빈 칸**에 **붙여넣기**(Ctrl+V 또는 Cmd+V) 합니다.
+5. 오른쪽 아래 **Run** 버튼(또는 Ctrl+Enter)을 누릅니다.
+6. 아래쪽에 **Success** 또는 **No rows returned** 같은 문구가 나오면 **끝**입니다.  
+   - "policy already exists" 라고 나와도, 이미 설정된 거라 **무시**하시면 됩니다.
+
+**여기 있는 코드를 통째로 복사해서 SQL Editor에 붙여넣고 Run 하면 됩니다.**
+
+```sql
+CREATE POLICY "Allow authenticated upload avatars"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'avatars');
+
+CREATE POLICY "Allow public read avatars"
+ON storage.objects FOR SELECT TO public
+USING (bucket_id = 'avatars');
+
+CREATE POLICY "Allow authenticated update avatars"
+ON storage.objects FOR UPDATE TO authenticated
+USING (bucket_id = 'avatars');
+```
+
+---
+
+위 ①·②·③을 모두 끝내면 앱에서 ☰ 메뉴 → **프로필 사진 변경**으로 사진을 등록·수정할 수 있습니다.
 
 ## 7. 로그 댓글 (답글 포함) 사용 시
 
