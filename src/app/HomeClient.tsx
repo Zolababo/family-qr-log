@@ -1082,6 +1082,15 @@ export default function HomeClient() {
             </div>
             {user && (
               <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
+                {/* 프로필 사진 input은 메뉴 밖에 두어야 갤러리 선택 후 change 이벤트가 발생함 (메뉴 닫혀도 DOM에 유지) */}
+                <input
+                  ref={profileAvatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleProfileAvatarChange}
+                  aria-hidden
+                />
                 <button
                   type="button"
                   onClick={() => setMenuOpen((o) => !o)}
@@ -1163,14 +1172,6 @@ export default function HomeClient() {
                         >
                           {t('editName')}
                         </button>
-                        <input
-                          ref={profileAvatarInputRef}
-                          type="file"
-                          accept="image/*"
-                          style={{ display: 'none' }}
-                          onChange={handleProfileAvatarChange}
-                          aria-hidden
-                        />
                         <button
                           type="button"
                           onClick={() => { profileAvatarInputRef.current?.click(); setMenuOpen(false); }}
