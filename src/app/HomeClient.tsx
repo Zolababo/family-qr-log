@@ -803,12 +803,27 @@ export default function HomeClient() {
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       e.target.value = '';
-      if (!file || !user || !householdId || !file.type.startsWith('image/')) return;
-      setProfileAvatarUploading(true);
+      if (!file) {
+        setStatus('파일이 선택되지 않았습니다. 다시 시도해 주세요.');
+        return;
+      }
+      if (!user || !householdId) {
+        setStatus('로그인 후 다시 시도해 주세요.');
+        return;
+      }
+      const isImageType = file.type.startsWith('image/');
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const isImageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+      if (!isImageType && !isImageExt) {
+        setStatus('사진 파일만 선택해 주세요. (jpg, png, gif 등)');
+        return;
+      }
+      setProfileAvatarUploading(true);
+      setStatus('프로필 사진 업로드 중...');
       const path = `${householdId}/${user.id}.${ext}`;
+      const contentType = file.type.startsWith('image/') ? file.type : `image/${ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : ext === 'png' ? 'png' : ext === 'gif' ? 'gif' : 'webp'}`;
       const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, {
-        contentType: file.type,
+        contentType,
         upsert: true,
       });
       if (uploadError) {
