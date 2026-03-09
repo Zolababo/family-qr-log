@@ -264,14 +264,27 @@ export default function HomeClient() {
 
       setUser(user);
 
-      const {
-        data: myMembers,
-        error: memberError,
-      } = await supabase
+      let myMembers: { household_id: string; display_name: string | null; user_id: string; avatar_url?: string | null }[] | null = null;
+      let memberError: { message: string } | null = null;
+
+      const res = await supabase
         .from('members')
         .select('household_id, display_name, user_id, avatar_url')
         .eq('user_id', user.id)
         .limit(1);
+
+      myMembers = res.data;
+      memberError = res.error;
+
+      if (memberError && /avatar_url|does not exist|column/i.test(memberError.message)) {
+        const fallback = await supabase
+          .from('members')
+          .select('household_id, display_name, user_id')
+          .eq('user_id', user.id)
+          .limit(1);
+        myMembers = fallback.data;
+        memberError = fallback.error;
+      }
 
       if (memberError) {
         setStatus(`members 조회 실패: ${memberError.message}`);
@@ -290,12 +303,27 @@ export default function HomeClient() {
         (myMember.display_name && myMember.display_name.trim()) ||
         (user.email ? user.email.split('@')[0] : '나');
       setProfileName(baseName);
-      setProfileAvatarUrl(myMember.avatar_url ?? null);
+      setProfileAvatarUrl('avatar_url' in myMember ? (myMember.avatar_url ?? null) : null);
 
-      const { data: allMembers, error: allMembersError } = await supabase
+      let allMembers: { user_id: string; display_name: string | null; avatar_url?: string | null }[] | null = null;
+      let allMembersError: { message: string } | null = null;
+
+      const allRes = await supabase
         .from('members')
         .select('user_id, display_name, avatar_url')
         .eq('household_id', myMember.household_id);
+
+      allMembers = allRes.data;
+      allMembersError = allRes.error;
+
+      if (allMembersError && /avatar_url|does not exist|column/i.test(allMembersError.message)) {
+        const fallbackAll = await supabase
+          .from('members')
+          .select('user_id, display_name')
+          .eq('household_id', myMember.household_id);
+        allMembers = fallbackAll.data;
+        allMembersError = fallbackAll.error;
+      }
 
       if (!allMembersError && allMembers) {
         setMembers(allMembers);
