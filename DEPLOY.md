@@ -82,7 +82,75 @@ git push origin main
    ```
    이미 같은 이름 정책이 있다는 에러가 나오면, Supabase **Storage → log-images → Policies** 에서 수동으로 위와 같은 규칙을 추가하면 됩니다.
 
-## 7. 자주 쓰는 명령어 요약
+### 프로필 사진 사용 시 (선택)
+
+헤더/필터에 보이는 **프로필 원형 사진**을 등록·수정하려면 다음이 필요합니다.
+
+1. **members 테이블에 컬럼 추가** (SQL Editor에서 실행):
+   ```sql
+   ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+   ```
+
+2. **Storage 버킷**  
+   - Storage → New bucket → 이름: `avatars`  
+   - Public bucket 체크
+
+3. **Storage 정책** (SQL Editor에서 실행):
+   ```sql
+   CREATE POLICY "Allow authenticated upload avatars"
+   ON storage.objects FOR INSERT TO authenticated
+   WITH CHECK (bucket_id = 'avatars');
+
+   CREATE POLICY "Allow public read avatars"
+   ON storage.objects FOR SELECT TO public
+   USING (bucket_id = 'avatars');
+
+   CREATE POLICY "Allow authenticated update avatars"
+   ON storage.objects FOR UPDATE TO authenticated
+   USING (bucket_id = 'avatars');
+   ```
+
+## 7. 로그 댓글 (답글 포함) 사용 시
+
+로그에 댓글·답글을 쓰려면 Supabase에서 **댓글용 테이블**을 한 번 만들어 두어야 합니다.
+
+### Supabase에서 하는 방법 (이미 SQL Editor 탭을 열었다면)
+
+1. **Supabase 대시보드** → 왼쪽 메뉴에서 **SQL Editor** 클릭 (이미 여기 있다면 그대로 진행)
+2. **New query** 버튼을 누르거나, 가운데 빈 입력 칸을 클릭합니다.
+3. 아래 **전체 SQL**을 복사합니다 (```sql 부터 ``` 까지 전부).
+4. SQL Editor의 입력 칸에 **붙여넣기** 합니다.
+5. 오른쪽 아래 **Run** 버튼(또는 Ctrl+Enter)을 눌러 실행합니다.
+6. 아래쪽에 **Success. No rows returned** 같은 메시지가 나오면 완료입니다.  
+   - "relation already exists" 는 이미 테이블이 있다는 뜻이라 그대로 두면 됩니다.
+
+이렇게 한 번만 실행해 두면, 앱에서 로그에 댓글·답글을 쓸 수 있습니다.
+
+```sql
+-- log_comments 테이블 (로그당 댓글, 댓글당 답글)
+CREATE TABLE IF NOT EXISTS log_comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  log_id UUID NOT NULL REFERENCES logs(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES log_comments(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_log_comments_log_id ON log_comments(log_id);
+CREATE INDEX IF NOT EXISTS idx_log_comments_parent_id ON log_comments(parent_id);
+
+ALTER TABLE log_comments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow read log_comments"
+  ON log_comments FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Allow insert log_comments"
+  ON log_comments FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+```
+
+## 8. 자주 쓰는 명령어 요약
 
 | 목적           | 명령어 |
 |----------------|--------|

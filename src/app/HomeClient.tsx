@@ -36,6 +36,16 @@ function getLogMedia(log: Log): { imageUrls: string[]; videoUrl: string | null }
 type Member = {
   user_id: string;
   display_name: string | null;
+  avatar_url?: string | null;
+};
+
+type LogComment = {
+  id: string;
+  log_id: string;
+  parent_id: string | null;
+  user_id: string;
+  content: string;
+  created_at: string;
 };
 
 const PLACES = [
@@ -174,7 +184,7 @@ export default function HomeClient() {
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
-  const [selectedMemberId, setSelectedMemberId] = useState<'me' | string>('me');
+  const [selectedMemberId, setSelectedMemberId] = useState<'all' | 'me' | string>('all');
   const [placeViewFilter, setPlaceViewFilter] = useState<'fridge' | 'table' | 'toilet' | 'all'>('all');
 
   const [action, setAction] = useState('');
@@ -190,7 +200,10 @@ export default function HomeClient() {
   const [newPhraseInput, setNewPhraseInput] = useState('');
 
   const [profileName, setProfileName] = useState('');
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [profileAvatarUploading, setProfileAvatarUploading] = useState(false);
+  const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showNameEditInMenu, setShowNameEditInMenu] = useState(false);
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
@@ -215,6 +228,17 @@ export default function HomeClient() {
   });
   const [calendarPlaceFilter, setCalendarPlaceFilter] = useState<'fridge' | 'table' | 'toilet' | 'all'>('all');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+  const [commentsByLogId, setCommentsByLogId] = useState<Record<string, LogComment[]>>({});
+  const [replyingTo, setReplyingTo] = useState<{ logId: string; commentId: string } | null>(null);
+  const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
+  const [commentSending, setCommentSending] = useState(false);
+  const [showDrawModal, setShowDrawModal] = useState(false);
+  const drawCanvasRef = useRef<HTMLCanvasElement>(null);
+  const drawLastRef = useRef<{ x: number; y: number } | null>(null);
+  const drawActiveRef = useRef(false);
+  const [editImageIndex, setEditImageIndex] = useState<number | null>(null);
+  const [editImageTag, setEditImageTag] = useState('');
+  const [editImageFilter, setEditImageFilter] = useState<'none' | 'grayscale' | 'sepia'>('none');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -245,7 +269,7 @@ export default function HomeClient() {
         error: memberError,
       } = await supabase
         .from('members')
-        .select('household_id, display_name, user_id')
+        .select('household_id, display_name, user_id, avatar_url')
         .eq('user_id', user.id)
         .limit(1);
 
@@ -266,10 +290,11 @@ export default function HomeClient() {
         (myMember.display_name && myMember.display_name.trim()) ||
         (user.email ? user.email.split('@')[0] : '나');
       setProfileName(baseName);
+      setProfileAvatarUrl(myMember.avatar_url ?? null);
 
       const { data: allMembers, error: allMembersError } = await supabase
         .from('members')
-        .select('user_id, display_name')
+        .select('user_id, display_name, avatar_url')
         .eq('household_id', myMember.household_id);
 
       if (!allMembersError && allMembers) {
@@ -420,10 +445,127 @@ export default function HomeClient() {
     []
   );
 
+  const loadComments = useCallback(async (logIds: string[]) => {
+    if (logIds.length === 0) return;
+    const { data, error } = await supabase
+      .from('log_comments')
+      .select('*')
+      .in('log_id', logIds)
+      .order('created_at', { ascending: true });
+    if (error) return;
+    const byLog: Record<string, LogComment[]> = {};
+    (data ?? []).forEach((c: LogComment) => {
+      if (!byLog[c.log_id]) byLog[c.log_id] = [];
+      byLog[c.log_id].push(c);
+    });
+    setCommentsByLogId((prev) => ({ ...prev, ...byLog }));
+  }, []);
+
+  useEffect(() => {
+    const ids = [...new Set(logs.map((l) => l.id))];
+    if (ids.length > 0) loadComments(ids);
+  }, [logs, loadComments]);
+
+  useEffect(() => {
+    if (!showDrawModal) return;
+    const canvas = drawCanvasRef.current;
+    if (!canvas) return;
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    const w = 320;
+    const h = 280;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    drawLastRef.current = null;
+    drawActiveRef.current = false;
+  }, [showDrawModal]);
+
+  const applyImageEdit = useCallback(() => {
+    const i = editImageIndex;
+    if (i == null || !logImagePreviews[i]) return;
+    const url = logImagePreviews[i];
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext('2d');
+      if (!ctx) return;
+      if (editImageFilter === 'grayscale') ctx.filter = 'grayscale(100%)';
+      else if (editImageFilter === 'sepia') ctx.filter = 'sepia(100%)';
+      ctx.drawImage(img, 0, 0);
+      ctx.filter = 'none';
+      if (editImageTag.trim()) {
+        ctx.font = 'bold 24px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+        ctx.lineWidth = 3;
+        const text = editImageTag.trim();
+        const x = c.width / 2;
+        const y = c.height - 16;
+        ctx.strokeText(text, x, y);
+        ctx.fillText(text, x, y);
+      }
+      c.toBlob((blob) => {
+        if (!blob) return;
+        const file = new File([blob], logImageFiles[i]?.name || 'edited.png', { type: 'image/png' });
+        const newUrl = URL.createObjectURL(file);
+        const oldUrl = logImagePreviews[i];
+        URL.revokeObjectURL(oldUrl);
+        logPreviewUrlsRef.current = logPreviewUrlsRef.current.filter((u) => u !== oldUrl);
+        logPreviewUrlsRef.current.push(newUrl);
+        setLogImageFiles((prev) => prev.map((f, j) => (j === i ? file : f)));
+        setLogImagePreviews((prev) => prev.map((u, j) => (j === i ? newUrl : u)));
+        setEditImageIndex(null);
+        setEditImageTag('');
+      }, 'image/png');
+    };
+    img.onerror = () => setEditImageIndex(null);
+    img.src = url;
+  }, [editImageIndex, editImageFilter, editImageTag, logImagePreviews, logImageFiles]);
+
+  const addComment = useCallback(
+    async (logId: string, content: string, parentId: string | null) => {
+      if (!user || !content.trim() || commentSending) return;
+      setCommentSending(true);
+      const { error } = await supabase.from('log_comments').insert({
+        log_id: logId,
+        parent_id: parentId,
+        user_id: user.id,
+        content: content.trim(),
+      });
+      setCommentSending(false);
+      if (error) {
+        setStatus(`댓글 저장 실패: ${error.message}`);
+        return;
+      }
+      await loadComments([logId]);
+      setCommentDraft((prev) => {
+        const next = { ...prev, [logId]: '' };
+        if (parentId) next[`${logId}_reply_${parentId}`] = '';
+        return next;
+      });
+      setReplyingTo(null);
+    },
+    [user, commentSending, loadComments]
+  );
+
   useEffect(() => {
     if (!householdId || !user) return;
 
-    const actorId = selectedMemberId === 'me' ? user.id : selectedMemberId;
+    const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
     const placeSlugFilter = placeViewFilter === 'all' ? undefined : placeViewFilter;
 
     loadLogs(householdId, placeSlugFilter, actorId);
@@ -560,7 +702,8 @@ export default function HomeClient() {
     setLogVideoFile(null);
     setLogVideoPreview(null);
     const placeSlugFilter = placeViewFilter === 'all' ? undefined : placeViewFilter;
-    await loadLogs(householdId, placeSlugFilter, selectedMemberId === 'me' ? user.id : selectedMemberId);
+    const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
+    await loadLogs(householdId, placeSlugFilter, actorId);
     setStatus('로그가 추가되었습니다.');
     setLoading(false);
     router.replace(pathname || '/');
@@ -569,7 +712,7 @@ export default function HomeClient() {
   const refreshLogs = useCallback(() => {
     if (!householdId || !user) return;
     const placeSlugFilter = placeViewFilter === 'all' ? undefined : placeViewFilter;
-    const actorId = selectedMemberId === 'me' ? user.id : selectedMemberId;
+    const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
     loadLogs(householdId, placeSlugFilter, actorId);
   }, [householdId, placeViewFilter, selectedMemberId, user, loadLogs]);
 
@@ -627,6 +770,45 @@ export default function HomeClient() {
     setProfileSaving(false);
     setShowNameEditInMenu(false);
   };
+
+  const handleProfileAvatarChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file || !user || !householdId || !file.type.startsWith('image/')) return;
+      setProfileAvatarUploading(true);
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${householdId}/${user.id}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, {
+        contentType: file.type,
+        upsert: true,
+      });
+      if (uploadError) {
+        setStatus(`프로필 사진 업로드 실패: ${uploadError.message}`);
+        setProfileAvatarUploading(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
+      const { error: updateError } = await supabase
+        .from('members')
+        .update({ avatar_url: publicUrl })
+        .eq('household_id', householdId)
+        .eq('user_id', user.id);
+      if (updateError) {
+        setStatus(`프로필 저장 실패: ${updateError.message}`);
+        setProfileAvatarUploading(false);
+        return;
+      }
+      setProfileAvatarUrl(publicUrl);
+      setMembers((prev) =>
+        prev.map((m) => (m.user_id === user.id ? { ...m, avatar_url: publicUrl } : m))
+      );
+      setStatus('프로필 사진이 변경되었습니다.');
+      setProfileAvatarUploading(false);
+    },
+    [user, householdId]
+  );
 
   const getMemberName = (userId: string) => {
     const m = members.find((mm) => mm.user_id === userId);
@@ -930,6 +1112,31 @@ export default function HomeClient() {
                         >
                           {t('editName')}
                         </button>
+                        <input
+                          ref={profileAvatarInputRef}
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={handleProfileAvatarChange}
+                          aria-hidden
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { profileAvatarInputRef.current?.click(); setMenuOpen(false); }}
+                          disabled={profileAvatarUploading}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '12px 16px',
+                            border: 'none',
+                            background: 'none',
+                            color: highContrast ? '#ffffff' : '#0f172a',
+                            fontSize: 14,
+                            cursor: profileAvatarUploading ? 'wait' : 'pointer',
+                          }}
+                        >
+                          📷 {profileAvatarUploading ? '업로드 중...' : '프로필 사진 변경'}
+                        </button>
                         <button
                           type="button"
                           onClick={() => { setMenuOpen(false); setShowAccessibilityModal(true); }}
@@ -1017,12 +1224,33 @@ export default function HomeClient() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
               <button
                 type="button"
-                onClick={() => setSelectedMemberId('me')}
+                onClick={() => setSelectedMemberId('all')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
                   padding: '6px 12px',
+                  borderRadius: 999,
+                  border: selectedMemberId === 'all' ? '2px solid #64748b' : '1px solid #e2e8f0',
+                  background: selectedMemberId === 'all' ? 'rgba(100,116,139,0.2)' : '#f8fafc',
+                  color: selectedMemberId === 'all' ? '#475569' : '#64748b',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                }}
+              >
+                <span style={{ fontSize: 14 }}>👥</span>
+                <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {t('allMembers')}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedMemberId('me')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '8px 14px',
                   borderRadius: 999,
                   border: selectedMemberId === 'me' ? '2px solid #818cf8' : '1px solid #e2e8f0',
                   background: selectedMemberId === 'me' ? 'rgba(129,140,248,0.2)' : '#f8fafc',
@@ -1033,19 +1261,25 @@ export default function HomeClient() {
               >
                 <span
                   style={{
-                    width: 28,
-                    height: 28,
+                    width: 44,
+                    height: 44,
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #818cf8, #6366f1)',
+                    background: profileAvatarUrl ? 'transparent' : 'linear-gradient(135deg, #818cf8, #6366f1)',
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 700,
-                    fontSize: 12,
-                    color: '#fff',
+                    fontSize: 18,
+                    color: profileAvatarUrl ? undefined : '#fff',
+                    overflow: 'hidden',
+                    flexShrink: 0,
                   }}
                 >
-                  {t('me')}
+                  {profileAvatarUrl ? (
+                    <img src={profileAvatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    (meDisplayName || t('me')).slice(0, 1).toUpperCase()
+                  )}
                 </span>
                 <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {meDisplayName}
@@ -1056,6 +1290,7 @@ export default function HomeClient() {
                 .map((m) => {
                   const name = (m.display_name && m.display_name.trim()) || m.user_id.slice(0, 6);
                   const active = selectedMemberId === m.user_id;
+                  const avatarUrl = m.avatar_url ?? null;
                   return (
                     <button
                       key={m.user_id}
@@ -1076,19 +1311,25 @@ export default function HomeClient() {
                     >
                       <span
                         style={{
-                          width: 28,
-                          height: 28,
+                          width: 36,
+                          height: 36,
                           borderRadius: '50%',
-                          background: active ? 'rgba(56,189,248,0.35)' : '#e2e8f0',
+                          background: avatarUrl ? 'transparent' : (active ? 'rgba(56,189,248,0.35)' : '#e2e8f0'),
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontWeight: 600,
                           fontSize: 12,
-                          color: active ? '#0369a1' : '#64748b',
+                          color: avatarUrl ? undefined : (active ? '#0369a1' : '#64748b'),
+                          overflow: 'hidden',
+                          flexShrink: 0,
                         }}
                       >
-                        {name.slice(0, 1)}
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          name.slice(0, 1)
+                        )}
                       </span>
                       <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {name}
@@ -1282,6 +1523,25 @@ export default function HomeClient() {
                       <span style={{ fontSize: 18 }}>🖼️</span>
                       {t('fromAlbum')}
                     </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowDrawModal(true)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '12px 18px',
+                        borderRadius: 12,
+                        border: '1px solid #e2e8f0',
+                        background: '#f8fafc',
+                        color: '#475569',
+                        fontSize: 14,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span style={{ fontSize: 18 }}>✏️</span>
+                      그리기
+                    </button>
                   </div>
                   {(logImagePreviews.length > 0 || logVideoPreview) && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
@@ -1298,6 +1558,29 @@ export default function HomeClient() {
                               border: '1px solid #e2e8f0',
                             }}
                           />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditImageIndex(i);
+                              setEditImageTag('');
+                              setEditImageFilter('none');
+                            }}
+                            aria-label="꾸미기"
+                            style={{
+                              position: 'absolute',
+                              bottom: 4,
+                              left: 4,
+                              padding: '2px 6px',
+                              borderRadius: 6,
+                              border: 'none',
+                              background: 'rgba(0,0,0,0.6)',
+                              color: '#fff',
+                              fontSize: 10,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            꾸미기
+                          </button>
                           <button
                             type="button"
                             onClick={() => {
@@ -1995,6 +2278,225 @@ export default function HomeClient() {
                                   {t('longPressEdit')}
                                 </div>
                               )}
+                              {/* 댓글 · 답글 (인스타 스타일) */}
+                              <div style={{ marginTop: 12, paddingTop: 12, borderTop: highContrast ? '1px solid rgba(255,193,7,0.3)' : '1px solid #e2e8f0' }}>
+                                {(() => {
+                                  const list = commentsByLogId[log.id] ?? [];
+                                  const topLevel = list.filter((c) => !c.parent_id).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                                  const getReplies = (parentId: string) =>
+                                    list.filter((c) => c.parent_id === parentId).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                                  const replyingToThis = replyingTo?.logId === log.id;
+                                  const draft = commentDraft[log.id] ?? '';
+                                  return (
+                                    <>
+                                      {topLevel.length > 0 && (
+                                        <div style={{ marginBottom: 10 }}>
+                                          {topLevel.map((c) => (
+                                            <div key={c.id} style={{ marginBottom: 8 }}>
+                                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                                                <span style={{ fontWeight: 600, fontSize: 13, color: highContrast ? '#ffc107' : '#0f172a' }}>{getMemberName(c.user_id)}</span>
+                                                <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>{formatDateTime(c.created_at)}</span>
+                                              </div>
+                                              <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : '#334155', marginTop: 2, paddingLeft: 0 }}>{c.content}</div>
+                                              {user && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setReplyingTo(replyingTo?.commentId === c.id ? null : { logId: log.id, commentId: c.id })}
+                                                  style={{
+                                                    marginTop: 4,
+                                                    padding: 0,
+                                                    border: 'none',
+                                                    background: 'none',
+                                                    fontSize: 12,
+                                                    color: highContrast ? '#ffc107' : '#64748b',
+                                                    cursor: 'pointer',
+                                                  }}
+                                                >
+                                                  답글
+                                                </button>
+                                              )}
+                                              {getReplies(c.id).map((r) => (
+                                                <div key={r.id} style={{ marginLeft: 16, marginTop: 6, paddingLeft: 10, borderLeft: highContrast ? '2px solid rgba(255,193,7,0.4)' : '2px solid #e2e8f0' }}>
+                                                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                                                    <span style={{ fontWeight: 600, fontSize: 12, color: highContrast ? '#ffc107' : '#0f172a' }}>{getMemberName(r.user_id)}</span>
+                                                    <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>{formatDateTime(r.created_at)}</span>
+                                                  </div>
+                                                  <div style={{ fontSize: 12, color: highContrast ? '#e2e8f0' : '#334155', marginTop: 2 }}>{r.content}</div>
+                                                  {user && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => setReplyingTo(replyingTo?.commentId === r.id ? null : { logId: log.id, commentId: r.id })}
+                                                      style={{
+                                                        marginTop: 4,
+                                                        padding: 0,
+                                                        border: 'none',
+                                                        background: 'none',
+                                                        fontSize: 11,
+                                                        color: highContrast ? '#ffc107' : '#64748b',
+                                                        cursor: 'pointer',
+                                                      }}
+                                                    >
+                                                      답글
+                                                    </button>
+                                                  )}
+                                                  {replyingToThis && replyingTo?.commentId === r.id && user && (
+                                                    <div style={{ marginTop: 8 }}>
+                                                      <input
+                                                        type="text"
+                                                        placeholder="답글 입력..."
+                                                        value={commentDraft[`${log.id}_reply_${r.id}`] ?? ''}
+                                                        onChange={(e) => setCommentDraft((prev) => ({ ...prev, [`${log.id}_reply_${r.id}`]: e.target.value }))}
+                                                        onKeyDown={(e) => {
+                                                          if (e.key === 'Enter') {
+                                                            const v = (commentDraft[`${log.id}_reply_${r.id}`] ?? '').trim();
+                                                            if (v) addComment(log.id, v, r.id);
+                                                          }
+                                                        }}
+                                                        style={{
+                                                          width: '100%',
+                                                          boxSizing: 'border-box',
+                                                          padding: '8px 10px',
+                                                          borderRadius: 8,
+                                                          border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                                                          background: highContrast ? '#1e1e1e' : '#f8fafc',
+                                                          color: highContrast ? '#fff' : '#0f172a',
+                                                          fontSize: 13,
+                                                          outline: 'none',
+                                                        }}
+                                                      />
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          const v = (commentDraft[`${log.id}_reply_${r.id}`] ?? '').trim();
+                                                          if (v) addComment(log.id, v, r.id);
+                                                        }}
+                                                        disabled={commentSending}
+                                                        style={{
+                                                          marginTop: 6,
+                                                          padding: '6px 12px',
+                                                          borderRadius: 8,
+                                                          border: 'none',
+                                                          background: highContrast ? '#ffc107' : '#3b82f6',
+                                                          color: highContrast ? '#000' : '#fff',
+                                                          fontSize: 12,
+                                                          cursor: commentSending ? 'wait' : 'pointer',
+                                                        }}
+                                                      >
+                                                        답글 등록
+                                                      </button>
+                                                    </div>
+                                                  )}
+                                                  {/* 답글의 답글 (3단계) */}
+                                                  {getReplies(r.id).map((r2) => (
+                                                    <div key={r2.id} style={{ marginLeft: 12, marginTop: 6, paddingLeft: 8, borderLeft: highContrast ? '2px solid rgba(255,193,7,0.25)' : '2px solid #e2e8f0' }}>
+                                                      <span style={{ fontWeight: 600, fontSize: 12, color: highContrast ? '#ffc107' : '#0f172a' }}>{getMemberName(r2.user_id)}</span>
+                                                      <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b', marginLeft: 6 }}>{formatDateTime(r2.created_at)}</span>
+                                                      <div style={{ fontSize: 12, color: highContrast ? '#e2e8f0' : '#334155', marginTop: 2 }}>{r2.content}</div>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              ))}
+                                              {replyingToThis && replyingTo?.commentId === c.id && user && (
+                                                <div style={{ marginLeft: 16, marginTop: 8 }}>
+                                                  <input
+                                                    type="text"
+                                                    placeholder="답글 입력..."
+                                                    value={(replyingTo?.logId === log.id && replyingTo?.commentId === c.id ? commentDraft[`${log.id}_reply_${c.id}`] : undefined) ?? ''}
+                                                    onChange={(e) =>
+                                                      setCommentDraft((prev) => ({ ...prev, [`${log.id}_reply_${c.id}`]: e.target.value }))
+                                                    }
+                                                    onKeyDown={(e) => {
+                                                      if (e.key === 'Enter') {
+                                                        const v = (commentDraft[`${log.id}_reply_${c.id}`] ?? '').trim();
+                                                        if (v) addComment(log.id, v, c.id);
+                                                      }
+                                                    }}
+                                                    style={{
+                                                      width: '100%',
+                                                      boxSizing: 'border-box',
+                                                      padding: '8px 10px',
+                                                      borderRadius: 8,
+                                                      border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                                                      background: highContrast ? '#1e1e1e' : '#f8fafc',
+                                                      color: highContrast ? '#fff' : '#0f172a',
+                                                      fontSize: 13,
+                                                      outline: 'none',
+                                                    }}
+                                                  />
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const v = (commentDraft[`${log.id}_reply_${c.id}`] ?? '').trim();
+                                                      if (v) addComment(log.id, v, c.id);
+                                                    }}
+                                                    disabled={commentSending}
+                                                    style={{
+                                                      marginTop: 6,
+                                                      padding: '6px 12px',
+                                                      borderRadius: 8,
+                                                      border: 'none',
+                                                      background: highContrast ? '#ffc107' : '#3b82f6',
+                                                      color: highContrast ? '#000' : '#fff',
+                                                      fontSize: 12,
+                                                      cursor: commentSending ? 'wait' : 'pointer',
+                                                    }}
+                                                  >
+                                                    답글 등록
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {user && (
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                          <input
+                                            type="text"
+                                            placeholder="댓글 입력..."
+                                            value={draft}
+                                            onChange={(e) => setCommentDraft((prev) => ({ ...prev, [log.id]: e.target.value }))}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') {
+                                                if (draft.trim()) addComment(log.id, draft.trim(), null);
+                                              }
+                                            }}
+                                            style={{
+                                              flex: 1,
+                                              minWidth: 120,
+                                              boxSizing: 'border-box',
+                                              padding: '8px 12px',
+                                              borderRadius: 10,
+                                              border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                                              background: highContrast ? '#1e1e1e' : '#f8fafc',
+                                              color: highContrast ? '#fff' : '#0f172a',
+                                              fontSize: 13,
+                                              outline: 'none',
+                                            }}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => draft.trim() && addComment(log.id, draft.trim(), null)}
+                                            disabled={commentSending || !draft.trim()}
+                                            style={{
+                                              padding: '8px 14px',
+                                              borderRadius: 10,
+                                              border: 'none',
+                                              background: highContrast ? '#ffc107' : '#3b82f6',
+                                              color: highContrast ? '#000' : '#fff',
+                                              fontSize: 12,
+                                              fontWeight: 600,
+                                              cursor: commentSending || !draft.trim() ? 'default' : 'pointer',
+                                            }}
+                                          >
+                                            댓글
+                                          </button>
+                                        </div>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </div>
                             </>
                           )}
                         </div>
@@ -2058,6 +2560,204 @@ export default function HomeClient() {
             </button>
           ))}
         </nav>
+      )}
+
+      {editImageIndex != null && logImagePreviews[editImageIndex] && (
+        <>
+          <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 58 }} onClick={() => setEditImageIndex(null)} />
+          <div
+            role="dialog"
+            aria-label="사진 꾸미기"
+            style={{
+              position: 'fixed',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(380px, 94vw)',
+              padding: 16,
+              borderRadius: 16,
+              background: highContrast ? '#1e1e1e' : '#fff',
+              border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              zIndex: 59,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>🖼️ 꾸미기 · 이름표</h3>
+              <button type="button" onClick={() => setEditImageIndex(null)} aria-label="닫기" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', color: '#64748b', fontSize: 18, cursor: 'pointer' }}>×</button>
+            </div>
+            <img
+              src={logImagePreviews[editImageIndex]}
+              alt="미리보기"
+              style={{
+                width: '100%',
+                maxHeight: 220,
+                objectFit: 'contain',
+                borderRadius: 12,
+                border: '1px solid #e2e8f0',
+                ...(editImageFilter === 'grayscale' && { filter: 'grayscale(100%)' }),
+                ...(editImageFilter === 'sepia' && { filter: 'sepia(100%)' }),
+              }}
+            />
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', marginBottom: 6 }}>필터</div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                {(['none', 'grayscale', 'sepia'] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setEditImageFilter(f)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: editImageFilter === f ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                      background: editImageFilter === f ? 'rgba(59,130,246,0.15)' : '#f8fafc',
+                      color: editImageFilter === f ? '#1d4ed8' : '#64748b',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {f === 'none' ? '원본' : f === 'grayscale' ? '흑백' : '세피아'}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', marginBottom: 6 }}>이름표 (사진 하단에 표시)</div>
+              <input
+                type="text"
+                value={editImageTag}
+                onChange={(e) => setEditImageTag(e.target.value)}
+                placeholder="예: 엄마, 아빠, 우리집"
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: '1px solid #e2e8f0',
+                  background: highContrast ? '#0f0f0f' : '#f8fafc',
+                  color: highContrast ? '#fff' : '#0f172a',
+                  fontSize: 14,
+                  outline: 'none',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <button type="button" onClick={() => setEditImageIndex(null)} style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 13, cursor: 'pointer' }}>취소</button>
+              <button type="button" onClick={applyImageEdit} style={{ flex: 1, padding: '10px 16px', borderRadius: 10, border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>적용</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {showDrawModal && (
+        <>
+          <div
+            role="presentation"
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 58 }}
+            onClick={() => setShowDrawModal(false)}
+          />
+          <div
+            role="dialog"
+            aria-label="그리기"
+            style={{
+              position: 'fixed',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(360px, 92vw)',
+              padding: 16,
+              borderRadius: 16,
+              background: highContrast ? '#1e1e1e' : '#fff',
+              border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              zIndex: 59,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>✏️ 그리기</h3>
+              <button type="button" onClick={() => setShowDrawModal(false)} aria-label="닫기" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', color: '#64748b', fontSize: 18, cursor: 'pointer' }}>×</button>
+            </div>
+            <p style={{ margin: '0 0 8px', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>손가락이나 마우스로 그려 보세요.</p>
+            <canvas
+              ref={drawCanvasRef}
+              style={{
+                display: 'block',
+                width: 320,
+                maxWidth: '100%',
+                height: 280,
+                borderRadius: 12,
+                border: '2px solid #e2e8f0',
+                background: '#fff',
+                touchAction: 'none',
+              }}
+              onPointerDown={(e) => {
+                const canvas = drawCanvasRef.current;
+                if (!canvas) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 320;
+                const y = ((e.clientY - rect.top) / rect.height) * 280;
+                drawLastRef.current = { x, y };
+                drawActiveRef.current = true;
+              }}
+              onPointerMove={(e) => {
+                if (!drawActiveRef.current) return;
+                const canvas = drawCanvasRef.current;
+                if (!canvas) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 320;
+                const y = ((e.clientY - rect.top) / rect.height) * 280;
+                const ctx = canvas.getContext('2d');
+                const last = drawLastRef.current;
+                if (ctx && last) {
+                  ctx.beginPath();
+                  ctx.moveTo(last.x, last.y);
+                  ctx.lineTo(x, y);
+                  ctx.stroke();
+                }
+                drawLastRef.current = { x, y };
+              }}
+              onPointerUp={() => { drawActiveRef.current = false; drawLastRef.current = null; }}
+              onPointerLeave={() => { drawActiveRef.current = false; drawLastRef.current = null; }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const canvas = drawCanvasRef.current;
+                  const ctx = canvas?.getContext('2d');
+                  if (ctx) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, 320, 280);
+                    ctx.strokeStyle = '#000000';
+                  }
+                }}
+                style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 13, cursor: 'pointer' }}
+              >
+                지우기
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const canvas = drawCanvasRef.current;
+                  if (!canvas) return;
+                  canvas.toBlob((blob) => {
+                    if (!blob) return;
+                    const file = new File([blob], 'drawing.png', { type: 'image/png' });
+                    const url = URL.createObjectURL(file);
+                    logPreviewUrlsRef.current.push(url);
+                    setLogImageFiles((prev) => [...prev, file]);
+                    setLogImagePreviews((prev) => [...prev, url]);
+                    setShowDrawModal(false);
+                  }, 'image/png');
+                }}
+                style={{ flex: 1, padding: '10px 16px', borderRadius: 10, border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+              >
+                완료 (로그에 추가)
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {showMemoPanel && (
