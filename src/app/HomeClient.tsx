@@ -604,7 +604,12 @@ export default function HomeClient() {
       const fileList = e.target.files;
       if (!fileList?.length || imageCompressing) return;
       const files = Array.from(fileList);
-      const imageFiles = files.filter((f) => f.type.startsWith('image/'));
+      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'];
+      const imageFiles = files.filter((f) => {
+        if (f.type.startsWith('image/')) return true;
+        const ext = f.name.split('.').pop()?.toLowerCase() || '';
+        return imageExts.includes(ext);
+      });
       const videoFiles = files.filter((f) => f.type.startsWith('video/'));
       const videoFile = videoFiles[0] ?? null;
 
@@ -626,12 +631,20 @@ export default function HomeClient() {
       if (imageFiles.length === 0) {
         e.target.value = '';
         if (videoFile) setStatus('영상이 준비되었습니다. 로그 남기기를 누르면 올라갑니다.');
+        else setStatus('사진 파일을 선택해 주세요. (카메라 촬영 시 다시 시도해 주세요.)');
         return;
       }
 
       setImageCompressing(true);
       setStatus(null);
-      Promise.all(imageFiles.map((f) => compressImageFile(f)))
+      Promise.all(
+        imageFiles.map((f) =>
+          compressImageFile(f).catch(() => ({
+            file: f,
+            previewUrl: URL.createObjectURL(f),
+          }))
+        )
+      )
         .then((results) => {
           const newFiles = results.map((r) => r.file);
           const newUrls = results.map((r) => r.previewUrl);
@@ -660,9 +673,11 @@ export default function HomeClient() {
     const imageUrls: string[] = [];
     for (let i = 0; i < logImageFiles.length; i++) {
       const file = logImageFiles[i];
-      const path = `${householdId}/${Date.now()}-${i}-${Math.random().toString(36).slice(2, 10)}.jpg`;
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${householdId}/${Date.now()}-${i}-${Math.random().toString(36).slice(2, 10)}.${ext === 'jpg' || ext === 'jpeg' ? 'jpg' : ext === 'png' ? 'png' : ext === 'gif' ? 'gif' : 'jpg'}`;
+      const contentType = file.type?.startsWith('image/') ? file.type : 'image/jpeg';
       const { error: uploadError } = await supabase.storage.from('log-images').upload(path, file, {
-        contentType: file.type,
+        contentType,
         upsert: false,
       });
       if (uploadError) {
@@ -851,7 +866,7 @@ export default function HomeClient() {
         setProfileAvatarUploading(false);
         return;
       }
-      setProfileAvatarUrl(publicUrl);
+      setProfileAvatarUrl(publicUrl + (publicUrl.includes('?') ? '&' : '?') + 't=' + Date.now());
       setMembers((prev) =>
         prev.map((m) => (m.user_id === user.id ? { ...m, avatar_url: publicUrl } : m))
       );
@@ -929,6 +944,17 @@ export default function HomeClient() {
     return () => document.removeEventListener('mousedown', handle);
   }, [langMenuOpen]);
 
+  const theme = {
+    bg: highContrast ? '#0f0f0f' : '#fafafa',
+    card: highContrast ? '#1a1a1a' : '#ffffff',
+    cardShadow: highContrast ? 'none' : '0 1px 3px rgba(0,0,0,0.06)',
+    border: highContrast ? '1px solid #333' : '1px solid rgba(0,0,0,0.06)',
+    text: highContrast ? '#ffffff' : '#262626',
+    textSecondary: highContrast ? '#a1a1a1' : '#8e8e8e',
+    radius: 12,
+    radiusLg: 16,
+  };
+
   return (
     <main
       style={{
@@ -936,10 +962,10 @@ export default function HomeClient() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'stretch',
-        padding: '12px 12px 80px',
-        background: highContrast ? '#0f0f0f' : 'linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)',
-        color: highContrast ? '#ffffff' : '#0f172a',
-        fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+        padding: '0 0 72px',
+        background: theme.bg,
+        color: theme.text,
+        fontFamily: '"Segoe UI", "Apple SD Gothic Neo", system-ui, sans-serif',
         ...(fontScale > 1 && { zoom: fontScale, minWidth: 0 } as React.CSSProperties),
       }}
       data-accessibility-root
@@ -986,26 +1012,25 @@ export default function HomeClient() {
         className={highContrast ? 'acc-inner' : ''}
         style={{
           width: '100%',
-          maxWidth: '100%',
+          maxWidth: 480,
+          margin: '0 auto',
           flex: 1,
-          background: highContrast ? '#0f0f0f' : '#fff',
-          borderRadius: 20,
-          padding: 16,
-          boxShadow: highContrast ? 'none' : '0 1px 3px rgba(0,0,0,0.08)',
-          color: highContrast ? '#ffffff' : undefined,
-          border: highContrast ? '2px solid #ffc107' : undefined,
+          padding: '12px 16px 16px',
+          background: 'transparent',
+          color: theme.text,
+          ...(highContrast && { background: '#0f0f0f', border: '2px solid #ffc107' }),
         }}
       >
-        <header style={{ marginBottom: 16, position: 'relative' }}>
+        <header style={{ marginBottom: 20, paddingBottom: 12, borderBottom: theme.border }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
             <h1
               id="app-title"
               style={{
                 margin: 0,
-                fontSize: 22,
+                fontSize: 20,
                 fontWeight: 700,
                 letterSpacing: '-0.02em',
-                color: highContrast ? '#ffffff' : '#0f172a',
+                color: theme.text,
                 flex: 1,
                 minWidth: 0,
               }}
@@ -1223,6 +1248,9 @@ export default function HomeClient() {
                           📝 메모
                         </button>
                         <div style={{ padding: '8px 16px', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', borderTop: '1px solid #e2e8f0', marginTop: 4 }}>
+                          🔔 가족 로그 시 푸시 알림 — 준비 중 (Supabase Edge Function 연동 예정)
+                        </div>
+                        <div style={{ padding: '8px 16px', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', borderTop: '1px solid #e2e8f0', marginTop: 4 }}>
                           장소 추가/삭제 (master 전용) — 다음 업데이트 예정
                         </div>
                       </>
@@ -1413,17 +1441,17 @@ export default function HomeClient() {
             style={{
               marginBottom: 16,
               fontSize: 13,
-              padding: '8px 10px',
-              borderRadius: 8,
+              padding: '10px 14px',
+              borderRadius: theme.radius,
               color: status.includes('실패') || status.includes('필요') ? '#b91c1c' : '#166534',
               background:
                 status.includes('실패') || status.includes('필요')
-                  ? 'rgba(248,113,113,0.15)'
-                  : 'rgba(34,197,94,0.12)',
+                  ? 'rgba(248,113,113,0.1)'
+                  : 'rgba(34,197,94,0.1)',
               border:
                 status.includes('실패') || status.includes('필요')
-                  ? '1px solid rgba(248,113,113,0.6)'
-                  : '1px solid rgba(34,197,94,0.6)',
+                  ? '1px solid rgba(248,113,113,0.4)'
+                  : '1px solid rgba(34,197,94,0.4)',
             }}
           >
             {status}
@@ -1452,18 +1480,18 @@ export default function HomeClient() {
               <section
                 style={{
                   marginBottom: 20,
-                  padding: 16,
-                  borderRadius: 16,
-                  background: '#fff',
-                  border: '1px solid #e2e8f0',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                  padding: 20,
+                  borderRadius: theme.radiusLg,
+                  background: theme.card,
+                  border: theme.border,
+                  boxShadow: theme.cardShadow,
                 }}
               >
-                <div style={{ fontSize: 11, letterSpacing: '0.05em', color: highContrast ? '#ffffff' : '#64748b', marginBottom: 8 }}>
+                <div style={{ fontSize: 11, letterSpacing: '0.05em', color: theme.textSecondary, marginBottom: 8 }}>
                   {t('recordHere')}
                 </div>
-                <p style={{ fontSize: 12, color: highContrast ? '#ffffff' : '#475569', marginBottom: 10 }}>
-                  {t('currentPlace')}: <strong style={{ color: highContrast ? '#ffffff' : '#0f172a' }}>{currentPlaceLabel}</strong> ({t('qrAccessed')})
+                <p style={{ fontSize: 13, color: theme.textSecondary, marginBottom: 12 }}>
+                  {t('currentPlace')}: <strong style={{ color: theme.text }}>{currentPlaceLabel}</strong> · {t('qrAccessed')}
                 </p>
 
                 <div style={{ marginBottom: 12 }}>
@@ -2113,20 +2141,21 @@ export default function HomeClient() {
 
               <div
                 style={{
-                  maxHeight: '50vh',
+                  maxHeight: '55vh',
                   overflowY: 'auto',
-                  borderRadius: 16,
-                  border: '1px solid #e2e8f0',
-                  background: highContrast ? '#1e1e1e' : '#f8fafc',
-                  padding: 12,
+                  borderRadius: theme.radiusLg,
+                  border: theme.border,
+                  background: theme.card,
+                  boxShadow: theme.cardShadow,
+                  padding: 16,
                 }}
               >
                 {logs.length === 0 && (
                   <div
                     style={{
-                      padding: 24,
-                      fontSize: 13,
-                      color: highContrast ? '#94a3b8' : '#64748b',
+                      padding: 32,
+                      fontSize: 14,
+                      color: theme.textSecondary,
                       textAlign: 'center',
                     }}
                   >
@@ -2135,17 +2164,15 @@ export default function HomeClient() {
                 )}
 
                 {logsByDate.map((group) => (
-                  <div key={group.dateKey} style={{ marginBottom: 20 }}>
+                  <div key={group.dateKey} style={{ marginBottom: 24 }}>
                     <div
                       style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: highContrast ? '#ffc107' : '#0f172a',
-                        marginBottom: 10,
-                        padding: '8px 12px',
-                        borderRadius: 10,
-                        background: highContrast ? 'rgba(255,193,7,0.15)' : '#e2e8f0',
-                        borderLeft: highContrast ? '4px solid #ffc107' : '4px solid #64748b',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: theme.textSecondary,
+                        marginBottom: 12,
+                        padding: '6px 0',
+                        letterSpacing: '0.02em',
                       }}
                     >
                       📅 {group.dateLabel} · {group.items.length}건
@@ -2175,11 +2202,12 @@ export default function HomeClient() {
                             }
                           }}
                           style={{
-                            padding: '14px 16px',
-                            borderRadius: 12,
-                            border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                            background: highContrast ? '#1e1e1e' : '#fff',
-                            marginBottom: 10,
+                            padding: '16px',
+                            borderRadius: theme.radius,
+                            border: theme.border,
+                            background: highContrast ? '#1a1a1a' : '#fff',
+                            boxShadow: highContrast ? 'none' : '0 1px 2px rgba(0,0,0,0.04)',
+                            marginBottom: 12,
                             fontSize: 14,
                             cursor: isMine ? 'pointer' : 'default',
                           }}
@@ -2587,13 +2615,15 @@ export default function HomeClient() {
             bottom: 0,
             left: 0,
             right: 0,
-            height: 64,
-            background: highContrast ? '#1e1e1e' : '#fff',
-            borderTop: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+            maxWidth: 480,
+            margin: '0 auto',
+            height: 56,
+            background: theme.card,
+            borderTop: theme.border,
+            boxShadow: '0 -1px 6px rgba(0,0,0,0.04)',
             display: 'flex',
             justifyContent: 'space-around',
             alignItems: 'center',
-            padding: '8px 0',
             zIndex: 40,
           }}
         >
@@ -2612,17 +2642,17 @@ export default function HomeClient() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 4,
-                padding: '8px 16px',
+                gap: 2,
+                padding: '6px 20px',
                 border: 'none',
                 background: 'none',
-                color: activeTab === id ? (highContrast ? '#ffc107' : '#2563eb') : (highContrast ? '#94a3b8' : '#64748b'),
-                fontSize: 11,
+                color: activeTab === id ? (highContrast ? '#ffc107' : '#262626') : theme.textSecondary,
+                fontSize: 10,
                 fontWeight: activeTab === id ? 600 : 400,
                 cursor: 'pointer',
               }}
             >
-              <span style={{ fontSize: 22 }}>{icon}</span>
+              <span style={{ fontSize: 24 }}>{icon}</span>
               {label}
             </button>
           ))}
