@@ -203,6 +203,8 @@ export default function HomeClient() {
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileAvatarUploading, setProfileAvatarUploading] = useState(false);
+  const [profileAvatarLoadFailed, setProfileAvatarLoadFailed] = useState(false);
+  const [avatarFailedUserIds, setAvatarFailedUserIds] = useState<Set<string>>(new Set());
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showNameEditInMenu, setShowNameEditInMenu] = useState(false);
@@ -303,7 +305,9 @@ export default function HomeClient() {
         (myMember.display_name && myMember.display_name.trim()) ||
         (user.email ? user.email.split('@')[0] : '나');
       setProfileName(baseName);
-      setProfileAvatarUrl('avatar_url' in myMember ? (myMember.avatar_url ?? null) : null);
+      const initialAvatar = 'avatar_url' in myMember ? (myMember.avatar_url ?? null) : null;
+      setProfileAvatarUrl(initialAvatar);
+      setProfileAvatarLoadFailed(false);
 
       let allMembers: { user_id: string; display_name: string | null; avatar_url?: string | null }[] | null = null;
       let allMembersError: { message: string } | null = null;
@@ -867,6 +871,7 @@ export default function HomeClient() {
         return;
       }
       setProfileAvatarUrl(publicUrl + (publicUrl.includes('?') ? '&' : '?') + 't=' + Date.now());
+      setProfileAvatarLoadFailed(false);
       setMembers((prev) =>
         prev.map((m) => (m.user_id === user.id ? { ...m, avatar_url: publicUrl } : m))
       );
@@ -1370,8 +1375,13 @@ export default function HomeClient() {
                     flexShrink: 0,
                   }}
                 >
-                  {profileAvatarUrl ? (
-                    <img src={profileAvatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  {profileAvatarUrl && !profileAvatarLoadFailed ? (
+                    <img
+                      src={profileAvatarUrl}
+                      alt=""
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={() => setProfileAvatarLoadFailed(true)}
+                    />
                   ) : (
                     (meDisplayName || t('me')).slice(0, 1).toUpperCase()
                   )}
@@ -1386,6 +1396,8 @@ export default function HomeClient() {
                   const name = (m.display_name && m.display_name.trim()) || m.user_id.slice(0, 6);
                   const active = selectedMemberId === m.user_id;
                   const avatarUrl = m.avatar_url ?? null;
+                  const avatarFailed = avatarFailedUserIds.has(m.user_id);
+                  const showAvatar = avatarUrl && !avatarFailed;
                   return (
                     <button
                       key={m.user_id}
@@ -1409,19 +1421,24 @@ export default function HomeClient() {
                           width: 40,
                           height: 40,
                           borderRadius: '50%',
-                          background: avatarUrl ? 'transparent' : (active ? 'rgba(56,189,248,0.35)' : '#e2e8f0'),
+                          background: showAvatar ? 'transparent' : (active ? 'rgba(56,189,248,0.35)' : '#e2e8f0'),
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontWeight: 600,
                           fontSize: 14,
-                          color: avatarUrl ? undefined : (active ? '#0369a1' : '#64748b'),
+                          color: showAvatar ? undefined : (active ? '#0369a1' : '#64748b'),
                           overflow: 'hidden',
                           flexShrink: 0,
                         }}
                       >
-                        {avatarUrl ? (
-                          <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {showAvatar ? (
+                          <img
+                            src={avatarUrl!}
+                            alt=""
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={() => setAvatarFailedUserIds((prev) => new Set(prev).add(m.user_id))}
+                          />
                         ) : (
                           name.slice(0, 1)
                         )}
