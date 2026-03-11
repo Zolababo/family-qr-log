@@ -186,6 +186,7 @@ export default function HomeClient() {
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<'all' | 'me' | string>('all');
   const [placeViewFilter, setPlaceViewFilter] = useState<'fridge' | 'table' | 'toilet' | 'all'>('all');
+  const [selectedPlaceForLog, setSelectedPlaceForLog] = useState<'fridge' | 'table' | 'toilet' | null>(null);
 
   const [action, setAction] = useState('');
   const [loading, setLoading] = useState(false);
@@ -205,6 +206,7 @@ export default function HomeClient() {
   const [profileAvatarUploading, setProfileAvatarUploading] = useState(false);
   const [profileAvatarLoadFailed, setProfileAvatarLoadFailed] = useState(false);
   const [avatarFailedUserIds, setAvatarFailedUserIds] = useState<Set<string>>(new Set());
+  const [enlargedAvatarUrl, setEnlargedAvatarUrl] = useState<string | null>(null);
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showNameEditInMenu, setShowNameEditInMenu] = useState(false);
@@ -238,6 +240,7 @@ export default function HomeClient() {
   const drawCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawLastRef = useRef<{ x: number; y: number } | null>(null);
   const drawActiveRef = useRef(false);
+  const memoSwipeStartRef = useRef<number | null>(null);
   const [editImageIndex, setEditImageIndex] = useState<number | null>(null);
   const [editImageTag, setEditImageTag] = useState('');
   const [editImageFilter, setEditImageFilter] = useState<'none' | 'grayscale' | 'sepia'>('none');
@@ -249,6 +252,8 @@ export default function HomeClient() {
   const logPreviewUrlsRef = useRef<string[]>([]);
   const logVideoPreviewUrlRef = useRef<string | null>(null);
   const swipeStartRef = useRef<number | null>(null);
+
+  const effectivePlaceSlug = hasPlaceFromUrl ? urlPlace! : (selectedPlaceForLog ?? 'fridge');
 
   useEffect(() => {
     const init = async () => {
@@ -712,7 +717,7 @@ export default function HomeClient() {
 
     const payload: Record<string, unknown> = {
       household_id: householdId,
-      place_slug: placeSlug,
+      place_slug: effectivePlaceSlug,
       action: action || 'clicked',
       actor_user_id: user.id,
     };
@@ -752,6 +757,7 @@ export default function HomeClient() {
     const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
     await loadLogs(householdId, placeSlugFilter, actorId);
     setStatus('로그가 추가되었습니다.');
+    setSelectedPlaceForLog(null);
     setLoading(false);
     router.replace(pathname || '/');
   };
@@ -830,18 +836,34 @@ export default function HomeClient() {
         setStatus('로그인 후 다시 시도해 주세요.');
         return;
       }
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name);
       const isImageType = file.type.startsWith('image/');
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const isImageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+      const isImageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'].includes(ext);
       if (!isImageType && !isImageExt) {
-        setStatus('사진 파일만 선택해 주세요. (jpg, png, gif 등)');
+        setStatus('사진 파일만 선택해 주세요. (jpg, png, heic 등)');
         return;
       }
       setProfileAvatarUploading(true);
       setStatus('프로필 사진 업로드 중...');
-      const path = `${householdId}/${user.id}.${ext}`;
-      const contentType = file.type.startsWith('image/') ? file.type : `image/${ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : ext === 'png' ? 'png' : ext === 'gif' ? 'gif' : 'webp'}`;
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, {
+      let fileToUpload: File = file;
+      if (isHeic && typeof window !== 'undefined') {
+        try {
+          const heic2any = (await import('heic2any')).default;
+          const result = await heic2any({ blob: file, toType: 'image/jpeg' });
+          const blob = result instanceof Blob ? result : (Array.isArray(result) ? result[0] : result);
+          if (!blob) throw new Error('Conversion failed');
+          fileToUpload = new File([blob], file.name.replace(/\.[^.]+$/i, '.jpg'), { type: 'image/jpeg' });
+        } catch (err) {
+          setStatus('HEIC 변환에 실패했습니다. JPEG/PNG로 올려 주세요.');
+          setProfileAvatarUploading(false);
+          return;
+        }
+      }
+      const uploadExt = fileToUpload.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${householdId}/${user.id}.${uploadExt}`;
+      const contentType = fileToUpload.type.startsWith('image/') ? fileToUpload.type : `image/${uploadExt === 'jpg' || uploadExt === 'jpeg' ? 'jpeg' : uploadExt === 'png' ? 'png' : uploadExt === 'gif' ? 'gif' : 'webp'}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, fileToUpload, {
         contentType,
         upsert: true,
       });
@@ -893,7 +915,7 @@ export default function HomeClient() {
     profileName || (user?.email ? user.email.split('@')[0] : t('me'));
   const getPlaceLabelKey = (slug: string) =>
     slug === 'fridge' ? 'fridge' : slug === 'table' ? 'table' : slug === 'toilet' ? 'toilet' : 'allPlaces';
-  const currentPlaceLabel = t(getPlaceLabelKey(placeSlug));
+  const currentPlaceLabel = t(getPlaceLabelKey(effectivePlaceSlug));
 
   const logsForList =
     activeTab === 'search' && searchQuery.trim()
@@ -1116,7 +1138,7 @@ export default function HomeClient() {
                 <input
                   ref={profileAvatarInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/*,image/heic,image/heif"
                   style={{ display: 'none' }}
                   onChange={handleProfileAvatarChange}
                   aria-hidden
@@ -1360,6 +1382,13 @@ export default function HomeClient() {
                 }}
               >
                 <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (profileAvatarUrl && !profileAvatarLoadFailed) setEnlargedAvatarUrl(profileAvatarUrl);
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (profileAvatarUrl && !profileAvatarLoadFailed) setEnlargedAvatarUrl(profileAvatarUrl); } }}
                   style={{
                     width: 40,
                     height: 40,
@@ -1373,13 +1402,14 @@ export default function HomeClient() {
                     color: profileAvatarUrl ? undefined : '#fff',
                     overflow: 'hidden',
                     flexShrink: 0,
+                    cursor: profileAvatarUrl && !profileAvatarLoadFailed ? 'pointer' : undefined,
                   }}
                 >
                   {profileAvatarUrl && !profileAvatarLoadFailed ? (
                     <img
                       src={profileAvatarUrl}
                       alt=""
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
                       onError={() => setProfileAvatarLoadFailed(true)}
                     />
                   ) : (
@@ -1417,6 +1447,10 @@ export default function HomeClient() {
                       }}
                     >
                       <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); if (showAvatar && avatarUrl) setEnlargedAvatarUrl(avatarUrl); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (showAvatar && avatarUrl) setEnlargedAvatarUrl(avatarUrl); } }}
                         style={{
                           width: 40,
                           height: 40,
@@ -1430,13 +1464,14 @@ export default function HomeClient() {
                           color: showAvatar ? undefined : (active ? '#0369a1' : '#64748b'),
                           overflow: 'hidden',
                           flexShrink: 0,
+                          cursor: showAvatar ? 'pointer' : undefined,
                         }}
                       >
                         {showAvatar ? (
                           <img
                             src={avatarUrl!}
                             alt=""
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
                             onError={() => setAvatarFailedUserIds((prev) => new Set(prev).add(m.user_id))}
                           />
                         ) : (
@@ -1493,7 +1528,7 @@ export default function HomeClient() {
 
         {user && householdId && (
           <>
-            {hasPlaceFromUrl ? (
+            {(hasPlaceFromUrl || selectedPlaceForLog) ? (
               <section
                 style={{
                   marginBottom: 20,
@@ -1508,8 +1543,36 @@ export default function HomeClient() {
                   {t('recordHere')}
                 </div>
                 <p style={{ fontSize: 13, color: theme.textSecondary, marginBottom: 12 }}>
-                  {t('currentPlace')}: <strong style={{ color: theme.text }}>{currentPlaceLabel}</strong> · {t('qrAccessed')}
+                  {t('currentPlace')}: <strong style={{ color: theme.text }}>{currentPlaceLabel}</strong>
+                  {hasPlaceFromUrl ? ` · ${t('qrAccessed')}` : ' · 버튼으로 선택'}
                 </p>
+                {selectedPlaceForLog && !hasPlaceFromUrl && (
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                    {(['fridge', 'table', 'toilet'] as const).map((slug) => (
+                      <button
+                        key={slug}
+                        type="button"
+                        onClick={() => setSelectedPlaceForLog(slug)}
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: 999,
+                          border: selectedPlaceForLog === slug ? '2px solid' : '1px solid #e2e8f0',
+                          background: selectedPlaceForLog === slug
+                            ? (slug === 'fridge' ? 'rgba(56,189,248,0.2)' : slug === 'table' ? 'rgba(34,197,94,0.2)' : 'rgba(251,191,36,0.25)')
+                            : highContrast ? '#1e1e1e' : '#f8fafc',
+                          color: selectedPlaceForLog === slug
+                            ? (slug === 'fridge' ? '#0369a1' : slug === 'table' ? '#166534' : '#a16207')
+                            : highContrast ? '#94a3b8' : '#64748b',
+                          fontSize: 13,
+                          fontWeight: selectedPlaceForLog === slug ? 600 : 400,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {slug === 'fridge' ? '🧊' : slug === 'table' ? '🍽️' : '🚽'} {t(slug)}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -1796,10 +1859,44 @@ export default function HomeClient() {
                   {loading ? t('savingLog') : `"${currentPlaceLabel}" ${t('addLog')}`}
                 </button>
               </section>
-            ) : activeTab === 'home' ? (
-              <p style={{ margin: '0 0 16px', fontSize: 13, color: highContrast ? '#e0e0e0' : '#64748b', textAlign: 'center' }}>
-                👇 아래 QR 탭에서 스캔 후 로그를 남기세요
-              </p>
+            ) : activeTab === 'home' && !(hasPlaceFromUrl || selectedPlaceForLog) ? (
+              <section style={{ marginBottom: 24 }}>
+                <p style={{ margin: '0 0 16px', fontSize: 13, color: highContrast ? '#e0e0e0' : '#64748b', textAlign: 'center' }}>
+                  장소를 누르면 로그를 남길 수 있어요
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap' }}>
+                  {([
+                    { slug: 'fridge' as const, icon: '🧊', labelKey: 'fridge' as const, bg: 'linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%)', shadow: '0 8px 24px rgba(56,189,248,0.35)' },
+                    { slug: 'table' as const, icon: '🍽️', labelKey: 'table' as const, bg: 'linear-gradient(135deg, #86efac 0%, #22c55e 100%)', shadow: '0 8px 24px rgba(34,197,94,0.35)' },
+                    { slug: 'toilet' as const, icon: '🚽', labelKey: 'toilet' as const, bg: 'linear-gradient(135deg, #fde047 0%, #eab308 100%)', shadow: '0 8px 24px rgba(234,179,8,0.35)' },
+                  ]).map(({ slug, icon, labelKey, bg, shadow }) => (
+                    <button
+                      key={slug}
+                      type="button"
+                      onClick={() => setSelectedPlaceForLog(slug)}
+                      style={{
+                        width: 88,
+                        height: 88,
+                        borderRadius: 20,
+                        border: 'none',
+                        background: bg,
+                        boxShadow: shadow,
+                        color: '#fff',
+                        fontSize: 32,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 4,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span>{icon}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>{t(labelKey)}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
             ) : null}
             {activeTab === 'qr' && !hasPlaceFromUrl && (
               <section
@@ -2428,7 +2525,7 @@ export default function HomeClient() {
                                                 </button>
                                               )}
                                               {getReplies(c.id).map((r) => (
-                                                <div key={r.id} style={{ marginLeft: 16, marginTop: 6, paddingLeft: 10, borderLeft: highContrast ? '2px solid rgba(255,193,7,0.4)' : '2px solid #e2e8f0' }}>
+                                                <div key={r.id} style={{ marginLeft: 24, marginTop: 6, paddingLeft: 12, borderLeft: highContrast ? '2px solid rgba(255,193,7,0.4)' : '2px solid #e2e8f0' }}>
                                                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
                                                     <span style={{ fontWeight: 600, fontSize: 12, color: highContrast ? '#ffc107' : '#0f172a' }}>{getMemberName(r.user_id)}</span>
                                                     <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>{formatDateTime(r.created_at)}</span>
@@ -2500,7 +2597,7 @@ export default function HomeClient() {
                                                   )}
                                                   {/* 답글의 답글 (3단계) */}
                                                   {getReplies(r.id).map((r2) => (
-                                                    <div key={r2.id} style={{ marginLeft: 12, marginTop: 6, paddingLeft: 8, borderLeft: highContrast ? '2px solid rgba(255,193,7,0.25)' : '2px solid #e2e8f0' }}>
+                                                    <div key={r2.id} style={{ marginLeft: 20, marginTop: 6, paddingLeft: 10, borderLeft: highContrast ? '2px solid rgba(255,193,7,0.25)' : '2px solid #e2e8f0' }}>
                                                       <span style={{ fontWeight: 600, fontSize: 12, color: highContrast ? '#ffc107' : '#0f172a' }}>{getMemberName(r2.user_id)}</span>
                                                       <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b', marginLeft: 6 }}>{formatDateTime(r2.created_at)}</span>
                                                       <div style={{ fontSize: 12, color: highContrast ? '#e2e8f0' : '#334155', marginTop: 2 }}>{r2.content}</div>
@@ -2509,7 +2606,7 @@ export default function HomeClient() {
                                                 </div>
                                               ))}
                                               {replyingToThis && replyingTo?.commentId === c.id && user && (
-                                                <div style={{ marginLeft: 16, marginTop: 8 }}>
+                                                <div style={{ marginLeft: 24, marginTop: 8 }}>
                                                   <input
                                                     type="text"
                                                     placeholder="답글 입력..."
@@ -2653,7 +2750,10 @@ export default function HomeClient() {
             <button
               key={id}
               type="button"
-              onClick={() => setActiveTab(id)}
+              onClick={() => {
+                setActiveTab(id);
+                if (id === 'qr') setShowScanner(true);
+              }}
               aria-current={activeTab === id}
               style={{
                 display: 'flex',
@@ -2899,26 +2999,18 @@ export default function HomeClient() {
               padding: 16,
             }}
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => { const t = e.changedTouches?.[0]; if (t) memoSwipeStartRef.current = t.clientX; }}
+            onTouchEnd={(e) => {
+              const t = e.changedTouches?.[0];
+              if (!t || memoSwipeStartRef.current == null) return;
+              const start = memoSwipeStartRef.current;
+              const end = t.clientX;
+              memoSwipeStartRef.current = null;
+              if (end - start > 50) setShowMemoPanel(false);
+            }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ marginBottom: 12 }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>📝 메모</h3>
-              <button
-                type="button"
-                onClick={() => setShowMemoPanel(false)}
-                aria-label="닫기"
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  border: 'none',
-                  background: highContrast ? '#333' : '#f1f5f9',
-                  color: highContrast ? '#fff' : '#64748b',
-                  fontSize: 18,
-                  cursor: 'pointer',
-                }}
-              >
-                ×
-              </button>
             </div>
             <textarea
               value={memoContent}
@@ -2938,7 +3030,7 @@ export default function HomeClient() {
                 outline: 'none',
               }}
             />
-            <p style={{ margin: '8px 0 0', fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>우→좌 스와이프로 열 수 있어요. 자동 저장됩니다.</p>
+            <p style={{ margin: '8px 0 0', fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>우→좌 스와이프로 열고, 좌→우 스와이프 또는 바깥을 눌러 닫을 수 있어요. 자동 저장됩니다.</p>
           </div>
         </>
       )}
@@ -2964,6 +3056,36 @@ export default function HomeClient() {
           if (start > window.innerWidth - 80 && start - end > 50) setShowMemoPanel(true);
         }}
       />
+
+      {enlargedAvatarUrl && (
+        <div
+          role="dialog"
+          aria-label="프로필 사진 확대"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.9)',
+            zIndex: 90,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+          onClick={() => setEnlargedAvatarUrl(null)}
+        >
+          <img
+            src={enlargedAvatarUrl}
+            alt=""
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain',
+              borderRadius: 8,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {showScanner && (
         <div
