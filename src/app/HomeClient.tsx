@@ -1054,12 +1054,17 @@ export default function HomeClient() {
               id="app-title"
               style={{
                 margin: 0,
-                fontSize: 20,
+                fontFamily: 'var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif',
+                fontSize: 22,
                 fontWeight: 700,
-                letterSpacing: '-0.02em',
+                letterSpacing: '-0.03em',
                 color: theme.text,
                 flex: 1,
                 minWidth: 0,
+                background: highContrast ? undefined : 'linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%)',
+                WebkitBackgroundClip: highContrast ? undefined : 'text',
+                WebkitTextFillColor: highContrast ? undefined : 'transparent',
+                backgroundClip: highContrast ? undefined : 'text',
               }}
             >
               {t('appTitle')}
@@ -1539,8 +1544,23 @@ export default function HomeClient() {
                   boxShadow: theme.cardShadow,
                 }}
               >
-                <div style={{ fontSize: 11, letterSpacing: '0.05em', color: theme.textSecondary, marginBottom: 8 }}>
-                  {t('recordHere')}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, letterSpacing: '0.05em', color: theme.textSecondary }}>{t('recordHere')}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedPlaceForLog(null); if (hasPlaceFromUrl) router.replace(pathname || '/'); }}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #e2e8f0',
+                      background: highContrast ? '#1e1e1e' : '#f1f5f9',
+                      color: highContrast ? '#94a3b8' : '#64748b',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    해제
+                  </button>
                 </div>
                 <p style={{ fontSize: 13, color: theme.textSecondary, marginBottom: 12 }}>
                   {t('currentPlace')}: <strong style={{ color: theme.text }}>{currentPlaceLabel}</strong>
@@ -1657,25 +1677,39 @@ export default function HomeClient() {
                     multiple
                     onChange={(e) => handleMediaSelect(e, false)}
                   />
-                  <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 10,
+                      marginBottom: 10,
+                      flexWrap: 'nowrap',
+                      overflowX: 'auto',
+                      overflowY: 'hidden',
+                      paddingBottom: 4,
+                      WebkitOverflowScrolling: 'touch',
+                      scrollbarWidth: 'thin',
+                    }}
+                  >
                     <label
                       htmlFor={imageCompressing ? undefined : 'log-camera-input'}
                       aria-label={t('takePhoto')}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 8,
-                        padding: '12px 18px',
+                        gap: 6,
+                        padding: '10px 14px',
                         borderRadius: 12,
                         border: '1px solid #e2e8f0',
                         background: imageCompressing ? '#e2e8f0' : '#f8fafc',
                         color: imageCompressing ? '#94a3b8' : '#475569',
-                        fontSize: 14,
+                        fontSize: 13,
                         cursor: imageCompressing ? 'wait' : 'pointer',
                         pointerEvents: imageCompressing ? 'none' : 'auto',
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      <span style={{ fontSize: 18 }}>📷</span>
+                      <span style={{ fontSize: 16 }}>📷</span>
                       촬영
                     </label>
                     <label
@@ -1684,18 +1718,20 @@ export default function HomeClient() {
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 8,
-                        padding: '12px 18px',
+                        gap: 6,
+                        padding: '10px 14px',
                         borderRadius: 12,
                         border: '1px solid #e2e8f0',
                         background: imageCompressing ? '#e2e8f0' : '#f8fafc',
                         color: imageCompressing ? '#94a3b8' : '#475569',
-                        fontSize: 14,
+                        fontSize: 13,
                         cursor: imageCompressing ? 'wait' : 'pointer',
                         pointerEvents: imageCompressing ? 'none' : 'auto',
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      <span style={{ fontSize: 18 }}>🖼️</span>
+                      <span style={{ fontSize: 16 }}>🖼️</span>
                       {t('fromAlbum')}
                     </label>
                     <button
@@ -1704,17 +1740,19 @@ export default function HomeClient() {
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 8,
-                        padding: '12px 18px',
+                        gap: 6,
+                        padding: '10px 14px',
                         borderRadius: 12,
                         border: '1px solid #e2e8f0',
                         background: '#f8fafc',
                         color: '#475569',
-                        fontSize: 14,
+                        fontSize: 13,
                         cursor: 'pointer',
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      <span style={{ fontSize: 18 }}>✏️</span>
+                      <span style={{ fontSize: 16 }}>✏️</span>
                       그리기
                     </button>
                   </div>
@@ -3229,7 +3267,7 @@ export default function HomeClient() {
               maxWidth: 360,
               maxHeight: '80vh',
               overflow: 'auto',
-              padding: 24,
+              padding: 20,
               borderRadius: 20,
               background: '#fff',
               boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
@@ -3237,50 +3275,69 @@ export default function HomeClient() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700, color: '#0f172a' }}>
-              {t('phraseManageTitle')}
-            </h3>
-            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748b' }}>
-              {t('phraseManageHint')}
-            </p>
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', maxHeight: 200, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{t('phraseManageTitle')}</h3>
+              <button
+                type="button"
+                onClick={() => { setShowPhraseManager(false); setNewPhraseInput(''); }}
+                aria-label={t('close')}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  color: '#64748b',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('close')}
+              </button>
+            </div>
+            <p style={{ margin: '0 0 12px', fontSize: 11, color: '#94a3b8' }}>로그 입력 시 탭해서 넣을 수 있어요.</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16, minHeight: 32 }}>
               {quickPhrases.map((phrase, i) => (
-                <li
+                <span
                   key={`${i}-${phrase}`}
                   style={{
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    marginBottom: 8,
-                    borderRadius: 12,
-                    background: '#f8fafc',
+                    gap: 4,
+                    padding: '6px 10px',
+                    borderRadius: 999,
+                    background: '#f1f5f9',
                     border: '1px solid #e2e8f0',
+                    fontSize: 13,
+                    color: '#334155',
                   }}
                 >
-                  <span style={{ fontSize: 14, color: '#0f172a' }}>{phrase}</span>
+                  {phrase}
                   <button
                     type="button"
                     onClick={() => saveQuickPhrases(quickPhrases.filter((_, j) => j !== i))}
                     aria-label={t('delete')}
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
+                      padding: 0,
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
                       border: 'none',
-                      background: 'transparent',
-                      color: '#94a3b8',
-                      fontSize: 18,
-                      cursor: 'pointer',
+                      background: '#cbd5e1',
+                      color: '#fff',
+                      fontSize: 12,
                       lineHeight: 1,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                   >
                     ×
                   </button>
-                </li>
+                </span>
               ))}
-            </ul>
-            <div style={{ display: 'flex', gap: 10 }}>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
                 type="text"
                 value={newPhraseInput}
@@ -3288,12 +3345,13 @@ export default function HomeClient() {
                 placeholder={t('phrasePlaceholder')}
                 style={{
                   flex: 1,
-                  padding: '12px 14px',
-                  borderRadius: 12,
+                  minWidth: 0,
+                  padding: '10px 12px',
+                  borderRadius: 10,
                   border: '1px solid #e2e8f0',
                   background: '#f8fafc',
                   color: '#0f172a',
-                  fontSize: 14,
+                  fontSize: 13,
                   outline: 'none',
                 }}
                 onKeyDown={(e) => {
@@ -3310,37 +3368,20 @@ export default function HomeClient() {
                   if (t) { saveQuickPhrases([...quickPhrases, t]); setNewPhraseInput(''); }
                 }}
                 style={{
-                  padding: '12px 20px',
-                  borderRadius: 12,
+                  padding: '10px 16px',
+                  borderRadius: 10,
                   border: 'none',
                   background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
                   color: '#fff',
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: 600,
                   cursor: 'pointer',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {t('add')}
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => { setShowPhraseManager(false); setNewPhraseInput(''); }}
-              style={{
-                display: 'block',
-                width: '100%',
-                marginTop: 20,
-                padding: 12,
-                borderRadius: 12,
-                border: '1px solid #e2e8f0',
-                background: '#f8fafc',
-                color: '#475569',
-                fontSize: 14,
-                cursor: 'pointer',
-              }}
-            >
-              {t('close')}
-            </button>
           </div>
         </div>
       )}
