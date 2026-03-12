@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- Metallic gold/brass gradient -->
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d4af37"/>
+      <stop offset="25%" stop-color="#f4e4a6"/>
+      <stop offset="50%" stop-color="#c9a227"/>
+      <stop offset="75%" stop-color="#b8860b"/>
+      <stop offset="100%" stop-color="#8b6914"/>
+    </linearGradient>
+    <linearGradient id="goldLight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f4e4a6"/>
+      <stop offset="100%" stop-color="#c9a227"/>
+    </linearGradient>
+    <!-- Dark inner badge background -->
+    <linearGradient id="innerBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2c1810"/>
+      <stop offset="100%" stop-color="#1a0f0a"/>
+    </linearGradient>
+    <!-- Subtle inner shadow for recessed look -->
+    <filter id="innerShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feOffset in="SourceAlpha" dx="4" dy="4"/>
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feFlood flood-color="#000" flood-opacity="0.4"/>
+      <feComposite in2="blur" operator="in"/>
+      <feComposite in2="SourceAlpha" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="goldGlow">
+      <feGaussianBlur stdDeviation="0.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Outer badge: rounded square with gold frame -->
+  <rect x="0" y="0" width="512" height="512" rx="88" fill="url(#gold)"/>
+  <!-- Inner recessed dark area -->
+  <rect x="28" y="28" width="456" height="456" rx="68" fill="url(#innerBg)" filter="url(#innerShadow)"/>
+  <!-- QR-style grid in gold (simplified pattern) -->
+  <g fill="url(#goldLight)" filter="url(#goldGlow)">
+    <rect x="72" y="72" width="32" height="32" rx="4"/>
+    <rect x="112" y="72" width="32" height="32" rx="4"/>
+    <rect x="152" y="72" width="32" height="32" rx="4"/>
+    <rect x="328" y="72" width="32" height="32" rx="4"/>
+    <rect x="368" y="72" width="32" height="32" rx="4"/>
+    <rect x="408" y="72" width="32" height="32" rx="4"/>
+    <rect x="72" y="112" width="32" height="32" rx="4"/>
+    <rect x="152" y="112" width="32" height="32" rx="4"/>
+    <rect x="328" y="112" width="32" height="32" rx="4"/>
+    <rect x="408" y="112" width="32" height="32" rx="4"/>
+    <rect x="72" y="152" width="32" height="32" rx="4"/>
+    <rect x="112" y="152" width="32" height="32" rx="4"/>
+    <rect x="368" y="152" width="32" height="32" rx="4"/>
+    <rect x="408" y="152" width="32" height="32" rx="4"/>
+    <rect x="72" y="328" width="32" height="32" rx="4"/>
+    <rect x="152" y="328" width="32" height="32" rx="4"/>
+    <rect x="328" y="328" width="32" height="32" rx="4"/>
+    <rect x="408" y="328" width="32" height="32" rx="4"/>
+    <rect x="72" y="368" width="32" height="32" rx="4"/>
+    <rect x="112" y="368" width="32" height="32" rx="4"/>
+    <rect x="368" y="368" width="32" height="32" rx="4"/>
+    <rect x="408" y="368" width="32" height="32" rx="4"/>
+    <rect x="72" y="408" width="32" height="32" rx="4"/>
+    <rect x="152" y="408" width="32" height="32" rx="4"/>
+    <rect x="328" y="408" width="32" height="32" rx="4"/>
+    <rect x="408" y="408" width="32" height="32" rx="4"/>
+  </g>
+  <!-- Family silhouette: two adults + child, gold (simple rounded shapes) -->
+  <g fill="url(#goldLight)" filter="url(#goldGlow)">
+    <!-- Left adult -->
+    <circle cx="176" cy="172" r="26"/>
+    <rect x="150" y="198" width="52" height="72" rx="8"/>
+    <!-- Right adult -->
+    <circle cx="336" cy="172" r="26"/>
+    <rect x="310" y="198" width="52" height="72" rx="8"/>
+    <!-- Child center -->
+    <circle cx="256" cy="188" r="18"/>
+    <rect x="238" y="206" width="36" height="52" rx="6"/>
+  </g>
+  <!-- Text: FAMILY QR LOG -->
+  <text
+    x="256"
+    y="448"
+    text-anchor="middle"
+    fill="url(#goldLight)"
+    font-family="system-ui, -apple-system, sans-serif"
+    font-size="28"
+    font-weight="700"
+    letter-spacing="0.12em"
+    filter="url(#goldGlow)"
+  >FAMILY QR LOG</text>
+</svg>

@@ -21,6 +21,12 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "Family QR Log",
   description: "가족과 함께 장소별 로그를 공유하세요",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "QR Log",
+  },
 };
 
 export const viewport = {
@@ -37,6 +43,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
+      <head>
+        <meta name="theme-color" content="#334155" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/icon.svg" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} antialiased`}
       >
