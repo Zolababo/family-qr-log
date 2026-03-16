@@ -55,7 +55,7 @@
   --glass-bg: var(--color-glass-weak);
   --glass-bg-strong: var(--color-glass-strong);
   --glass-border: 1px solid var(--color-glass-border);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --glass-shadow: 0 18px 45px rgba(15, 23, 42, 0.7);
 
   /* Buttons */
   --btn-radius: 14px;
@@ -142,18 +142,18 @@ body {
 /* ========== Glassmorphism: 카드 & 모달 ========== */
 [data-accessibility-root]:not([data-high-contrast="true"]) section {
   background: var(--glass-bg) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
-  border-radius: 16px !important;
+  border-radius: 24px !important;
 }
 
 [data-accessibility-root]:not([data-high-contrast="true"]) [role="dialog"],
 [data-accessibility-root]:not([data-high-contrast="true"]) [aria-modal="true"] > div {
   background: rgba(255, 255, 255, 0.08) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: var(--glass-border) !important;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4) !important;
   border-radius: 20px !important;
@@ -164,7 +164,7 @@ body {
 [data-accessibility-root]:not([data-high-contrast="true"]) [role="button"],
 [data-accessibility-root]:not([data-high-contrast="true"]) label[for] {
   border-radius: var(--btn-radius) !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  transition: transform 220ms ease-out, box-shadow 220ms ease-out !important;
 }
 
 [data-accessibility-root]:not([data-high-contrast="true"]) button:hover:not(:disabled),
