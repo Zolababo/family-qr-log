@@ -972,29 +972,29 @@ export default function HomeClient() {
   }, [langMenuOpen]);
 
   const theme = {
-    bg: highContrast ? '#0f0f0f' : '#fafafa',
-    card: highContrast ? '#1a1a1a' : '#ffffff',
-    cardShadow: highContrast ? 'none' : '0 1px 3px rgba(0,0,0,0.06)',
-    border: highContrast ? '1px solid #333' : '1px solid rgba(0,0,0,0.06)',
-    text: highContrast ? '#ffffff' : '#262626',
-    textSecondary: highContrast ? '#a1a1a1' : '#8e8e8e',
+    bg: highContrast ? '#0f0f0f' : 'transparent',
+    card: highContrast ? '#1a1a1a' : 'rgba(255,255,255,0.06)',
+    cardShadow: highContrast ? 'none' : '0 8px 32px rgba(0,0,0,0.3)',
+    border: highContrast ? '1px solid #333' : '1px solid rgba(255,255,255,0.12)',
+    text: highContrast ? '#ffffff' : '#f8fafc',
+    textSecondary: highContrast ? '#a1a1a1' : '#94a3b8',
     radius: 12,
     radiusLg: 16,
   };
 
   return (
     <main
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'stretch',
-        padding: '0 0 72px',
-        background: theme.bg,
-        color: theme.text,
-        fontFamily: '"Segoe UI", "Apple SD Gothic Neo", system-ui, sans-serif',
-        ...(fontScale > 1 && { zoom: fontScale, minWidth: 0 } as React.CSSProperties),
-      }}
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'stretch',
+          padding: '0 0 72px',
+          background: theme.bg,
+          color: theme.text,
+          fontFamily: 'var(--font-geist-sans), system-ui, sans-serif',
+          ...(fontScale > 1 && { zoom: fontScale, minWidth: 0 } as React.CSSProperties),
+        }}
       data-accessibility-root
       data-high-contrast={highContrast ? 'true' : 'false'}
       data-font-scale={String(fontScale)}

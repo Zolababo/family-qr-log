@@ -1,32 +1,211 @@
 @import "tailwindcss";
 
+/* ========== 1) Color palette (순수 색상만 정의) ========== */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base neutrals */
+  --color-bg-950: #020617;
+  --color-bg-900: #0b1120;
+  --color-surface-900: #020617;
+  --color-surface-800: #0f172a;
+
+  /* Text */
+  --color-text-strong: #f9fafb;
+  --color-text-soft: #e5e7eb;
+  --color-text-muted: #9ca3af;
+
+  /* Brand / neon accents */
+  --color-purple: #7c3aed;
+  --color-purple-soft: #a78bfa;
+  --color-cyan: #22d3ee;
+  --color-pink: #ec4899;
+
+  /* Whites with alpha (glass) */
+  --color-glass-weak: rgba(255, 255, 255, 0.06);
+  --color-glass-strong: rgba(255, 255, 255, 0.1);
+  --color-glass-border: rgba(255, 255, 255, 0.12);
+}
+
+/* ========== 2) Design tokens: palette를 조합해 사용 ========== */
+:root {
+  /* Dark background + neon gradient points */
+  --app-bg: var(--color-bg-900);
+  --app-bg-gradient: radial-gradient(
+      ellipse 120% 80% at 20% 0%,
+      rgba(139, 92, 246, 0.15) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 100% 60% at 80% 100%,
+      rgba(34, 211, 238, 0.12) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 80% 50% at 50% 50%,
+      rgba(168, 85, 247, 0.06) 0%,
+      transparent 50%
+    ),
+    var(--color-bg-900);
+
+  /* Typography */
+  --text-primary: var(--color-text-strong);
+  --text-secondary: var(--color-text-muted);
+  --text-muted: #64748b;
+
+  /* Glassmorphism */
+  --glass-bg: var(--color-glass-weak);
+  --glass-bg-strong: var(--color-glass-strong);
+  --glass-border: 1px solid var(--color-glass-border);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+  /* Buttons */
+  --btn-radius: 14px;
+  --btn-primary-bg: linear-gradient(
+    135deg,
+    var(--color-purple) 0%,
+    var(--color-purple-soft) 100%
+  );
+  --btn-primary-text: #ffffff;
+  --btn-primary-shadow: 0 4px 14px rgba(124, 58, 237, 0.45);
+  --btn-primary-hover-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+  --btn-secondary-bg: rgba(255, 255, 255, 0.08);
+  --btn-secondary-border: 1px solid rgba(255, 255, 255, 0.2);
+
+  /* Neon accents (그대로 노출해서 써도 됨) */
+  --neon-purple: var(--color-purple-soft);
+  --neon-cyan: var(--color-cyan);
+  --neon-pink: var(--color-pink);
+}
+
+/* ========== 3) Typography scale (모바일 앱 스타일) ========== */
+:root {
+  --font-size-h1: clamp(1.4rem, 5vw, 1.6rem);
+  --font-size-h2: clamp(1.2rem, 4.3vw, 1.35rem);
+  --font-size-h3: clamp(1.05rem, 4vw, 1.2rem);
+  --font-size-body: 0.95rem;
+  --font-size-caption: 0.8rem;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--app-bg);
+  --color-foreground: var(--text-primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ========== Base: dark + neon gradient background ========== */
+body {
+  background: var(--app-bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ========== Mobile-first container (max-width 480px) ========== */
+[data-accessibility-root] {
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+[data-accessibility-root] > div {
+  max-width: 480px;
+}
+
+/* ========== Typography: 큰 볼드 헤더, 서브텍스트 연한 회색 ========== */
+[data-accessibility-root]:not([data-high-contrast="true"]) h1,
+[data-accessibility-root]:not([data-high-contrast="true"]) #app-title {
+  font-size: var(--font-size-h1) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.04em !important;
+  color: var(--text-primary) !important;
+}
+
+[data-accessibility-root]:not([data-high-contrast="true"]) h2,
+[data-accessibility-root]:not([data-high-contrast="true"]) h3 {
+  font-size: var(--font-size-h2) !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+}
+
+[data-accessibility-root]:not([data-high-contrast="true"]) p,
+[data-accessibility-root]:not([data-high-contrast="true"]) .subtext {
+  color: var(--text-secondary) !important;
+  font-size: var(--font-size-body) !important;
+}
+
+[data-accessibility-root]:not([data-high-contrast="true"]) small,
+[data-accessibility-root]:not([data-high-contrast="true"]) .caption {
+  font-size: var(--font-size-caption) !important;
+}
+
+/* ========== Glassmorphism: 카드 & 모달 ========== */
+[data-accessibility-root]:not([data-high-contrast="true"]) section {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  border-radius: 16px !important;
+}
+
+[data-accessibility-root]:not([data-high-contrast="true"]) [role="dialog"],
+[data-accessibility-root]:not([data-high-contrast="true"]) [aria-modal="true"] > div {
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: var(--glass-border) !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4) !important;
+  border-radius: 20px !important;
+}
+
+/* ========== Buttons: 둥근 모서리, 강한 대비, 호버 시 확대+그림자 ========== */
+[data-accessibility-root]:not([data-high-contrast="true"]) button,
+[data-accessibility-root]:not([data-high-contrast="true"]) [role="button"],
+[data-accessibility-root]:not([data-high-contrast="true"]) label[for] {
+  border-radius: var(--btn-radius) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+[data-accessibility-root]:not([data-high-contrast="true"]) button:hover:not(:disabled),
+[data-accessibility-root]:not([data-high-contrast="true"]) [role="button"]:hover:not(:disabled) {
+  transform: scale(1.02) !important;
+  box-shadow: var(--btn-primary-hover-shadow) !important;
+}
+
+/* ========== Header border: subtle neon ========== */
+[data-accessibility-root]:not([data-high-contrast="true"]) header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ========== Inputs & textareas: glass feel ========== */
+[data-accessibility-root]:not([data-high-contrast="true"]) input:not([type="checkbox"]):not([type="radio"]),
+[data-accessibility-root]:not([data-high-contrast="true"]) textarea {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: var(--glass-border) !important;
+  border-radius: 12px !important;
+  color: var(--text-primary) !important;
+}
+
+[data-accessibility-root]:not([data-high-contrast="true"]) input::placeholder,
+[data-accessibility-root]:not([data-high-contrast="true"]) textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* ========== High-contrast: 기존 접근성 유지 ========== */
+@media (prefers-color-scheme: light) {
+  :root {
+    --app-bg: #0c0c0f;
+    --app-bg-gradient: var(--app-bg-gradient);
+  }
 }
 
 @media print {
   .no-print {
     display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
   }
 }
