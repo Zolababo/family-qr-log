@@ -1,82 +1,67 @@
 @import "tailwindcss";
 
-/* ========== 1) Color palette (순수 색상만 정의) ========== */
+/* ========== 1) Design tokens (라이트/따뜻한 테마) ========== */
 :root {
-  /* Base neutrals */
+  /* 배경 */
+  --bg-base: #F7F6F3;
+  --bg-card: #FFFFFF;
+  --bg-subtle: #EFEDE8;
+
+  /* 텍스트 */
+  --text-primary: #1C1C1E;
+  --text-secondary: #6B6B6B;
+  --text-caption: #9E9E9E;
+
+  /* 포인트 컬러 */
+  --accent: #3D6B5E;
+  --accent-light: #EAF2EF;
+
+  /* 장소별 컬러 */
+  --place-fridge: #D6EAF8;
+  --place-fridge-icon: #2E86C1;
+  --place-table: #D5F5E3;
+  --place-table-icon: #1E8449;
+  --place-toilet: #FEF9E7;
+  --place-toilet-icon: #B7950B;
+
+  /* 간격 */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  /* 그림자 */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06);
+
+  /* 멤버 칩 테두리 */
+  --border-chip: #E0DDD8;
+}
+
+/* ========== 2) Legacy palette (다크/네온용, 접근성 고대비에서 사용) ========== */
+:root {
   --color-bg-950: #020617;
   --color-bg-900: #0b1120;
-  --color-surface-900: #020617;
-  --color-surface-800: #0f172a;
-
-  /* Text */
   --color-text-strong: #f9fafb;
-  --color-text-soft: #e5e7eb;
   --color-text-muted: #9ca3af;
-
-  /* Brand / neon accents */
   --color-purple: #7c3aed;
   --color-purple-soft: #a78bfa;
   --color-cyan: #22d3ee;
   --color-pink: #ec4899;
-
-  /* Whites with alpha (glass) */
   --color-glass-weak: rgba(255, 255, 255, 0.06);
   --color-glass-strong: rgba(255, 255, 255, 0.1);
   --color-glass-border: rgba(255, 255, 255, 0.12);
 }
 
-/* ========== 2) Design tokens: palette를 조합해 사용 ========== */
+/* ========== 3) 앱 기본값 (라이트 테마는 1번 토큰 사용) ========== */
 :root {
-  /* Dark background + neon gradient points */
-  --app-bg: var(--color-bg-900);
-  --app-bg-gradient: radial-gradient(
-      ellipse 120% 80% at 20% 0%,
-      rgba(139, 92, 246, 0.15) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 100% 60% at 80% 100%,
-      rgba(34, 211, 238, 0.12) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 80% 50% at 50% 50%,
-      rgba(168, 85, 247, 0.06) 0%,
-      transparent 50%
-    ),
-    var(--color-bg-900);
-
-  /* Typography */
-  --text-primary: var(--color-text-strong);
-  --text-secondary: var(--color-text-muted);
-  --text-muted: #64748b;
-
-  /* Glassmorphism */
-  --glass-bg: var(--color-glass-weak);
-  --glass-bg-strong: var(--color-glass-strong);
-  --glass-border: 1px solid var(--color-glass-border);
-  --glass-shadow: 0 18px 45px rgba(15, 23, 42, 0.7);
-
-  /* Buttons */
-  --btn-radius: 14px;
-  --btn-primary-bg: linear-gradient(
-    135deg,
-    var(--color-purple) 0%,
-    var(--color-purple-soft) 100%
-  );
-  --btn-primary-text: #ffffff;
-  --btn-primary-shadow: 0 4px 14px rgba(124, 58, 237, 0.45);
-  --btn-primary-hover-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
-  --btn-secondary-bg: rgba(255, 255, 255, 0.08);
-  --btn-secondary-border: 1px solid rgba(255, 255, 255, 0.2);
-
-  /* Neon accents (그대로 노출해서 써도 됨) */
-  --neon-purple: var(--color-purple-soft);
-  --neon-cyan: var(--color-cyan);
-  --neon-pink: var(--color-pink);
+  --app-bg: var(--bg-base);
+  --app-bg-gradient: var(--bg-base);
+  --glass-bg: var(--bg-card);
+  --glass-border: 1px solid rgba(0, 0, 0, 0.06);
+  --glass-shadow: var(--shadow-card);
+  --btn-radius: var(--radius-md);
 }
 
-/* ========== 3) Typography scale (모바일 앱 스타일) ========== */
+/* ========== 4) Typography scale (모바일 앱 스타일) ========== */
 :root {
   --font-size-h1: clamp(1.4rem, 5vw, 1.6rem);
   --font-size-h2: clamp(1.2rem, 4.3vw, 1.35rem);
@@ -92,10 +77,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* ========== Base: dark + neon gradient background ========== */
+/* ========== Base ========== */
+html {
+  background: #F7F6F3;
+}
+
 body {
-  background: var(--app-bg-gradient);
-  background-attachment: fixed;
+  background: var(--app-bg);
   color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -141,22 +129,18 @@ body {
 
 /* ========== Glassmorphism: 카드 & 모달 ========== */
 [data-accessibility-root]:not([data-high-contrast="true"]) section {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--bg-card) !important;
   border: var(--glass-border) !important;
-  box-shadow: var(--glass-shadow) !important;
-  border-radius: 24px !important;
+  box-shadow: var(--shadow-card) !important;
+  border-radius: var(--radius-lg) !important;
 }
 
 [data-accessibility-root]:not([data-high-contrast="true"]) [role="dialog"],
 [data-accessibility-root]:not([data-high-contrast="true"]) [aria-modal="true"] > div {
-  background: rgba(255, 255, 255, 0.08) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--bg-card) !important;
   border: var(--glass-border) !important;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4) !important;
-  border-radius: 20px !important;
+  box-shadow: var(--shadow-card) !important;
+  border-radius: var(--radius-lg) !important;
 }
 
 /* ========== Buttons: 둥근 모서리, 강한 대비, 호버 시 확대+그림자 ========== */
@@ -170,35 +154,209 @@ body {
 [data-accessibility-root]:not([data-high-contrast="true"]) button:hover:not(:disabled),
 [data-accessibility-root]:not([data-high-contrast="true"]) [role="button"]:hover:not(:disabled) {
   transform: scale(1.02) !important;
-  box-shadow: var(--btn-primary-hover-shadow) !important;
+  box-shadow: var(--shadow-card) !important;
 }
 
 /* ========== Header border: subtle neon ========== */
 [data-accessibility-root]:not([data-high-contrast="true"]) header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-bottom: 1px solid var(--bg-subtle) !important;
+}
+
+/* ========== 멤버 칩 (가로 스크롤 1줄) ========== */
+.member-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 8px 8px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-chip);
+  background: var(--bg-card);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.member-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.member-chip img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.member-chip .member-chip-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* ========== 장소 선택 카드 (3열 그리드) ========== */
+.place-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 16px;
+}
+
+.place-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  border: 1px solid #EEECE8;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+
+.place-card:active {
+  transform: scale(0.97);
+  box-shadow: none;
+}
+
+.place-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.place-card.fridge .place-icon-wrap { background: var(--place-fridge); }
+.place-card.table .place-icon-wrap  { background: var(--place-table); }
+.place-card.toilet .place-icon-wrap { background: var(--place-toilet); }
+
+.place-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ========== 로그 아이템 카드 ========== */
+.log-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid #F0EDE8;
+}
+
+.log-place-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.log-place-tag.fridge { background: var(--place-fridge); color: var(--place-fridge-icon); }
+.log-place-tag.table  { background: var(--place-table);  color: var(--place-table-icon); }
+.log-place-tag.toilet { background: var(--place-toilet); color: var(--place-toilet-icon); }
+
+.log-time {
+  font-size: 12px;
+  color: var(--text-caption);
+  margin-bottom: 6px;
+}
+
+.log-content {
+  font-size: 15px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.log-author {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ========== 하단 탭바 ========== */
+.bottom-tab {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 12px 0 20px;
+  background: var(--bg-card);
+  border-top: 1px solid #EEECE8;
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-caption);
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 6px 12px;
+}
+
+.tab-item.active {
+  color: var(--accent);
+}
+
+.tab-item.cta button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab-item.cta button .tab-icon {
+  color: white;
+}
+
+.tab-item.cta.active button {
+  background: var(--accent);
+  color: white;
 }
 
 /* ========== Inputs & textareas: glass feel ========== */
 [data-accessibility-root]:not([data-high-contrast="true"]) input:not([type="checkbox"]):not([type="radio"]),
 [data-accessibility-root]:not([data-high-contrast="true"]) textarea {
-  background: rgba(255, 255, 255, 0.06) !important;
+  background: var(--bg-card) !important;
   border: var(--glass-border) !important;
-  border-radius: 12px !important;
+  border-radius: var(--radius-sm) !important;
   color: var(--text-primary) !important;
 }
 
 [data-accessibility-root]:not([data-high-contrast="true"]) input::placeholder,
 [data-accessibility-root]:not([data-high-contrast="true"]) textarea::placeholder {
-  color: var(--text-muted) !important;
+  color: var(--text-caption) !important;
 }
 
 /* ========== High-contrast: 기존 접근성 유지 ========== */
-@media (prefers-color-scheme: light) {
-  :root {
-    --app-bg: #0c0c0f;
-    --app-bg-gradient: var(--app-bg-gradient);
-  }
-}
 
 @media print {
   .no-print {

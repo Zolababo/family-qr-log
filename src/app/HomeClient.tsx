@@ -7,6 +7,7 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import jsQR from 'jsqr';
 import { getT, langLabels, type Lang } from './translations';
+import { Home, Calendar, QrCode, Search } from 'lucide-react';
 
 type Log = {
   id: string;
@@ -62,13 +63,13 @@ const getPlaceLabel = (slug: string) => {
 const getPlaceChipStyle = (slug: string) => {
   switch (slug) {
     case 'fridge':
-      return { background: 'rgba(56,189,248,0.2)', color: '#0369a1', border: '1px solid rgba(56,189,248,0.5)' };
+      return { background: 'var(--place-fridge)', color: 'var(--place-fridge-icon)', border: '1px solid var(--place-fridge-icon)' };
     case 'table':
-      return { background: 'rgba(34,197,94,0.2)', color: '#166534', border: '1px solid rgba(34,197,94,0.5)' };
+      return { background: 'var(--place-table)', color: 'var(--place-table-icon)', border: '1px solid var(--place-table-icon)' };
     case 'toilet':
-      return { background: 'rgba(251,191,36,0.25)', color: '#a16207', border: '1px solid rgba(251,191,36,0.5)' };
+      return { background: 'var(--place-toilet)', color: 'var(--place-toilet-icon)', border: '1px solid var(--place-toilet-icon)' };
     default:
-      return { background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' };
+      return { background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--text-caption)' };
   }
 };
 
@@ -972,12 +973,12 @@ export default function HomeClient() {
   }, [langMenuOpen]);
 
   const theme = {
-    bg: highContrast ? '#0f0f0f' : 'transparent',
-    card: highContrast ? '#1a1a1a' : 'rgba(255,255,255,0.06)',
-    cardShadow: highContrast ? 'none' : '0 8px 32px rgba(0,0,0,0.3)',
-    border: highContrast ? '1px solid #333' : '1px solid rgba(255,255,255,0.12)',
-    text: highContrast ? '#ffffff' : '#f8fafc',
-    textSecondary: highContrast ? '#a1a1a1' : '#94a3b8',
+    bg: highContrast ? '#0f0f0f' : 'var(--bg-base)',
+    card: highContrast ? '#1a1a1a' : 'var(--bg-card)',
+    cardShadow: highContrast ? 'none' : 'var(--shadow-card)',
+    border: highContrast ? '1px solid #333' : '1px solid rgba(0,0,0,0.06)',
+    text: highContrast ? '#ffffff' : 'var(--text-primary)',
+    textSecondary: highContrast ? '#a1a1a1' : 'var(--text-secondary)',
     radius: 12,
     radiusLg: 16,
   };
@@ -1061,7 +1062,7 @@ export default function HomeClient() {
                 color: theme.text,
                 flex: 1,
                 minWidth: 0,
-                background: highContrast ? undefined : 'linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%)',
+                background: highContrast ? undefined : 'var(--accent)',
                 WebkitBackgroundClip: highContrast ? undefined : 'text',
                 WebkitTextFillColor: highContrast ? undefined : 'transparent',
                 backgroundClip: highContrast ? undefined : 'text',
@@ -1080,9 +1081,9 @@ export default function HomeClient() {
                   height: 40,
                   padding: '0 12px',
                   borderRadius: 12,
-                  border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
-                  background: highContrast ? '#1e1e1e' : '#f8fafc',
-                  color: highContrast ? '#ffffff' : '#475569',
+                  border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
+                  background: highContrast ? '#1e1e1e' : 'var(--bg-card)',
+                  color: highContrast ? '#ffffff' : 'var(--text-secondary)',
                   cursor: 'pointer',
                   fontSize: 13,
                   fontWeight: 500,
@@ -1107,7 +1108,7 @@ export default function HomeClient() {
                     padding: '8px 0',
                     borderRadius: 12,
                     background: highContrast ? '#1e1e1e' : '#fff',
-                    border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+                    border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
                     boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
                     zIndex: 55,
                   }}
@@ -1124,8 +1125,8 @@ export default function HomeClient() {
                         width: '100%',
                         padding: '10px 14px',
                         border: 'none',
-                        background: language === lang ? (highContrast ? '#333' : '#f1f5f9') : 'transparent',
-                        color: highContrast ? '#ffffff' : '#0f172a',
+                        background: language === lang ? (highContrast ? '#333' : 'var(--bg-subtle)') : 'transparent',
+                        color: highContrast ? '#ffffff' : 'var(--text-primary)',
                         fontSize: 14,
                         textAlign: 'left',
                         cursor: 'pointer',
@@ -1156,7 +1157,7 @@ export default function HomeClient() {
                     width: 40,
                     height: 40,
                     borderRadius: 12,
-                    border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+                    border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
                     background: highContrast ? '#1e1e1e' : '#f8fafc',
                     color: highContrast ? '#ffffff' : '#475569',
                     cursor: 'pointer',
@@ -1333,80 +1334,52 @@ export default function HomeClient() {
             )}
           </div>
           {user && householdId && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-              {/* 아이콘 크기 통일: 모두 40x40 원 */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 14,
+                overflowX: 'auto',
+                flexWrap: 'nowrap',
+                paddingBottom: 4,
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
               <button
                 type="button"
+                className={`member-chip ${selectedMemberId === 'all' ? 'active' : ''}`}
                 onClick={() => setSelectedMemberId('all')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                  border: selectedMemberId === 'all' ? '2px solid #64748b' : '1px solid #e2e8f0',
-                  background: selectedMemberId === 'all' ? 'rgba(100,116,139,0.2)' : '#f8fafc',
-                  color: selectedMemberId === 'all' ? '#475569' : '#64748b',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                }}
               >
-                <span
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    background: selectedMemberId === 'all' ? 'rgba(100,116,139,0.25)' : '#e2e8f0',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 18,
-                    flexShrink: 0,
-                  }}
-                >
+                <span className="member-chip-icon" style={{ background: 'var(--bg-subtle)', fontSize: 16 }}>
                   👥
                 </span>
-                <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {t('allMembers')}
-                </span>
+                <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('allMembers')}</span>
               </button>
               <button
                 type="button"
+                className={`member-chip ${selectedMemberId === 'me' ? 'active' : ''}`}
                 onClick={() => setSelectedMemberId('me')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                  border: selectedMemberId === 'me' ? '2px solid #818cf8' : '1px solid #e2e8f0',
-                  background: selectedMemberId === 'me' ? 'rgba(129,140,248,0.2)' : '#f8fafc',
-                  color: selectedMemberId === 'me' ? '#4338ca' : '#475569',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                }}
               >
                 <span
+                  className="member-chip-icon"
                   role="button"
                   tabIndex={0}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (profileAvatarUrl && !profileAvatarLoadFailed) setEnlargedAvatarUrl(profileAvatarUrl);
                   }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (profileAvatarUrl && !profileAvatarLoadFailed) setEnlargedAvatarUrl(profileAvatarUrl); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (profileAvatarUrl && !profileAvatarLoadFailed) setEnlargedAvatarUrl(profileAvatarUrl);
+                    }
+                  }}
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    background: profileAvatarUrl ? 'transparent' : 'linear-gradient(135deg, #818cf8, #6366f1)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                    fontSize: 16,
+                    background: profileAvatarUrl ? 'transparent' : 'var(--accent)',
                     color: profileAvatarUrl ? undefined : '#fff',
-                    overflow: 'hidden',
-                    flexShrink: 0,
+                    fontWeight: 700,
+                    fontSize: 14,
                     cursor: profileAvatarUrl && !profileAvatarLoadFailed ? 'pointer' : undefined,
                   }}
                 >
@@ -1414,16 +1387,13 @@ export default function HomeClient() {
                     <img
                       src={profileAvatarUrl}
                       alt=""
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
                       onError={() => setProfileAvatarLoadFailed(true)}
                     />
                   ) : (
                     (meDisplayName || t('me')).slice(0, 1).toUpperCase()
                   )}
                 </span>
-                <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {meDisplayName}
-                </span>
+                <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>{meDisplayName}</span>
               </button>
               {members
                 .filter((m) => m.user_id !== user.id)
@@ -1437,38 +1407,28 @@ export default function HomeClient() {
                     <button
                       key={m.user_id}
                       type="button"
+                      className={`member-chip ${active ? 'active' : ''}`}
                       onClick={() => setSelectedMemberId(m.user_id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '6px 12px',
-                        borderRadius: 999,
-                        border: active ? '2px solid #38bdf8' : '1px solid #e2e8f0',
-                        background: active ? 'rgba(56,189,248,0.2)' : '#f8fafc',
-                        color: active ? '#0369a1' : '#475569',
-                        cursor: 'pointer',
-                        fontSize: 13,
-                      }}
                     >
                       <span
+                        className="member-chip-icon"
                         role="button"
                         tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); if (showAvatar && avatarUrl) setEnlargedAvatarUrl(avatarUrl); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (showAvatar && avatarUrl) setEnlargedAvatarUrl(avatarUrl); } }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (showAvatar && avatarUrl) setEnlargedAvatarUrl(avatarUrl);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            if (showAvatar && avatarUrl) setEnlargedAvatarUrl(avatarUrl);
+                          }
+                        }}
                         style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: '50%',
-                          background: showAvatar ? 'transparent' : (active ? 'rgba(56,189,248,0.35)' : '#e2e8f0'),
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          background: showAvatar ? 'transparent' : 'var(--bg-subtle)',
+                          color: showAvatar ? undefined : 'var(--text-secondary)',
                           fontWeight: 600,
                           fontSize: 14,
-                          color: showAvatar ? undefined : (active ? '#0369a1' : '#64748b'),
-                          overflow: 'hidden',
-                          flexShrink: 0,
                           cursor: showAvatar ? 'pointer' : undefined,
                         }}
                       >
@@ -1476,16 +1436,13 @@ export default function HomeClient() {
                           <img
                             src={avatarUrl!}
                             alt=""
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
                             onError={() => setAvatarFailedUserIds((prev) => new Set(prev).add(m.user_id))}
                           />
                         ) : (
                           name.slice(0, 1)
                         )}
                       </span>
-                      <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {name}
-                      </span>
+                      <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
                     </button>
                   );
                 })}
@@ -1500,15 +1457,15 @@ export default function HomeClient() {
               fontSize: 13,
               padding: '10px 14px',
               borderRadius: theme.radius,
-              color: status.includes('실패') || status.includes('필요') ? '#b91c1c' : '#166534',
+              color: status.includes('실패') || status.includes('필요') ? '#b91c1c' : 'var(--place-table-icon)',
               background:
                 status.includes('실패') || status.includes('필요')
                   ? 'rgba(248,113,113,0.1)'
-                  : 'rgba(34,197,94,0.1)',
+                  : 'var(--place-table)',
               border:
                 status.includes('실패') || status.includes('필요')
                   ? '1px solid rgba(248,113,113,0.4)'
-                  : '1px solid rgba(34,197,94,0.4)',
+                  : '1px solid var(--place-table-icon)',
             }}
           >
             {status}
@@ -1578,10 +1535,10 @@ export default function HomeClient() {
                           borderRadius: 999,
                           border: selectedPlaceForLog === slug ? '2px solid' : '1px solid #e2e8f0',
                           background: selectedPlaceForLog === slug
-                            ? (slug === 'fridge' ? 'rgba(56,189,248,0.2)' : slug === 'table' ? 'rgba(34,197,94,0.2)' : 'rgba(251,191,36,0.25)')
+                            ? (slug === 'fridge' ? 'var(--place-fridge)' : slug === 'table' ? 'var(--place-table)' : 'var(--place-toilet)')
                             : highContrast ? '#1e1e1e' : '#f8fafc',
                           color: selectedPlaceForLog === slug
-                            ? (slug === 'fridge' ? '#0369a1' : slug === 'table' ? '#166534' : '#a16207')
+                            ? (slug === 'fridge' ? 'var(--place-fridge-icon)' : slug === 'table' ? 'var(--place-table-icon)' : 'var(--place-toilet-icon)')
                             : highContrast ? '#94a3b8' : '#64748b',
                           fontSize: 13,
                           fontWeight: selectedPlaceForLog === slug ? 600 : 400,
@@ -1888,10 +1845,10 @@ export default function HomeClient() {
                     cursor: loading ? 'not-allowed' : 'pointer',
                     background: loading
                       ? 'rgba(100,116,139,0.5)'
-                      : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                      : 'var(--accent)',
                     color: '#fff',
                     minHeight: 48,
-                    boxShadow: '0 4px 14px rgba(34,197,94,0.35)',
+                    boxShadow: 'var(--shadow-card)',
                   }}
                 >
                   {loading ? t('savingLog') : `"${currentPlaceLabel}" ${t('addLog')}`}
@@ -1902,35 +1859,20 @@ export default function HomeClient() {
                 <p style={{ margin: '0 0 16px', fontSize: 13, color: highContrast ? '#e0e0e0' : '#64748b', textAlign: 'center' }}>
                   장소를 누르면 로그를 남길 수 있어요
                 </p>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap' }}>
+                <div className="place-grid">
                   {([
-                    { slug: 'fridge' as const, icon: '🧊', labelKey: 'fridge' as const, bg: 'linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%)', shadow: '0 8px 24px rgba(56,189,248,0.35)' },
-                    { slug: 'table' as const, icon: '🍽️', labelKey: 'table' as const, bg: 'linear-gradient(135deg, #86efac 0%, #22c55e 100%)', shadow: '0 8px 24px rgba(34,197,94,0.35)' },
-                    { slug: 'toilet' as const, icon: '🚽', labelKey: 'toilet' as const, bg: 'linear-gradient(135deg, #fde047 0%, #eab308 100%)', shadow: '0 8px 24px rgba(234,179,8,0.35)' },
-                  ]).map(({ slug, icon, labelKey, bg, shadow }) => (
+                    { slug: 'fridge' as const, icon: '🧊', labelKey: 'fridge' as const },
+                    { slug: 'table' as const, icon: '🍽️', labelKey: 'table' as const },
+                    { slug: 'toilet' as const, icon: '🚽', labelKey: 'toilet' as const },
+                  ]).map(({ slug, icon, labelKey }) => (
                     <button
                       key={slug}
                       type="button"
+                      className={`place-card ${slug}`}
                       onClick={() => setSelectedPlaceForLog(slug)}
-                      style={{
-                        width: 88,
-                        height: 88,
-                        borderRadius: 20,
-                        border: 'none',
-                        background: bg,
-                        boxShadow: shadow,
-                        color: '#fff',
-                        fontSize: 32,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 4,
-                        cursor: 'pointer',
-                      }}
                     >
-                      <span>{icon}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700 }}>{t(labelKey)}</span>
+                      <span className="place-icon-wrap">{icon}</span>
+                      <span className="place-label">{t(labelKey)}</span>
                     </button>
                   ))}
                 </div>
@@ -1943,7 +1885,7 @@ export default function HomeClient() {
                   padding: '20px 16px',
                   borderRadius: 16,
                   background: highContrast ? '#1e1e1e' : '#f8fafc',
-                  border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+                  border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
                   color: highContrast ? '#ffffff' : '#475569',
                   fontSize: 14,
                   textAlign: 'center',
@@ -2030,10 +1972,10 @@ export default function HomeClient() {
                     { key: 'all' as const, labelKey: 'allPlaces' as const },
                   ].map(({ key, labelKey }) => {
                     const active = calendarPlaceFilter === key;
-                    const chipStyle = key === 'fridge' ? { bg: 'rgba(56,189,248,0.2)', border: 'rgba(56,189,248,0.6)', color: '#0369a1' } :
-                      key === 'table' ? { bg: 'rgba(34,197,94,0.2)', border: 'rgba(34,197,94,0.6)', color: '#166534' } :
-                      key === 'toilet' ? { bg: 'rgba(251,191,36,0.25)', border: 'rgba(251,191,36,0.6)', color: '#a16207' } :
-                      { bg: '#f1f5f9', border: '#cbd5e1', color: '#475569' };
+                    const chipStyle = key === 'fridge' ? { bg: 'var(--place-fridge)', border: 'var(--place-fridge-icon)', color: 'var(--place-fridge-icon)' } :
+                      key === 'table' ? { bg: 'var(--place-table)', border: 'var(--place-table-icon)', color: 'var(--place-table-icon)' } :
+                      key === 'toilet' ? { bg: 'var(--place-toilet)', border: 'var(--place-toilet-icon)', color: 'var(--place-toilet-icon)' } :
+                      { bg: 'var(--bg-subtle)', border: 'var(--text-caption)', color: 'var(--text-secondary)' };
                     return (
                       <button
                         key={key}
@@ -2182,27 +2124,17 @@ export default function HomeClient() {
                           return (
                             <div
                               key={log.id}
-                              style={{
-                                padding: '12px 14px',
-                                borderRadius: 12,
-                                border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                                background: highContrast ? '#2a2a2a' : '#fff',
-                                marginBottom: 10,
-                                fontSize: 14,
-                              }}
+                              className="log-card"
+                              style={highContrast ? { border: '1px solid #ffc107', background: '#2a2a2a' } : undefined}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999, ...getPlaceChipStyle(log.place_slug) }}>
-                                  {t(getPlaceLabelKey(log.place_slug))}
-                                </span>
-                                <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>{formatDateTime(log.created_at)}</span>
-                              </div>
-                              <div style={{ fontWeight: 600, color: highContrast ? '#fff' : '#0f172a', marginBottom: 6 }}>{log.action}</div>
+                              <span className={`log-place-tag ${log.place_slug}`}>{t(getPlaceLabelKey(log.place_slug))}</span>
+                              <div className="log-time" style={highContrast ? { color: '#94a3b8' } : undefined}>{formatDateTime(log.created_at)}</div>
+                              <div className="log-content" style={highContrast ? { color: '#fff' } : undefined}>{log.action}</div>
                               {(() => {
                                 const { imageUrls, videoUrl } = getLogMedia(log);
                                 if (imageUrls.length === 0 && !videoUrl) return null;
                                 return (
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxWidth: '100%' }}>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxWidth: '100%', marginBottom: 8 }}>
                                     {imageUrls.slice(0, 3).map((url, i) => (
                                       <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', borderRadius: 8, overflow: 'hidden', maxWidth: 100 }}>
                                         <img src={url} alt="" style={{ width: '100%', maxHeight: 120, objectFit: 'contain', display: 'block', background: '#f1f5f9' }} />
@@ -2217,7 +2149,7 @@ export default function HomeClient() {
                                   </div>
                                 );
                               })()}
-                              <div style={{ fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', marginTop: 6 }}>{getMemberName(log.actor_user_id)}</div>
+                              <div className="log-author" style={highContrast ? { color: '#94a3b8' } : undefined}>{getMemberName(log.actor_user_id)}</div>
                             </div>
                           );
                         })
@@ -2241,7 +2173,7 @@ export default function HomeClient() {
                     boxSizing: 'border-box',
                     padding: '12px 14px',
                     borderRadius: 12,
-                    border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+                    border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
                     background: highContrast ? '#1e1e1e' : '#f8fafc',
                     color: highContrast ? '#fff' : '#0f172a',
                     fontSize: 15,
@@ -2263,10 +2195,10 @@ export default function HomeClient() {
                 }}
               >
                 {[
-                  { key: 'fridge' as const, labelKey: 'fridge' as const, bg: 'rgba(56,189,248,0.2)', border: 'rgba(56,189,248,0.6)', color: '#0369a1' },
-                  { key: 'table' as const, labelKey: 'table' as const, bg: 'rgba(34,197,94,0.2)', border: 'rgba(34,197,94,0.6)', color: '#166534' },
-                  { key: 'toilet' as const, labelKey: 'toilet' as const, bg: 'rgba(251,191,36,0.25)', border: 'rgba(251,191,36,0.6)', color: '#a16207' },
-                  { key: 'all' as const, labelKey: 'allPlaces' as const, bg: '#f1f5f9', border: '#cbd5e1', color: '#475569' },
+                  { key: 'fridge' as const, labelKey: 'fridge' as const, bg: 'var(--place-fridge)', border: 'var(--place-fridge-icon)', color: 'var(--place-fridge-icon)' },
+                  { key: 'table' as const, labelKey: 'table' as const, bg: 'var(--place-table)', border: 'var(--place-table-icon)', color: 'var(--place-table-icon)' },
+                  { key: 'toilet' as const, labelKey: 'toilet' as const, bg: 'var(--place-toilet)', border: 'var(--place-toilet-icon)', color: 'var(--place-toilet-icon)' },
+                  { key: 'all' as const, labelKey: 'allPlaces' as const, bg: 'var(--bg-subtle)', border: 'var(--text-caption)', color: 'var(--text-secondary)' },
                 ].map(({ key, labelKey, bg, border, color }) => {
                   const active = placeViewFilter === key;
                   return (
@@ -2335,6 +2267,7 @@ export default function HomeClient() {
                       return (
                         <div
                           key={log.id}
+                          className="log-card"
                           role={isMine ? 'button' : undefined}
                           tabIndex={isMine ? 0 : undefined}
                           onPointerDown={() => {
@@ -2354,14 +2287,8 @@ export default function HomeClient() {
                             }
                           }}
                           style={{
-                            padding: '16px',
-                            borderRadius: theme.radius,
-                            border: theme.border,
-                            background: highContrast ? '#1a1a1a' : '#fff',
-                            boxShadow: highContrast ? 'none' : '0 1px 2px rgba(0,0,0,0.04)',
-                            marginBottom: 12,
-                            fontSize: 14,
                             cursor: isMine ? 'pointer' : 'default',
+                            ...(highContrast ? { border: '1px solid #ffc107', background: '#1a1a1a', boxShadow: 'none' } : {}),
                           }}
                         >
                           {isEditing ? (
@@ -2392,7 +2319,7 @@ export default function HomeClient() {
                                     padding: '6px 12px',
                                     borderRadius: 8,
                                     border: 'none',
-                                    background: '#22c55e',
+                                    background: 'var(--accent)',
                                     color: '#fff',
                                     fontSize: 12,
                                     fontWeight: 600,
@@ -2420,25 +2347,9 @@ export default function HomeClient() {
                             </>
                           ) : (
                             <>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                                <span
-                                  style={{
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    padding: '5px 12px',
-                                    borderRadius: 999,
-                                    ...getPlaceChipStyle(log.place_slug),
-                                  }}
-                                >
-                                  {t(getPlaceLabelKey(log.place_slug))}
-                                </span>
-                                <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>
-                                  {formatDateTime(log.created_at)}
-                                </span>
-                              </div>
-                              <div style={{ fontWeight: 600, color: highContrast ? '#fff' : '#0f172a', marginBottom: 6, fontSize: 15 }}>
-                                {log.action}
-                              </div>
+                              <span className={`log-place-tag ${log.place_slug}`}>{t(getPlaceLabelKey(log.place_slug))}</span>
+                              <div className="log-time" style={highContrast ? { color: '#94a3b8' } : undefined}>{formatDateTime(log.created_at)}</div>
+                              <div className="log-content" style={highContrast ? { color: '#fff' } : undefined}>{log.action}</div>
                               {(() => {
                                 const { imageUrls, videoUrl } = getLogMedia(log);
                                 if (imageUrls.length === 0 && !videoUrl) return null;
@@ -2507,19 +2418,7 @@ export default function HomeClient() {
                                   </div>
                                 );
                               })()}
-                              <div style={{ marginTop: 6 }}>
-                                <span
-                                  style={{
-                                    fontSize: 12,
-                                    color: highContrast ? '#94a3b8' : '#64748b',
-                                    padding: '4px 10px',
-                                    borderRadius: 8,
-                                    background: highContrast ? 'rgba(255,255,255,0.1)' : '#f1f5f9',
-                                  }}
-                                >
-                                  👤 {getMemberName(log.actor_user_id)}
-                                </span>
-                              </div>
+                              <div className="log-author" style={highContrast ? { color: '#94a3b8' } : undefined}>👤 {getMemberName(log.actor_user_id)}</div>
                               {isMine && (
                                 <div style={{ marginTop: 6, fontSize: 11, color: highContrast ? '#ffffff' : '#94a3b8' }}>
                                   {t('longPressEdit')}
@@ -2762,6 +2661,7 @@ export default function HomeClient() {
         <nav
           role="navigation"
           aria-label="하단 메뉴"
+          className="bottom-tab"
           style={{
             position: 'fixed',
             bottom: 0,
@@ -2769,48 +2669,49 @@ export default function HomeClient() {
             right: 0,
             maxWidth: 480,
             margin: '0 auto',
-            height: 56,
-            background: theme.card,
-            borderTop: theme.border,
-            boxShadow: '0 -1px 6px rgba(0,0,0,0.04)',
-            display: 'flex',
-            justifyContent: 'space-around',
-            alignItems: 'center',
             zIndex: 40,
           }}
         >
-          {[
-            { id: 'home' as TabId, label: '홈', icon: '🏠' },
-            { id: 'calendar' as TabId, label: '캘린더', icon: '📅' },
-            { id: 'qr' as TabId, label: 'QR', icon: '📷' },
-            { id: 'search' as TabId, label: '검색', icon: '🔍' },
-          ].map(({ id, label, icon }) => (
+          <button
+            type="button"
+            className={`tab-item ${activeTab === 'home' ? 'active' : ''}`}
+            onClick={() => setActiveTab('home')}
+            aria-current={activeTab === 'home' ? 'true' : undefined}
+          >
+            <Home size={22} strokeWidth={2} aria-hidden />
+            홈
+          </button>
+          <button
+            type="button"
+            className={`tab-item ${activeTab === 'calendar' ? 'active' : ''}`}
+            onClick={() => setActiveTab('calendar')}
+            aria-current={activeTab === 'calendar' ? 'true' : undefined}
+          >
+            <Calendar size={22} strokeWidth={2} aria-hidden />
+            캘린더
+          </button>
+          <div className={`tab-item cta ${activeTab === 'qr' ? 'active' : ''}`}>
             <button
-              key={id}
               type="button"
               onClick={() => {
-                setActiveTab(id);
-                if (id === 'qr') setShowScanner(true);
+                setActiveTab('qr');
+                setShowScanner(true);
               }}
-              aria-current={activeTab === id}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 2,
-                padding: '6px 20px',
-                border: 'none',
-                background: 'none',
-                color: activeTab === id ? (highContrast ? '#ffc107' : '#262626') : theme.textSecondary,
-                fontSize: 10,
-                fontWeight: activeTab === id ? 600 : 400,
-                cursor: 'pointer',
-              }}
+              aria-current={activeTab === 'qr' ? 'true' : undefined}
             >
-              <span style={{ fontSize: 24 }}>{icon}</span>
-              {label}
+              <QrCode size={22} strokeWidth={2} className="tab-icon" aria-hidden />
+              QR
             </button>
-          ))}
+          </div>
+          <button
+            type="button"
+            className={`tab-item ${activeTab === 'search' ? 'active' : ''}`}
+            onClick={() => setActiveTab('search')}
+            aria-current={activeTab === 'search' ? 'true' : undefined}
+          >
+            <Search size={22} strokeWidth={2} aria-hidden />
+            검색
+          </button>
         </nav>
       )}
 
