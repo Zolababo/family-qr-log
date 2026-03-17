@@ -7,7 +7,12 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import jsQR from 'jsqr';
 import { getT, langLabels, type Lang } from './translations';
-import { Home, Calendar, QrCode, Search } from 'lucide-react';
+import { Snowflake, Utensils, Bath, Calendar, Camera, Image as ImageIcon, X, ChevronLeft, ChevronRight, FileText, Accessibility } from 'lucide-react';
+import { AppHeader } from '../components/layout/AppHeader';
+import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
+import { MemberFilter } from '../components/home/MemberFilter';
+import { PlaceButtons } from '../components/home/PlaceButtons';
+import { LogFeed } from '../components/home/LogFeed';
 
 type Log = {
   id: string;
@@ -185,6 +190,7 @@ export default function HomeClient() {
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<'all' | 'me' | string>('all');
   const [placeViewFilter, setPlaceViewFilter] = useState<'fridge' | 'table' | 'toilet' | 'all'>('all');
   const [selectedPlaceForLog, setSelectedPlaceForLog] = useState<'fridge' | 'table' | 'toilet' | null>(null);
@@ -209,20 +215,17 @@ export default function HomeClient() {
   const [avatarFailedUserIds, setAvatarFailedUserIds] = useState<Set<string>>(new Set());
   const [enlargedAvatarUrl, setEnlargedAvatarUrl] = useState<string | null>(null);
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [showNameEditInMenu, setShowNameEditInMenu] = useState(false);
+  const [showNameEditModal, setShowNameEditModal] = useState(false);
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>(1);
   const [simpleMode, setSimpleMode] = useState(false);
   const [language, setLanguage] = useState<Lang>('ko');
-  const menuRef = useRef<HTMLDivElement>(null);
 
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editingAction, setEditingAction] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [actionPopupLogId, setActionPopupLogId] = useState<string | null>(null);
-  type TabId = 'home' | 'calendar' | 'qr' | 'search';
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [memoContent, setMemoContent] = useState('');
@@ -272,19 +275,19 @@ export default function HomeClient() {
 
       setUser(user);
 
-      let myMembers: { household_id: string; display_name: string | null; user_id: string; avatar_url?: string | null }[] | null = null;
+      let myMembers: { household_id: string; display_name: string | null; user_id: string; avatar_url?: string | null; role?: string }[] | null = null;
       let memberError: { message: string } | null = null;
 
       const res = await supabase
         .from('members')
-        .select('household_id, display_name, user_id, avatar_url')
+        .select('household_id, display_name, user_id, avatar_url, role')
         .eq('user_id', user.id)
         .limit(1);
 
       myMembers = res.data;
       memberError = res.error;
 
-      if (memberError && /avatar_url|does not exist|column/i.test(memberError.message)) {
+      if (memberError && /avatar_url|role|does not exist|column/i.test(memberError.message)) {
         const fallback = await supabase
           .from('members')
           .select('household_id, display_name, user_id')
@@ -306,6 +309,7 @@ export default function HomeClient() {
       }
 
       setHouseholdId(myMember.household_id);
+      setIsAdmin((myMember as { role?: string }).role === 'master');
 
       const baseName =
         (myMember.display_name && myMember.display_name.trim()) ||
@@ -442,17 +446,6 @@ export default function HomeClient() {
       streamRef.current = null;
     };
   }, [showScanner]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-        setShowNameEditInMenu(false);
-      }
-    };
-    if (menuOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [menuOpen]);
 
   const loadLogs = useCallback(
     async (hid: string, slug: string | undefined, actorUserId?: string) => {
@@ -822,7 +815,6 @@ export default function HomeClient() {
     );
     setStatus('이름이 저장되었습니다.');
     setProfileSaving(false);
-    setShowNameEditInMenu(false);
   };
 
   const handleProfileAvatarChange = useCallback(
@@ -959,19 +951,6 @@ export default function HomeClient() {
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   ) : [];
 
-  const langShort: Record<Lang, string> = { ko: '한국어', en: 'EN', ja: '日本語', zh: '中文', vi: 'VI' };
-  const langFlags: Record<Lang, string> = { ko: '🇰🇷', en: '🇺🇸', ja: '🇯🇵', zh: '🇨🇳', vi: '🇻🇳' };
-  const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const langMenuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!langMenuOpen) return;
-    const handle = (e: MouseEvent) => {
-      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) setLangMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, [langMenuOpen]);
-
   const theme = {
     bg: highContrast ? '#0f0f0f' : 'var(--bg-base)',
     card: highContrast ? '#1a1a1a' : 'var(--bg-card)',
@@ -1049,406 +1028,36 @@ export default function HomeClient() {
           ...(highContrast && { background: '#0f0f0f', border: '2px solid #ffc107' }),
         }}
       >
-        <header style={{ marginBottom: 20, paddingBottom: 12, borderBottom: theme.border }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-            <h1
-              id="app-title"
-              style={{
-                margin: 0,
-                fontFamily: 'var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif',
-                fontSize: 22,
-                fontWeight: 700,
-                letterSpacing: '-0.03em',
-                color: theme.text,
-                flex: 1,
-                minWidth: 0,
-                background: highContrast ? undefined : 'var(--accent)',
-                WebkitBackgroundClip: highContrast ? undefined : 'text',
-                WebkitTextFillColor: highContrast ? undefined : 'transparent',
-                backgroundClip: highContrast ? undefined : 'text',
-              }}
-            >
-              {t('appTitle')}
-            </h1>
-            <div ref={langMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={() => setLangMenuOpen((o) => !o)}
-                aria-label={t('language')}
-                aria-haspopup="listbox"
-                aria-expanded={langMenuOpen}
-                style={{
-                  height: 40,
-                  padding: '0 12px',
-                  borderRadius: 12,
-                  border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
-                  background: highContrast ? '#1e1e1e' : 'var(--bg-card)',
-                  color: highContrast ? '#ffffff' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <span aria-hidden>{langFlags[language]}</span>
-                <span>{langShort[language]}</span>
-              </button>
-              {langMenuOpen && (
-                <div
-                  role="listbox"
-                  aria-label={t('language')}
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    marginTop: 6,
-                    minWidth: 140,
-                    padding: '8px 0',
-                    borderRadius: 12,
-                    background: highContrast ? '#1e1e1e' : '#fff',
-                    border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                    zIndex: 55,
-                  }}
-                >
-                  {(Object.keys(langLabels) as Lang[]).map((lang) => (
-                    <button
-                      key={lang}
-                      role="option"
-                      aria-selected={language === lang}
-                      type="button"
-                      onClick={() => { setLanguage(lang); setLangMenuOpen(false); }}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        padding: '10px 14px',
-                        border: 'none',
-                        background: language === lang ? (highContrast ? '#333' : 'var(--bg-subtle)') : 'transparent',
-                        color: highContrast ? '#ffffff' : 'var(--text-primary)',
-                        fontSize: 14,
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {langLabels[lang]}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {user && (
-              <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
-                {/* 프로필 사진 input은 메뉴 밖에 두어야 갤러리 선택 후 change 이벤트가 발생함 (메뉴 닫혀도 DOM에 유지) */}
-                <input
-                  ref={profileAvatarInputRef}
-                  type="file"
-                  accept="image/*,image/heic,image/heif"
-                  style={{ display: 'none' }}
-                  onChange={handleProfileAvatarChange}
-                  aria-hidden
-                />
-                <button
-                  type="button"
-                  onClick={() => setMenuOpen((o) => !o)}
-                  aria-label={t('menu')}
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 12,
-                    border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
-                    background: highContrast ? '#1e1e1e' : '#f8fafc',
-                    color: highContrast ? '#ffffff' : '#475569',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 18,
-                    lineHeight: 1,
-                  }}
-                >
-                  ☰
-                </button>
-                {menuOpen && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      right: 0,
-                      marginTop: 8,
-                      minWidth: 180,
-                      padding: '12px 0',
-                      borderRadius: 16,
-                      background: highContrast ? '#1e1e1e' : '#fff',
-                      border: highContrast ? '2px solid #ffc107' : undefined,
-                      boxShadow: highContrast ? 'none' : '0 20px 40px rgba(0,0,0,0.15), 0 0 0 1px #e2e8f0',
-                      zIndex: 50,
-                    }}
-                  >
-                    {!showNameEditInMenu ? (
-                      <>
-                        <Link
-                          href="/qr"
-                          onClick={() => setMenuOpen(false)}
-                          style={{
-                            display: 'block',
-                            padding: '12px 16px',
-                            color: highContrast ? '#ffc107' : '#0f172a',
-                            textDecoration: highContrast ? 'underline' : 'none',
-                            fontSize: 14,
-                          }}
-                        >
-                          {t('qrCode')}
-                        </Link>
-                        <Link
-                          href="/invite"
-                          onClick={() => setMenuOpen(false)}
-                          style={{
-                            display: 'block',
-                            padding: '12px 16px',
-                            color: highContrast ? '#ffc107' : '#0f172a',
-                            textDecoration: highContrast ? 'underline' : 'none',
-                            fontSize: 14,
-                          }}
-                        >
-                          {t('inviteFamily')}
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => setShowNameEditInMenu(true)}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '12px 16px',
-                            border: 'none',
-                            background: 'none',
-                            color: highContrast ? '#ffffff' : '#0f172a',
-                            fontSize: 14,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {t('editName')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { profileAvatarInputRef.current?.click(); setMenuOpen(false); }}
-                          disabled={profileAvatarUploading}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '12px 16px',
-                            border: 'none',
-                            background: 'none',
-                            color: highContrast ? '#ffffff' : '#0f172a',
-                            fontSize: 14,
-                            cursor: profileAvatarUploading ? 'wait' : 'pointer',
-                          }}
-                        >
-                          📷 {profileAvatarUploading ? '업로드 중...' : '프로필 사진 변경'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setMenuOpen(false); setShowAccessibilityModal(true); }}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '12px 16px',
-                            border: 'none',
-                            background: 'none',
-                            color: highContrast ? '#ffffff' : '#0f172a',
-                            fontSize: 14,
-                            cursor: 'pointer',
-                          }}
-                          aria-label={t('accessibility')}
-                        >
-                          ♿ {t('accessibility')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setMenuOpen(false); setShowMemoPanel(true); }}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '12px 16px',
-                            border: 'none',
-                            background: 'none',
-                            color: highContrast ? '#ffffff' : '#0f172a',
-                            fontSize: 14,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          📝 메모
-                        </button>
-                        <div style={{ padding: '8px 16px', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', borderTop: '1px solid #e2e8f0', marginTop: 4 }}>
-                          🔔 가족 로그 시 푸시 알림 — 준비 중 (Supabase Edge Function 연동 예정)
-                        </div>
-                        <div style={{ padding: '8px 16px', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', borderTop: '1px solid #e2e8f0', marginTop: 4 }}>
-                          장소 추가/삭제 (master 전용) — 다음 업데이트 예정
-                        </div>
-                      </>
-                    ) : (
-                      <div style={{ padding: '0 16px 12px' }}>
-                        <div style={{ fontSize: 12, color: highContrast ? '#e0e0e0' : '#94a3b8', marginBottom: 8 }}>{t('nameForFamily')}</div>
-                        <input
-                          value={profileName}
-                          onChange={(e) => setProfileName(e.target.value)}
-                          placeholder={t('namePlaceholder')}
-                          aria-label={t('nameForFamily')}
-                          style={{
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            padding: '10px 12px',
-                            borderRadius: 10,
-                            border: '1px solid #e2e8f0',
-                            background: '#f8fafc',
-                            color: '#0f172a',
-                            fontSize: 14,
-                            outline: 'none',
-                            marginBottom: 8,
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={handleProfileSave}
-                          disabled={profileSaving}
-                          style={{
-                            width: '100%',
-                            padding: '10px',
-                            borderRadius: 10,
-                            border: 'none',
-                            background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
-                            color: '#fff',
-                            fontWeight: 600,
-                            fontSize: 13,
-                            cursor: profileSaving ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          {profileSaving ? t('saving') : t('save')}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+        <input
+          ref={profileAvatarInputRef}
+          type="file"
+          accept="image/*,image/heic,image/heif"
+          style={{ display: 'none' }}
+          onChange={handleProfileAvatarChange}
+          aria-hidden
+        />
+        <AppHeader
+          theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
+          highContrast={highContrast}
+          t={t}
+        >
           {user && householdId && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginTop: 14,
-                overflowX: 'auto',
-                flexWrap: 'nowrap',
-                paddingBottom: 4,
-                WebkitOverflowScrolling: 'touch',
-              }}
-            >
-              <button
-                type="button"
-                className={`member-chip ${selectedMemberId === 'all' ? 'active' : ''}`}
-                onClick={() => setSelectedMemberId('all')}
-              >
-                <span className="member-chip-icon" style={{ background: 'var(--bg-subtle)', fontSize: 16 }}>
-                  👥
-                </span>
-                <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('allMembers')}</span>
-              </button>
-              <button
-                type="button"
-                className={`member-chip ${selectedMemberId === 'me' ? 'active' : ''}`}
-                onClick={() => setSelectedMemberId('me')}
-              >
-                <span
-                  className="member-chip-icon"
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (profileAvatarUrl && !profileAvatarLoadFailed) setEnlargedAvatarUrl(profileAvatarUrl);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      if (profileAvatarUrl && !profileAvatarLoadFailed) setEnlargedAvatarUrl(profileAvatarUrl);
-                    }
-                  }}
-                  style={{
-                    background: profileAvatarUrl ? 'transparent' : 'var(--accent)',
-                    color: profileAvatarUrl ? undefined : '#fff',
-                    fontWeight: 700,
-                    fontSize: 14,
-                    cursor: profileAvatarUrl && !profileAvatarLoadFailed ? 'pointer' : undefined,
-                  }}
-                >
-                  {profileAvatarUrl && !profileAvatarLoadFailed ? (
-                    <img
-                      src={profileAvatarUrl}
-                      alt=""
-                      onError={() => setProfileAvatarLoadFailed(true)}
-                    />
-                  ) : (
-                    (meDisplayName || t('me')).slice(0, 1).toUpperCase()
-                  )}
-                </span>
-                <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>{meDisplayName}</span>
-              </button>
-              {members
-                .filter((m) => m.user_id !== user.id)
-                .map((m) => {
-                  const name = (m.display_name && m.display_name.trim()) || m.user_id.slice(0, 6);
-                  const active = selectedMemberId === m.user_id;
-                  const avatarUrl = m.avatar_url ?? null;
-                  const avatarFailed = avatarFailedUserIds.has(m.user_id);
-                  const showAvatar = avatarUrl && !avatarFailed;
-                  return (
-                    <button
-                      key={m.user_id}
-                      type="button"
-                      className={`member-chip ${active ? 'active' : ''}`}
-                      onClick={() => setSelectedMemberId(m.user_id)}
-                    >
-                      <span
-                        className="member-chip-icon"
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (showAvatar && avatarUrl) setEnlargedAvatarUrl(avatarUrl);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            if (showAvatar && avatarUrl) setEnlargedAvatarUrl(avatarUrl);
-                          }
-                        }}
-                        style={{
-                          background: showAvatar ? 'transparent' : 'var(--bg-subtle)',
-                          color: showAvatar ? undefined : 'var(--text-secondary)',
-                          fontWeight: 600,
-                          fontSize: 14,
-                          cursor: showAvatar ? 'pointer' : undefined,
-                        }}
-                      >
-                        {showAvatar ? (
-                          <img
-                            src={avatarUrl!}
-                            alt=""
-                            onError={() => setAvatarFailedUserIds((prev) => new Set(prev).add(m.user_id))}
-                          />
-                        ) : (
-                          name.slice(0, 1)
-                        )}
-                      </span>
-                      <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-                    </button>
-                  );
-                })}
-            </div>
+            <MemberFilter
+              user={user}
+              members={members}
+              selectedMemberId={selectedMemberId}
+              onSelectMember={setSelectedMemberId}
+              t={t}
+              meDisplayName={meDisplayName}
+              profileAvatarUrl={profileAvatarUrl}
+              profileAvatarLoadFailed={profileAvatarLoadFailed}
+              onEnlargeAvatar={setEnlargedAvatarUrl}
+              avatarFailedUserIds={avatarFailedUserIds}
+              onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
+              onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
+            />
           )}
-        </header>
+        </AppHeader>
 
         {status && (
           <div
@@ -1545,7 +1154,8 @@ export default function HomeClient() {
                           cursor: 'pointer',
                         }}
                       >
-                        {slug === 'fridge' ? '🧊' : slug === 'table' ? '🍽️' : '🚽'} {t(slug)}
+                        {slug === 'fridge' ? <Snowflake size={20} strokeWidth={1.5} aria-hidden /> : slug === 'table' ? <Utensils size={20} strokeWidth={1.5} aria-hidden /> : <Bath size={20} strokeWidth={1.5} aria-hidden />}
+                          <span style={{ marginLeft: 4 }}>{t(slug)}</span>
                       </button>
                     ))}
                   </div>
@@ -1666,7 +1276,7 @@ export default function HomeClient() {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      <span style={{ fontSize: 16 }}>📷</span>
+                      <Camera size={20} strokeWidth={1.5} aria-hidden />
                       촬영
                     </label>
                     <label
@@ -1688,7 +1298,7 @@ export default function HomeClient() {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      <span style={{ fontSize: 16 }}>🖼️</span>
+                      <ImageIcon size={20} strokeWidth={1.5} aria-hidden />
                       {t('fromAlbum')}
                     </label>
                     <button
@@ -1775,7 +1385,7 @@ export default function HomeClient() {
                               cursor: 'pointer',
                             }}
                           >
-                            ×
+                            <X size={20} strokeWidth={1.5} aria-hidden />
                           </button>
                         </div>
                       ))}
@@ -1820,7 +1430,7 @@ export default function HomeClient() {
                               cursor: 'pointer',
                             }}
                           >
-                            ×
+                            <X size={20} strokeWidth={1.5} aria-hidden />
                           </button>
                         </div>
                       )}
@@ -1855,28 +1465,17 @@ export default function HomeClient() {
                 </button>
               </section>
             ) : activeTab === 'home' && !(hasPlaceFromUrl || selectedPlaceForLog) ? (
-              <section style={{ marginBottom: 24 }}>
-                <p style={{ margin: '0 0 16px', fontSize: 13, color: highContrast ? '#e0e0e0' : '#64748b', textAlign: 'center' }}>
-                  장소를 누르면 로그를 남길 수 있어요
-                </p>
-                <div className="place-grid">
-                  {([
-                    { slug: 'fridge' as const, icon: '🧊', labelKey: 'fridge' as const },
-                    { slug: 'table' as const, icon: '🍽️', labelKey: 'table' as const },
-                    { slug: 'toilet' as const, icon: '🚽', labelKey: 'toilet' as const },
-                  ]).map(({ slug, icon, labelKey }) => (
-                    <button
-                      key={slug}
-                      type="button"
-                      className={`place-card ${slug}`}
-                      onClick={() => setSelectedPlaceForLog(slug)}
-                    >
-                      <span className="place-icon-wrap">{icon}</span>
-                      <span className="place-label">{t(labelKey)}</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
+              <PlaceButtons
+                places={[
+                  { id: 'fridge', labelKey: 'fridge', color: 'var(--place-1)' },
+                  { id: 'table', labelKey: 'table', color: 'var(--place-2)' },
+                  { id: 'toilet', labelKey: 'toilet', color: 'var(--place-3)' },
+                ]}
+                onSelectPlace={(id) => setSelectedPlaceForLog(id as 'fridge' | 'table' | 'toilet')}
+                t={t}
+                highContrast={highContrast}
+                isAdmin={isAdmin}
+              />
             ) : null}
             {activeTab === 'qr' && !hasPlaceFromUrl && (
               <section
@@ -1910,7 +1509,7 @@ export default function HomeClient() {
                     cursor: 'pointer',
                   }}
                 >
-                  <span style={{ fontSize: 20 }}>📷</span>
+                  <Camera size={20} strokeWidth={1.5} aria-hidden />
                   {t('qrScan')}
                 </button>
                 <p style={{ margin: '12px 0 0', fontSize: 12, color: highContrast ? '#e0e0e0' : '#64748b' }}>{t('scanHint1')} {t('scanHint2')}</p>
@@ -1938,10 +1537,11 @@ export default function HomeClient() {
                     }}
                     aria-label="이전 달"
                   >
-                    ‹
+                    <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
                   </button>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>
-                    📅 {calYear}년 {calMonth}월
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>
+                    <Calendar size={20} strokeWidth={1.5} aria-hidden />
+                    {calYear}년 {calMonth}월
                   </div>
                   <button
                     type="button"
@@ -1961,7 +1561,7 @@ export default function HomeClient() {
                     }}
                     aria-label="다음 달"
                   >
-                    ›
+                    <ChevronRight size={20} strokeWidth={1.5} aria-hidden />
                   </button>
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
@@ -2084,8 +1684,9 @@ export default function HomeClient() {
                         alignItems: 'center',
                       }}
                     >
-                      <span>
-                        📅 {selectedCalendarDate.replace(/-/g, '.')} 상세
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Calendar size={20} strokeWidth={1.5} aria-hidden />
+                        {selectedCalendarDate.replace(/-/g, '.')} 상세
                       </span>
                       <button
                         type="button"
@@ -2160,559 +1761,145 @@ export default function HomeClient() {
               </section>
             )}
 
-            {(activeTab === 'home' || activeTab === 'search') && (
-            <section aria-label={t('recentLogs')}>
-              {activeTab === 'search' && (
-                <input
-                  type="search"
-                  placeholder="로그 검색..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '12px 14px',
-                    borderRadius: 12,
-                    border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
-                    background: highContrast ? '#1e1e1e' : '#f8fafc',
-                    color: highContrast ? '#fff' : '#0f172a',
-                    fontSize: 15,
-                    marginBottom: 12,
-                    outline: 'none',
-                  }}
-                  aria-label="로그 검색"
-                />
-              )}
-              <div style={{ fontSize: 11, letterSpacing: '0.05em', color: highContrast ? '#ffffff' : '#94a3b8', marginBottom: 10 }}>
-                {activeTab === 'search' ? (searchQuery ? `검색: ${searchQuery}` : t('recentLogs')) : t('recentLogs')}
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 8,
-                  marginBottom: 12,
-                }}
-              >
-                {[
-                  { key: 'fridge' as const, labelKey: 'fridge' as const, bg: 'var(--place-fridge)', border: 'var(--place-fridge-icon)', color: 'var(--place-fridge-icon)' },
-                  { key: 'table' as const, labelKey: 'table' as const, bg: 'var(--place-table)', border: 'var(--place-table-icon)', color: 'var(--place-table-icon)' },
-                  { key: 'toilet' as const, labelKey: 'toilet' as const, bg: 'var(--place-toilet)', border: 'var(--place-toilet-icon)', color: 'var(--place-toilet-icon)' },
-                  { key: 'all' as const, labelKey: 'allPlaces' as const, bg: 'var(--bg-subtle)', border: 'var(--text-caption)', color: 'var(--text-secondary)' },
-                ].map(({ key, labelKey, bg, border, color }) => {
-                  const active = placeViewFilter === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setPlaceViewFilter(key)}
-                      style={{
-                        padding: '8px 14px',
-                        borderRadius: 10,
-                        border: active ? `2px solid ${border}` : '1px solid #e2e8f0',
-                        background: active ? bg : '#f8fafc',
-                        color: active ? color : '#64748b',
-                        fontSize: 13,
-                        fontWeight: active ? 600 : 400,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {t(labelKey)}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div
-                style={{
-                  maxHeight: '55vh',
-                  overflowY: 'auto',
-                  borderRadius: theme.radiusLg,
-                  border: theme.border,
-                  background: theme.card,
-                  boxShadow: theme.cardShadow,
-                  padding: 16,
-                }}
-              >
-                {logs.length === 0 && (
-                  <div
-                    style={{
-                      padding: 32,
-                      fontSize: 14,
-                      color: theme.textSecondary,
-                      textAlign: 'center',
-                    }}
-                  >
-                    {t('noLogsYet')}
-                  </div>
-                )}
-
-                {logsByDate.map((group) => (
-                  <div key={group.dateKey} style={{ marginBottom: 24 }}>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: theme.textSecondary,
-                        marginBottom: 12,
-                        padding: '6px 0',
-                        letterSpacing: '0.02em',
-                      }}
-                    >
-                      📅 {group.dateLabel} · {group.items.length}건
-                    </div>
-                    {group.items.map((log) => {
-                      const isMine = user && log.actor_user_id === user.id;
-                      const isEditing = editingLogId === log.id;
-                      return (
-                        <div
-                          key={log.id}
-                          className="log-card"
-                          role={isMine ? 'button' : undefined}
-                          tabIndex={isMine ? 0 : undefined}
-                          onPointerDown={() => {
-                            if (!isMine) return;
-                            longPressTimerRef.current = setTimeout(() => setActionPopupLogId(log.id), 500);
-                          }}
-                          onPointerUp={() => {
-                            if (longPressTimerRef.current) {
-                              clearTimeout(longPressTimerRef.current);
-                              longPressTimerRef.current = null;
-                            }
-                          }}
-                          onPointerLeave={() => {
-                            if (longPressTimerRef.current) {
-                              clearTimeout(longPressTimerRef.current);
-                              longPressTimerRef.current = null;
-                            }
-                          }}
-                          style={{
-                            cursor: isMine ? 'pointer' : 'default',
-                            ...(highContrast ? { border: '1px solid #ffc107', background: '#1a1a1a', boxShadow: 'none' } : {}),
-                          }}
-                        >
-                          {isEditing ? (
-                            <>
-                              <textarea
-                                value={editingAction}
-                                onChange={(e) => setEditingAction(e.target.value)}
-                                rows={2}
-                                style={{
-                                  width: '100%',
-                                  boxSizing: 'border-box',
-                                  resize: 'none',
-                                  borderRadius: 8,
-                                  border: '1px solid #cbd5e1',
-                                  padding: 8,
-                                  fontSize: 13,
-                                  background: '#f8fafc',
-                                  color: '#0f172a',
-                                  outline: 'none',
-                                  marginBottom: 8,
-                                }}
-                              />
-                              <div style={{ display: 'flex', gap: 8 }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateLog(log.id, editingAction)}
-                                  style={{
-                                    padding: '6px 12px',
-                                    borderRadius: 8,
-                                    border: 'none',
-                                    background: 'var(--accent)',
-                                    color: '#fff',
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  {t('save')}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { setEditingLogId(null); setEditingAction(''); }}
-                                  style={{
-                                    padding: '6px 12px',
-                                    borderRadius: 8,
-                                    border: '1px solid #cbd5e1',
-                                    background: '#fff',
-                                    color: '#64748b',
-                                    fontSize: 12,
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  {t('cancel')}
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <span className={`log-place-tag ${log.place_slug}`}>{t(getPlaceLabelKey(log.place_slug))}</span>
-                              <div className="log-time" style={highContrast ? { color: '#94a3b8' } : undefined}>{formatDateTime(log.created_at)}</div>
-                              <div className="log-content" style={highContrast ? { color: '#fff' } : undefined}>{log.action}</div>
-                              {(() => {
-                                const { imageUrls, videoUrl } = getLogMedia(log);
-                                if (imageUrls.length === 0 && !videoUrl) return null;
-                                return (
-                                  <div
-                                    style={{
-                                      marginBottom: 8,
-                                      display: 'flex',
-                                      flexWrap: 'wrap',
-                                      gap: 8,
-                                      maxWidth: '100%',
-                                    }}
-                                  >
-                                    {imageUrls.map((url, i) => (
-                                      <a
-                                        key={i}
-                                        href={url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        style={{
-                                          display: 'block',
-                                          borderRadius: 10,
-                                          overflow: 'hidden',
-                                          maxWidth: '100%',
-                                          flex: '1 1 120px',
-                                          minWidth: 0,
-                                        }}
-                                      >
-                                        <img
-                                          src={url}
-                                          alt=""
-                                          style={{
-                                            width: '100%',
-                                            maxHeight: 240,
-                                            objectFit: 'contain',
-                                            display: 'block',
-                                            background: '#f1f5f9',
-                                          }}
-                                        />
-                                      </a>
-                                    ))}
-                                    {videoUrl && (
-                                      <div
-                                        style={{
-                                          flex: '1 1 200px',
-                                          minWidth: 0,
-                                          maxWidth: '100%',
-                                          borderRadius: 10,
-                                          overflow: 'hidden',
-                                          background: '#000',
-                                        }}
-                                      >
-                                        <video
-                                          src={videoUrl}
-                                          controls
-                                          playsInline
-                                          preload="metadata"
-                                          style={{
-                                            width: '100%',
-                                            maxHeight: 240,
-                                            display: 'block',
-                                          }}
-                                        />
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                              <div className="log-author" style={highContrast ? { color: '#94a3b8' } : undefined}>👤 {getMemberName(log.actor_user_id)}</div>
-                              {isMine && (
-                                <div style={{ marginTop: 6, fontSize: 11, color: highContrast ? '#ffffff' : '#94a3b8' }}>
-                                  {t('longPressEdit')}
-                                </div>
-                              )}
-                              {/* 댓글 · 답글 (인스타 스타일) */}
-                              <div style={{ marginTop: 12, paddingTop: 12, borderTop: highContrast ? '1px solid rgba(255,193,7,0.3)' : '1px solid #e2e8f0' }}>
-                                {(() => {
-                                  const list = commentsByLogId[log.id] ?? [];
-                                  const topLevel = list.filter((c) => !c.parent_id).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                                  const getReplies = (parentId: string) =>
-                                    list.filter((c) => c.parent_id === parentId).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                                  const replyingToThis = replyingTo?.logId === log.id;
-                                  const draft = commentDraft[log.id] ?? '';
-                                  return (
-                                    <>
-                                      {topLevel.length > 0 && (
-                                        <div style={{ marginBottom: 10 }}>
-                                          {topLevel.map((c) => (
-                                            <div key={c.id} style={{ marginBottom: 8 }}>
-                                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-                                                <span style={{ fontWeight: 600, fontSize: 13, color: highContrast ? '#ffc107' : '#0f172a' }}>{getMemberName(c.user_id)}</span>
-                                                <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>{formatDateTime(c.created_at)}</span>
-                                              </div>
-                                              <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : '#334155', marginTop: 2, paddingLeft: 0 }}>{c.content}</div>
-                                              {user && (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => setReplyingTo(replyingTo?.commentId === c.id ? null : { logId: log.id, commentId: c.id })}
-                                                  style={{
-                                                    marginTop: 4,
-                                                    padding: 0,
-                                                    border: 'none',
-                                                    background: 'none',
-                                                    fontSize: 12,
-                                                    color: highContrast ? '#ffc107' : '#64748b',
-                                                    cursor: 'pointer',
-                                                  }}
-                                                >
-                                                  답글
-                                                </button>
-                                              )}
-                                              {getReplies(c.id).map((r) => (
-                                                <div key={r.id} style={{ marginLeft: 24, marginTop: 6, paddingLeft: 12, borderLeft: highContrast ? '2px solid rgba(255,193,7,0.4)' : '2px solid #e2e8f0' }}>
-                                                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-                                                    <span style={{ fontWeight: 600, fontSize: 12, color: highContrast ? '#ffc107' : '#0f172a' }}>{getMemberName(r.user_id)}</span>
-                                                    <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>{formatDateTime(r.created_at)}</span>
-                                                  </div>
-                                                  <div style={{ fontSize: 12, color: highContrast ? '#e2e8f0' : '#334155', marginTop: 2 }}>{r.content}</div>
-                                                  {user && (
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => setReplyingTo(replyingTo?.commentId === r.id ? null : { logId: log.id, commentId: r.id })}
-                                                      style={{
-                                                        marginTop: 4,
-                                                        padding: 0,
-                                                        border: 'none',
-                                                        background: 'none',
-                                                        fontSize: 11,
-                                                        color: highContrast ? '#ffc107' : '#64748b',
-                                                        cursor: 'pointer',
-                                                      }}
-                                                    >
-                                                      답글
-                                                    </button>
-                                                  )}
-                                                  {replyingToThis && replyingTo?.commentId === r.id && user && (
-                                                    <div style={{ marginTop: 8 }}>
-                                                      <input
-                                                        type="text"
-                                                        placeholder="답글 입력..."
-                                                        value={commentDraft[`${log.id}_reply_${r.id}`] ?? ''}
-                                                        onChange={(e) => setCommentDraft((prev) => ({ ...prev, [`${log.id}_reply_${r.id}`]: e.target.value }))}
-                                                        onKeyDown={(e) => {
-                                                          if (e.key === 'Enter') {
-                                                            const v = (commentDraft[`${log.id}_reply_${r.id}`] ?? '').trim();
-                                                            if (v) addComment(log.id, v, r.id);
-                                                          }
-                                                        }}
-                                                        style={{
-                                                          width: '100%',
-                                                          boxSizing: 'border-box',
-                                                          padding: '8px 10px',
-                                                          borderRadius: 8,
-                                                          border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                                                          background: highContrast ? '#1e1e1e' : '#f8fafc',
-                                                          color: highContrast ? '#fff' : '#0f172a',
-                                                          fontSize: 13,
-                                                          outline: 'none',
-                                                        }}
-                                                      />
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                          const v = (commentDraft[`${log.id}_reply_${r.id}`] ?? '').trim();
-                                                          if (v) addComment(log.id, v, r.id);
-                                                        }}
-                                                        disabled={commentSending}
-                                                        style={{
-                                                          marginTop: 6,
-                                                          padding: '6px 12px',
-                                                          borderRadius: 8,
-                                                          border: 'none',
-                                                          background: highContrast ? '#ffc107' : '#3b82f6',
-                                                          color: highContrast ? '#000' : '#fff',
-                                                          fontSize: 12,
-                                                          cursor: commentSending ? 'wait' : 'pointer',
-                                                        }}
-                                                      >
-                                                        답글 등록
-                                                      </button>
-                                                    </div>
-                                                  )}
-                                                  {/* 답글의 답글 (3단계) */}
-                                                  {getReplies(r.id).map((r2) => (
-                                                    <div key={r2.id} style={{ marginLeft: 20, marginTop: 6, paddingLeft: 10, borderLeft: highContrast ? '2px solid rgba(255,193,7,0.25)' : '2px solid #e2e8f0' }}>
-                                                      <span style={{ fontWeight: 600, fontSize: 12, color: highContrast ? '#ffc107' : '#0f172a' }}>{getMemberName(r2.user_id)}</span>
-                                                      <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b', marginLeft: 6 }}>{formatDateTime(r2.created_at)}</span>
-                                                      <div style={{ fontSize: 12, color: highContrast ? '#e2e8f0' : '#334155', marginTop: 2 }}>{r2.content}</div>
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              ))}
-                                              {replyingToThis && replyingTo?.commentId === c.id && user && (
-                                                <div style={{ marginLeft: 24, marginTop: 8 }}>
-                                                  <input
-                                                    type="text"
-                                                    placeholder="답글 입력..."
-                                                    value={(replyingTo?.logId === log.id && replyingTo?.commentId === c.id ? commentDraft[`${log.id}_reply_${c.id}`] : undefined) ?? ''}
-                                                    onChange={(e) =>
-                                                      setCommentDraft((prev) => ({ ...prev, [`${log.id}_reply_${c.id}`]: e.target.value }))
-                                                    }
-                                                    onKeyDown={(e) => {
-                                                      if (e.key === 'Enter') {
-                                                        const v = (commentDraft[`${log.id}_reply_${c.id}`] ?? '').trim();
-                                                        if (v) addComment(log.id, v, c.id);
-                                                      }
-                                                    }}
-                                                    style={{
-                                                      width: '100%',
-                                                      boxSizing: 'border-box',
-                                                      padding: '8px 10px',
-                                                      borderRadius: 8,
-                                                      border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                                                      background: highContrast ? '#1e1e1e' : '#f8fafc',
-                                                      color: highContrast ? '#fff' : '#0f172a',
-                                                      fontSize: 13,
-                                                      outline: 'none',
-                                                    }}
-                                                  />
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      const v = (commentDraft[`${log.id}_reply_${c.id}`] ?? '').trim();
-                                                      if (v) addComment(log.id, v, c.id);
-                                                    }}
-                                                    disabled={commentSending}
-                                                    style={{
-                                                      marginTop: 6,
-                                                      padding: '6px 12px',
-                                                      borderRadius: 8,
-                                                      border: 'none',
-                                                      background: highContrast ? '#ffc107' : '#3b82f6',
-                                                      color: highContrast ? '#000' : '#fff',
-                                                      fontSize: 12,
-                                                      cursor: commentSending ? 'wait' : 'pointer',
-                                                    }}
-                                                  >
-                                                    답글 등록
-                                                  </button>
-                                                </div>
-                                              )}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                      {user && (
-                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                                          <input
-                                            type="text"
-                                            placeholder="댓글 입력..."
-                                            value={draft}
-                                            onChange={(e) => setCommentDraft((prev) => ({ ...prev, [log.id]: e.target.value }))}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter') {
-                                                if (draft.trim()) addComment(log.id, draft.trim(), null);
-                                              }
-                                            }}
-                                            style={{
-                                              flex: 1,
-                                              minWidth: 120,
-                                              boxSizing: 'border-box',
-                                              padding: '8px 12px',
-                                              borderRadius: 10,
-                                              border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                                              background: highContrast ? '#1e1e1e' : '#f8fafc',
-                                              color: highContrast ? '#fff' : '#0f172a',
-                                              fontSize: 13,
-                                              outline: 'none',
-                                            }}
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={() => draft.trim() && addComment(log.id, draft.trim(), null)}
-                                            disabled={commentSending || !draft.trim()}
-                                            style={{
-                                              padding: '8px 14px',
-                                              borderRadius: 10,
-                                              border: 'none',
-                                              background: highContrast ? '#ffc107' : '#3b82f6',
-                                              color: highContrast ? '#000' : '#fff',
-                                              fontSize: 12,
-                                              fontWeight: 600,
-                                              cursor: commentSending || !draft.trim() ? 'default' : 'pointer',
-                                            }}
-                                          >
-                                            댓글
-                                          </button>
-                                        </div>
-                                      )}
-                                    </>
-                                  );
-                                })()}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </section>
-            )}
+            <LogFeed
+              activeTab={activeTab}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              placeViewFilter={placeViewFilter}
+              setPlaceViewFilter={setPlaceViewFilter}
+              t={t}
+              theme={theme}
+              highContrast={highContrast}
+              logs={logs}
+              logsByDate={logsByDate}
+              user={user}
+              editingLogId={editingLogId}
+              setEditingLogId={setEditingLogId}
+              editingAction={editingAction}
+              setEditingAction={setEditingAction}
+              onUpdateLog={handleUpdateLog}
+              getMemberName={getMemberName}
+              getLogMedia={getLogMedia}
+              formatDateTime={formatDateTime}
+              getPlaceLabelKey={getPlaceLabelKey}
+              commentsByLogId={commentsByLogId}
+              replyingTo={replyingTo}
+              setReplyingTo={setReplyingTo}
+              commentDraft={commentDraft}
+              setCommentDraft={setCommentDraft}
+              commentSending={commentSending}
+              addComment={addComment}
+              longPressTimerRef={longPressTimerRef}
+              setActionPopupLogId={setActionPopupLogId}
+            />
           </>
         )}
       </div>
 
-      {user && (
-        <nav
-          role="navigation"
-          aria-label="하단 메뉴"
-          className="bottom-tab"
-          style={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            maxWidth: 480,
-            margin: '0 auto',
-            zIndex: 40,
-          }}
-        >
-          <button
-            type="button"
-            className={`tab-item ${activeTab === 'home' ? 'active' : ''}`}
-            onClick={() => setActiveTab('home')}
-            aria-current={activeTab === 'home' ? 'true' : undefined}
+      {showNameEditModal && (
+        <>
+          <div
+            role="presentation"
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 54 }}
+            onClick={() => setShowNameEditModal(false)}
+            aria-hidden
+          />
+          <div
+            role="dialog"
+            aria-label={t('editName')}
+            style={{
+              position: 'fixed',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(340px, 92vw)',
+              padding: 20,
+              borderRadius: 16,
+              background: highContrast ? '#1e1e1e' : '#fff',
+              border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              zIndex: 55,
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <Home size={22} strokeWidth={2} aria-hidden />
-            홈
-          </button>
-          <button
-            type="button"
-            className={`tab-item ${activeTab === 'calendar' ? 'active' : ''}`}
-            onClick={() => setActiveTab('calendar')}
-            aria-current={activeTab === 'calendar' ? 'true' : undefined}
-          >
-            <Calendar size={22} strokeWidth={2} aria-hidden />
-            캘린더
-          </button>
-          <div className={`tab-item cta ${activeTab === 'qr' ? 'active' : ''}`}>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('qr');
-                setShowScanner(true);
+            <div style={{ fontSize: 12, color: highContrast ? '#e0e0e0' : '#94a3b8', marginBottom: 8 }}>{t('nameForFamily')}</div>
+            <input
+              value={profileName}
+              onChange={(e) => setProfileName(e.target.value)}
+              placeholder={t('namePlaceholder')}
+              aria-label={t('nameForFamily')}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                color: '#0f172a',
+                fontSize: 14,
+                outline: 'none',
+                marginBottom: 12,
               }}
-              aria-current={activeTab === 'qr' ? 'true' : undefined}
-            >
-              <QrCode size={22} strokeWidth={2} className="tab-icon" aria-hidden />
-              QR
-            </button>
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setShowNameEditModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: 10,
+                  border: '1px solid #e2e8f0',
+                  background: '#f1f5f9',
+                  color: '#64748b',
+                  fontSize: 13,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleProfileSave();
+                  setShowNameEditModal(false);
+                }}
+                disabled={profileSaving}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: profileSaving ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {profileSaving ? t('saving') : t('save')}
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            className={`tab-item ${activeTab === 'search' ? 'active' : ''}`}
-            onClick={() => setActiveTab('search')}
-            aria-current={activeTab === 'search' ? 'true' : undefined}
-          >
-            <Search size={22} strokeWidth={2} aria-hidden />
-            검색
-          </button>
-        </nav>
+        </>
+      )}
+
+      {user && (
+        <BottomTabBar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onQrPress={() => setShowScanner(true)}
+          t={t}
+          highContrast={highContrast}
+          language={language}
+          setLanguage={setLanguage}
+          langLabels={langLabels}
+          onNameEdit={() => setShowNameEditModal(true)}
+          onProfilePhotoChange={() => profileAvatarInputRef.current?.click()}
+          onInviteFamily={() => router.push('/invite')}
+          onAccessibility={() => setShowAccessibilityModal(true)}
+          profileAvatarUploading={profileAvatarUploading}
+        />
       )}
 
       {editImageIndex != null && logImagePreviews[editImageIndex] && (
@@ -2737,8 +1924,13 @@ export default function HomeClient() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>🖼️ 꾸미기 · 이름표</h3>
-              <button type="button" onClick={() => setEditImageIndex(null)} aria-label="닫기" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', color: '#64748b', fontSize: 18, cursor: 'pointer' }}>×</button>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ImageIcon size={20} strokeWidth={1.5} aria-hidden />
+                꾸미기 · 이름표
+              </h3>
+              <button type="button" onClick={() => setEditImageIndex(null)} aria-label="닫기" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <X size={20} strokeWidth={1.5} aria-hidden />
+              </button>
             </div>
             <img
               src={logImagePreviews[editImageIndex]}
@@ -2829,7 +2021,9 @@ export default function HomeClient() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>✏️ 그리기</h3>
-              <button type="button" onClick={() => setShowDrawModal(false)} aria-label="닫기" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', color: '#64748b', fontSize: 18, cursor: 'pointer' }}>×</button>
+              <button type="button" onClick={() => setShowDrawModal(false)} aria-label="닫기" style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <X size={20} strokeWidth={1.5} aria-hidden />
+              </button>
             </div>
             <p style={{ margin: '0 0 8px', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>손가락이나 마우스로 그려 보세요.</p>
             <canvas
@@ -2949,7 +2143,10 @@ export default function HomeClient() {
             }}
           >
             <div style={{ marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>📝 메모</h3>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FileText size={20} strokeWidth={1.5} aria-hidden />
+              메모
+            </h3>
             </div>
             <textarea
               value={memoContent}
@@ -3233,7 +2430,7 @@ export default function HomeClient() {
                       justifyContent: 'center',
                     }}
                   >
-                    ×
+                    <X size={20} strokeWidth={1.5} aria-hidden />
                   </button>
                 </span>
               ))}
@@ -3318,8 +2515,9 @@ export default function HomeClient() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="accessibility-title" style={{ margin: '0 0 20px', fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
-              ♿ {t('accessibility')}
+            <h2 id="accessibility-title" style={{ margin: '0 0 20px', fontSize: 20, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Accessibility size={20} strokeWidth={1.5} aria-hidden />
+              {t('accessibility')}
             </h2>
 
             <div style={{ marginBottom: 20 }}>
