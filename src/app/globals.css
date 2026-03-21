@@ -317,9 +317,37 @@ body {
 .log-place-tag.diet,
 .log-place-tag.kid,
 .log-place-tag.pet,
-.log-place-tag.todo {
+.log-place-tag.todo,
+.log-place-tag.outing,
+.log-place-tag.parking {
   background: var(--accent-light);
   color: var(--accent);
+}
+
+/* 목록에서 보기: 접기 패널 — summary 포커스 시 녹색 링 제거 */
+.feed-filter-disclosure.feed-filter-disclosure {
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  margin-bottom: 8px;
+}
+.feed-filter-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.feed-filter-summary::-webkit-details-marker {
+  display: none;
+}
+[data-accessibility-root] .feed-filter-summary:focus,
+[data-accessibility-root] .feed-filter-summary:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .log-time {

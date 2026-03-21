@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Home, Calendar, QrCode, Search, Settings, X } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Home, Calendar, QrCode, Search, Settings, X, Plus } from 'lucide-react';
 import type { Lang } from '../../app/translations';
 
 export type TabId = 'home' | 'calendar' | 'qr' | 'search';
@@ -41,6 +43,8 @@ export function BottomTabBar({
   profileAvatarUploading = false,
 }: BottomTabBarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const pathname = usePathname();
+  const showWriteFab = pathname !== '/write';
 
   const openSettings = () => setSettingsOpen(true);
 
@@ -93,6 +97,29 @@ export function BottomTabBar({
           borderTop: '1px solid var(--divider)',
         }}
       >
+        {showWriteFab && (
+          <Link
+            href="/write"
+            aria-label={t('newLogFabAria')}
+            style={{
+              position: 'absolute',
+              right: 12,
+              top: -22,
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: 'var(--accent)',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 8px 20px rgba(0,0,0,0.18)',
+              zIndex: 41,
+            }}
+          >
+            <Plus size={26} strokeWidth={2} aria-hidden />
+          </Link>
+        )}
         <button
           type="button"
           className="bottom-tab-btn"

@@ -1,7 +1,7 @@
 'use client';
 
 import type { LogFilterKey } from '../../lib/logTags';
-import { LOG_SLUG, PLACE_SLUGS, TOPIC_SLUGS } from '../../lib/logTags';
+import { LOG_SLUG, TOPIC_SLUGS } from '../../lib/logTags';
 
 type PlaceFilterRowProps = {
   filter: LogFilterKey;
@@ -28,21 +28,25 @@ const chip = (
   whiteSpace: 'nowrap' as const,
 });
 
-export function PlaceFilterRow({ filter, setFilter, t, highContrast }: PlaceFilterRowProps) {
-  const placeStyle = (slug: string) => {
-    switch (slug) {
-      case 'fridge':
-        return { bg: 'var(--place-fridge)', border: 'var(--place-fridge-icon)', color: 'var(--place-fridge-icon)' };
-      case 'table':
-        return { bg: 'var(--place-table)', border: 'var(--place-table-icon)', color: 'var(--place-table-icon)' };
-      case 'toilet':
-        return { bg: 'var(--place-toilet)', border: 'var(--place-toilet-icon)', color: 'var(--place-toilet-icon)' };
-      default:
-        return { bg: 'var(--bg-subtle)', border: 'var(--text-caption)', color: 'var(--text-secondary)' };
-    }
-  };
+function topicLabelKey(slug: string): string {
+  switch (slug) {
+    case 'health':
+      return 'topicHealth';
+    case 'diet':
+      return 'topicDiet';
+    case 'kid':
+      return 'topicKid';
+    case 'outing':
+      return 'topicOuting';
+    case 'parking':
+      return 'topicParking';
+    default:
+      return 'logGeneral';
+  }
+}
 
-  const topicStyle = (slug: string) => ({
+export function PlaceFilterRow({ filter, setFilter, t, highContrast }: PlaceFilterRowProps) {
+  const topicStyle = () => ({
     bg: 'var(--accent-light)',
     border: 'var(--accent)',
     color: 'var(--accent)',
@@ -65,7 +69,7 @@ export function PlaceFilterRow({ filter, setFilter, t, highContrast }: PlaceFilt
           onClick={() => setFilter('all')}
           style={chip(filter === 'all', 'var(--text-caption)', 'var(--bg-subtle)', 'var(--text-secondary)', highContrast)}
         >
-          {t('allPlaces')}
+          {t('filterAll')}
         </button>
         <button
           type="button"
@@ -86,17 +90,7 @@ export function PlaceFilterRow({ filter, setFilter, t, highContrast }: PlaceFilt
         }}
       >
         {TOPIC_SLUGS.map((slug) => {
-          const st = topicStyle(slug);
-          const labelKey =
-            slug === 'health'
-              ? 'topicHealth'
-              : slug === 'diet'
-                ? 'topicDiet'
-                : slug === 'kid'
-                  ? 'topicKid'
-                  : slug === 'pet'
-                    ? 'topicPet'
-                    : 'topicTodo';
+          const st = topicStyle();
           return (
             <button
               key={slug}
@@ -105,32 +99,7 @@ export function PlaceFilterRow({ filter, setFilter, t, highContrast }: PlaceFilt
               onClick={() => setFilter(slug)}
               style={chip(filter === slug, st.border, st.bg, st.color, highContrast)}
             >
-              {t(labelKey)}
-            </button>
-          );
-        })}
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 6,
-          justifyContent: 'center',
-          marginTop: 6,
-        }}
-      >
-        {PLACE_SLUGS.map((slug) => {
-          const st = placeStyle(slug);
-          const labelKey = slug === 'fridge' ? 'fridge' : slug === 'table' ? 'table' : 'toilet';
-          return (
-            <button
-              key={slug}
-              type="button"
-              className="log-filter-btn"
-              onClick={() => setFilter(slug)}
-              style={chip(filter === slug, st.border, st.bg, st.color, highContrast)}
-            >
-              {t(labelKey)}
+              {t(topicLabelKey(slug))}
             </button>
           );
         })}
