@@ -1,6 +1,7 @@
 'use client';
 
 import { Users } from 'lucide-react';
+import type { CSSProperties } from 'react';
 
 type Member = {
   user_id: string;
@@ -24,7 +25,8 @@ type MemberFilterProps = {
 };
 
 const CHIP_HEIGHT = 40;
-const AVATAR_SIZE = 28;
+const AVATAR_SIZE = 30;
+const AVATAR_RING_PAD = 3;
 
 export function MemberFilter({
   user,
@@ -44,20 +46,26 @@ export function MemberFilter({
 
   const chipBase = {
     display: 'inline-flex',
+    flexDirection: 'column' as const,
     alignItems: 'center',
-    gap: 6,
-    height: CHIP_HEIGHT,
-    padding: '0 14px 0 6px',
+    justifyContent: 'center',
+    gap: 2,
+    minHeight: CHIP_HEIGHT,
+    padding: '2px 6px 4px',
     borderRadius: 999,
     border: 'none',
-    fontSize: 14,
-    fontWeight: 500,
+    background: 'transparent',
+    fontSize: 11,
+    fontWeight: 600,
     whiteSpace: 'nowrap',
     flexShrink: 0,
     cursor: 'pointer',
+    minWidth: 72,
+    outline: 'none',
+    boxShadow: 'none',
   } as const;
 
-  const avatarWrap = {
+const avatarInnerWrap = {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: '50%',
@@ -66,9 +74,23 @@ export function MemberFilter({
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: 600,
+    background: 'var(--bg-base)',
+    color: '#fff',
   };
+
+  const avatarRingStyle = (selected: boolean): CSSProperties => ({
+    width: selected ? AVATAR_SIZE + AVATAR_RING_PAD * 2 : AVATAR_SIZE,
+    height: selected ? AVATAR_SIZE + AVATAR_RING_PAD * 2 : AVATAR_SIZE,
+    borderRadius: 999,
+    padding: selected ? AVATAR_RING_PAD : 0,
+    background: selected ? 'linear-gradient(135deg, var(--accent), var(--accent-light))' : 'transparent',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxSizing: 'border-box',
+  });
 
   return (
     <div
@@ -76,9 +98,13 @@ export function MemberFilter({
       style={{
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: 8,
-        marginTop: 14,
-        height: CHIP_HEIGHT,
+        marginTop: 2,
+        width: '100%',
+        minHeight: CHIP_HEIGHT,
+        paddingTop: 0,
+        paddingBottom: 0,
         overflowX: 'auto',
         flexWrap: 'nowrap',
         WebkitOverflowScrolling: 'touch',
@@ -86,64 +112,79 @@ export function MemberFilter({
     >
       {/* 전체 */}
       <button
+        className="profile-chip-btn"
         type="button"
         onClick={() => onSelectMember('all')}
         style={{
           ...chipBase,
-          background: isSelected('all') ? 'var(--accent)' : 'transparent',
-          color: isSelected('all') ? '#fff' : 'var(--text-primary)',
-          border: isSelected('all') ? 'none' : '1.5px solid var(--border-chip)',
+          color: isSelected('all') ? 'var(--accent)' : 'var(--text-primary)',
+          border: 'none',
         }}
       >
-        <span style={{ ...avatarWrap, background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>
-          <Users size={20} strokeWidth={1.5} aria-hidden />
+        <span
+          aria-hidden
+          style={avatarRingStyle(isSelected('all'))}
+        >
+          <span
+            style={{
+              ...avatarInnerWrap,
+              background: 'var(--bg-subtle)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <Users size={16} strokeWidth={1.5} aria-hidden />
+          </span>
         </span>
-        <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('allMembers')}</span>
+        <span style={{ fontSize: 11, lineHeight: 1.1 }}>{t('allMembers')}</span>
       </button>
 
       {/* 나 */}
       <button
+        className="profile-chip-btn"
         type="button"
         onClick={() => onSelectMember('me')}
         style={{
           ...chipBase,
-          background: isSelected('me') ? 'var(--accent)' : 'transparent',
-          color: isSelected('me') ? '#fff' : 'var(--text-primary)',
-          border: isSelected('me') ? 'none' : '1.5px solid var(--border-chip)',
+          color: isSelected('me') ? 'var(--accent)' : 'var(--text-primary)',
+          border: 'none',
         }}
       >
-        <span
-          role="button"
-          tabIndex={0}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (profileAvatarUrl && !profileAvatarLoadFailed) onEnlargeAvatar(profileAvatarUrl);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
+        <span style={avatarRingStyle(isSelected('me'))}>
+                  <span
+                    role="button"
+                    tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
               if (profileAvatarUrl && !profileAvatarLoadFailed) onEnlargeAvatar(profileAvatarUrl);
-            }
-          }}
-          style={{
-            ...avatarWrap,
-            background: profileAvatarUrl && !profileAvatarLoadFailed ? 'transparent' : 'var(--accent)',
-            color: profileAvatarUrl && !profileAvatarLoadFailed ? undefined : '#fff',
-            cursor: profileAvatarUrl && !profileAvatarLoadFailed ? 'pointer' : undefined,
-          }}
-        >
-          {profileAvatarUrl && !profileAvatarLoadFailed ? (
-            <img
-              src={profileAvatarUrl}
-              alt=""
-              onError={onProfileAvatarError}
-              style={{ width: AVATAR_SIZE, height: AVATAR_SIZE, objectFit: 'cover', display: 'block' }}
-            />
-          ) : (
-            (meDisplayName || t('me')).slice(0, 1).toUpperCase()
-          )}
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (profileAvatarUrl && !profileAvatarLoadFailed) onEnlargeAvatar(profileAvatarUrl);
+              }
+            }}
+            style={{
+              ...avatarInnerWrap,
+              background: profileAvatarUrl && !profileAvatarLoadFailed ? 'transparent' : 'var(--accent)',
+              color: profileAvatarUrl && !profileAvatarLoadFailed ? undefined : '#fff',
+              cursor: profileAvatarUrl && !profileAvatarLoadFailed ? 'pointer' : undefined,
+            }}
+          >
+            {profileAvatarUrl && !profileAvatarLoadFailed ? (
+              <img
+                src={profileAvatarUrl}
+                alt=""
+                onError={onProfileAvatarError}
+                style={{ width: AVATAR_SIZE, height: AVATAR_SIZE, objectFit: 'cover', display: 'block', borderRadius: '50%' }}
+              />
+            ) : (
+              (meDisplayName || t('me')).slice(0, 1).toUpperCase()
+            )}
+          </span>
         </span>
-        <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>{meDisplayName}</span>
+        <span style={{ fontSize: 11, lineHeight: 1.1, color: isSelected('me') ? 'var(--accent)' : 'var(--text-secondary)' }}>
+          {meDisplayName}
+        </span>
       </button>
 
       {members
@@ -156,48 +197,52 @@ export function MemberFilter({
           const showAvatar = avatarUrl && !avatarFailed;
           return (
             <button
+              className="profile-chip-btn"
               key={m.user_id}
               type="button"
               onClick={() => onSelectMember(m.user_id)}
               style={{
                 ...chipBase,
-                background: active ? 'var(--accent)' : 'transparent',
-                color: active ? '#fff' : 'var(--text-primary)',
-                border: active ? 'none' : '1.5px solid var(--border-chip)',
+                color: active ? 'var(--accent)' : 'var(--text-primary)',
+                border: 'none',
               }}
             >
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (showAvatar && avatarUrl) onEnlargeAvatar(avatarUrl);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
+              <span style={avatarRingStyle(active)}>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (showAvatar && avatarUrl) onEnlargeAvatar(avatarUrl);
-                  }
-                }}
-                style={{
-                  ...avatarWrap,
-                  background: showAvatar ? 'transparent' : 'var(--bg-subtle)',
-                  color: showAvatar ? undefined : 'var(--text-secondary)',
-                  cursor: showAvatar ? 'pointer' : undefined,
-                }}
-              >
-                {showAvatar ? (
-                  <img
-                    src={avatarUrl}
-                    alt=""
-                    onError={() => onMemberAvatarError(m.user_id)}
-                    style={{ width: AVATAR_SIZE, height: AVATAR_SIZE, objectFit: 'cover', display: 'block' }}
-                  />
-                ) : (
-                  name.slice(0, 1)
-                )}
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (showAvatar && avatarUrl) onEnlargeAvatar(avatarUrl);
+                    }
+                  }}
+                  style={{
+                    ...avatarInnerWrap,
+                    background: showAvatar ? 'transparent' : 'var(--accent)',
+                    color: showAvatar ? undefined : '#fff',
+                    cursor: showAvatar ? 'pointer' : undefined,
+                  }}
+                >
+                  {showAvatar ? (
+                    <img
+                      src={avatarUrl}
+                      alt=""
+                      onError={() => onMemberAvatarError(m.user_id)}
+                      style={{ width: AVATAR_SIZE, height: AVATAR_SIZE, objectFit: 'cover', display: 'block', borderRadius: '50%' }}
+                    />
+                  ) : (
+                    name.slice(0, 1)
+                  )}
+                </span>
               </span>
-              <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+              <span style={{ fontSize: 11, lineHeight: 1.1, color: active ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                {name}
+              </span>
             </button>
           );
         })}

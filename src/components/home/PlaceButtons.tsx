@@ -9,7 +9,7 @@ export type PlaceItem = {
   color: string;
 };
 
-const ICON_SIZE = 20;
+const ICON_SIZE = 17;
 const STROKE = 1.5;
 
 type PlaceButtonsProps = {
@@ -43,12 +43,12 @@ const pillButtonStyle = (backgroundColor: string, highContrast?: boolean): React
   display: 'inline-flex',
   alignItems: 'center',
   gap: 6,
-  padding: '10px 16px',
+  padding: '5px 10px',
   borderRadius: 999,
   border: 'none',
   background: highContrast ? 'var(--bg-subtle)' : backgroundColor,
   color: highContrast ? 'var(--text-primary)' : 'var(--text-primary)',
-  fontSize: 14,
+  fontSize: 12,
   fontWeight: 600,
   cursor: 'pointer',
   flexShrink: 0,
@@ -63,15 +63,13 @@ export function PlaceButtons({
   isAdmin,
 }: PlaceButtonsProps) {
   return (
-    <section style={{ marginBottom: 24 }}>
-      <p style={{ margin: '0 0 12px', fontSize: 13, color: highContrast ? '#e0e0e0' : 'var(--text-caption)', textAlign: 'center' }}>
-        장소를 누르면 로그를 남길 수 있어요
-      </p>
+    <section style={{ marginBottom: 6 }}>
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
+          justifyContent: 'center',
+          gap: 6,
           overflowX: 'auto',
           flexWrap: 'nowrap',
           paddingBottom: 4,
@@ -80,6 +78,7 @@ export function PlaceButtons({
       >
         {places.map((place) => (
           <button
+            className="place-pill-btn"
             key={place.id}
             type="button"
             style={pillButtonStyle(place.color, highContrast)}
@@ -91,6 +90,7 @@ export function PlaceButtons({
         ))}
         {isAdmin && (
           <button
+            className="place-pill-btn"
             type="button"
             style={pillButtonStyle('var(--bg-subtle)', highContrast)}
             aria-label="장소 추가"

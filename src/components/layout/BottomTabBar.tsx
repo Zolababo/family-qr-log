@@ -22,7 +22,7 @@ type BottomTabBarProps = {
   profileAvatarUploading?: boolean;
 };
 
-const ICON_SIZE = 20;
+const ICON_SIZE = 18;
 const STROKE = 1.5;
 
 export function BottomTabBar({
@@ -55,14 +55,16 @@ export function BottomTabBar({
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    padding: '10px 4px 20px',
+    gap: 2,
+    padding: '6px 4px 10px',
     border: 'none',
-    background: 'none',
+    background: isActive ? 'var(--accent-light)' : 'transparent',
     color: isActive ? 'var(--accent)' : 'var(--text-caption)',
     fontSize: 11,
-    fontWeight: 500,
+    fontWeight: isActive ? 600 : 500,
     cursor: 'pointer',
+    borderRadius: 12,
+    minWidth: 0,
   });
 
   const modalBg = highContrast ? '#0f0f0f' : '#fff';
@@ -93,6 +95,7 @@ export function BottomTabBar({
       >
         <button
           type="button"
+          className="bottom-tab-btn"
           onClick={() => onTabChange('home')}
           aria-current={activeTab === 'home' ? 'true' : undefined}
           style={tabStyle(activeTab === 'home')}
@@ -102,6 +105,7 @@ export function BottomTabBar({
         </button>
         <button
           type="button"
+          className="bottom-tab-btn"
           onClick={() => onTabChange('calendar')}
           aria-current={activeTab === 'calendar' ? 'true' : undefined}
           style={tabStyle(activeTab === 'calendar')}
@@ -111,32 +115,20 @@ export function BottomTabBar({
         </button>
         <button
           type="button"
+          className="bottom-tab-btn"
           onClick={() => {
             onTabChange('qr');
             onQrPress();
           }}
           aria-current={activeTab === 'qr' ? 'true' : undefined}
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 4,
-            padding: '10px 4px 20px',
-            border: 'none',
-            background: 'var(--accent)',
-            color: '#fff',
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
+          style={tabStyle(activeTab === 'qr')}
         >
           <QrCode size={ICON_SIZE} strokeWidth={STROKE} aria-hidden />
           QR
         </button>
         <button
           type="button"
+          className="bottom-tab-btn"
           onClick={() => onTabChange('search')}
           aria-current={activeTab === 'search' ? 'true' : undefined}
           style={tabStyle(activeTab === 'search')}
@@ -146,6 +138,7 @@ export function BottomTabBar({
         </button>
         <button
           type="button"
+          className="bottom-tab-btn"
           onClick={openSettings}
           aria-label="설정 메뉴"
           style={tabStyle(false)}
@@ -290,8 +283,8 @@ export function BottomTabBar({
                       style={{
                         padding: '8px 12px',
                         borderRadius: 10,
-                        border: language === lang ? '2px solid var(--accent)' : modalBorder,
-                        background: language === lang ? 'var(--bg-subtle)' : 'transparent',
+                        border: '1px solid #e2e8f0',
+                        background: language === lang ? 'var(--accent-light)' : 'transparent',
                         color: textColor,
                         fontSize: 13,
                         cursor: 'pointer',

@@ -1,7 +1,8 @@
 'use client';
 
+import { useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, MessageCircle, Play, MapPin, ExternalLink, Sparkles } from 'lucide-react';
 
 export type Log = {
   id: string;
@@ -38,8 +39,6 @@ type LogFeedProps = {
   activeTab: 'home' | 'calendar' | 'qr' | 'search';
   searchQuery: string;
   setSearchQuery: (v: string) => void;
-  placeViewFilter: 'fridge' | 'table' | 'toilet' | 'all';
-  setPlaceViewFilter: (v: 'fridge' | 'table' | 'toilet' | 'all') => void;
   t: (key: string) => string;
   theme: Theme;
   highContrast: boolean;
@@ -62,16 +61,17 @@ type LogFeedProps = {
   setCommentDraft: (v: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   commentSending: boolean;
   addComment: (logId: string, content: string, parentId: string | null) => void | Promise<void>;
+  commentTarget: { logId: string; parentId: string | null } | null;
+  setCommentTarget: (v: { logId: string; parentId: string | null } | null) => void;
   longPressTimerRef: RefObject<NodeJS.Timeout | null>;
   setActionPopupLogId: (v: string | null) => void;
+  onPickSticker?: (logId: string) => void;
 };
 
 export function LogFeed({
   activeTab,
   searchQuery,
   setSearchQuery,
-  placeViewFilter,
-  setPlaceViewFilter,
   t,
   theme,
   highContrast,
@@ -94,85 +94,81 @@ export function LogFeed({
   setCommentDraft,
   commentSending,
   addComment,
+  commentTarget,
+  setCommentTarget,
   longPressTimerRef,
   setActionPopupLogId,
+  onPickSticker,
 }: LogFeedProps) {
+  const parseLogMeta = (actionText: string): { text: string; locationName?: string; locationUrl?: string; stickers?: string[] } => {
+    const marker = '\n@@meta:';
+    const idx = actionText.lastIndexOf(marker);
+    if (idx < 0) return { text: actionText };
+    const text = actionText.slice(0, idx).trim();
+    const raw = actionText.slice(idx + marker.length).trim();
+    try {
+      const parsed = JSON.parse(raw) as { locationName?: string; locationUrl?: string; stickers?: string[] };
+      return { text, locationName: parsed?.locationName, locationUrl: parsed?.locationUrl, stickers: parsed?.stickers };
+    } catch {
+      return { text: actionText };
+    }
+  };
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const [pausedVideoId, setPausedVideoId] = useState<string | null>(null);
+
+  const toggleVideo = async (logId: string) => {
+    const el = videoRefs.current[logId];
+    if (!el) return;
+    if (el.paused) {
+      try {
+        await el.play();
+      } catch {
+        // autoplay/play can be blocked; ignore, user can try again
+      }
+    } else {
+      el.pause();
+    }
+  };
+
   return (
     (activeTab === 'home' || activeTab === 'search') && (
-      <section aria-label={t('recentLogs')}>
-        {activeTab === 'search' && (
-          <input
-            type="search"
-            placeholder="로그 검색..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              padding: '12px 14px',
-              borderRadius: 12,
-              border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
-              background: highContrast ? '#1e1e1e' : '#f8fafc',
-              color: highContrast ? '#fff' : '#0f172a',
-              fontSize: 15,
-              marginBottom: 12,
-              outline: 'none',
-            }}
-            aria-label="로그 검색"
-          />
-        )}
-        <div style={{ fontSize: 11, letterSpacing: '0.05em', color: highContrast ? '#ffffff' : '#94a3b8', marginBottom: 10 }}>
-          {activeTab === 'search' ? (searchQuery ? `검색: ${searchQuery}` : t('recentLogs')) : t('recentLogs')}
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 8,
-            marginBottom: 12,
-          }}
-        >
-          {[
-            { key: 'fridge' as const, labelKey: 'fridge' as const, bg: 'var(--place-fridge)', border: 'var(--place-fridge-icon)', color: 'var(--place-fridge-icon)' },
-            { key: 'table' as const, labelKey: 'table' as const, bg: 'var(--place-table)', border: 'var(--place-table-icon)', color: 'var(--place-table-icon)' },
-            { key: 'toilet' as const, labelKey: 'toilet' as const, bg: 'var(--place-toilet)', border: 'var(--place-toilet-icon)', color: 'var(--place-toilet-icon)' },
-            { key: 'all' as const, labelKey: 'allPlaces' as const, bg: 'var(--bg-subtle)', border: 'var(--text-caption)', color: 'var(--text-secondary)' },
-          ].map(({ key, labelKey, bg, border, color }) => {
-            const active = placeViewFilter === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setPlaceViewFilter(key)}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: 10,
-                  border: active ? `2px solid ${border}` : '1px solid #e2e8f0',
-                  background: active ? bg : '#f8fafc',
-                  color: active ? color : '#64748b',
-                  fontSize: 13,
-                  fontWeight: active ? 600 : 400,
-                  cursor: 'pointer',
-                }}
-              >
-                {t(labelKey)}
-              </button>
-            );
-          })}
+      <section aria-label={t('recentLogs')} style={{ marginLeft: -16, marginRight: -16, width: 'calc(100% + 32px)' }}>
+        <div style={{ paddingLeft: 16, paddingRight: 16 }}>
+          {activeTab === 'search' && (
+            <input
+              type="search"
+              placeholder="로그 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '12px 14px',
+                borderRadius: 12,
+                border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
+                background: highContrast ? '#1e1e1e' : '#f8fafc',
+                color: highContrast ? '#fff' : '#0f172a',
+                fontSize: 15,
+                marginBottom: 12,
+                outline: 'none',
+              }}
+              aria-label="로그 검색"
+            />
+          )}
         </div>
 
         <div
           style={{
-            maxHeight: '55vh',
-            overflowY: 'auto',
-            padding: '0 4px',
+            maxHeight: 'none',
+            overflow: 'visible',
+            padding: 0,
           }}
         >
           {logs.length === 0 && (
             <div
               style={{
-                padding: 32,
-                fontSize: 14,
+                padding: '18px 16px',
+                fontSize: 13,
                 color: theme.textSecondary,
                 textAlign: 'center',
               }}
@@ -182,7 +178,7 @@ export function LogFeed({
           )}
 
           {logsByDate.map((group) => (
-            <div key={group.dateKey} style={{ marginBottom: 20 }}>
+            <div key={group.dateKey} style={{ marginBottom: 10, paddingLeft: 16, paddingRight: 16 }}>
               <div
                 style={{
                   display: 'flex',
@@ -191,8 +187,8 @@ export function LogFeed({
                   fontSize: 12,
                   fontWeight: 600,
                   color: theme.textSecondary,
-                  marginBottom: 10,
-                  padding: '6px 0',
+                  marginBottom: 6,
+                  padding: '4px 0',
                   letterSpacing: '0.02em',
                 }}
               >
@@ -224,10 +220,10 @@ export function LogFeed({
                       }
                     }}
                     style={{
-                      padding: '14px 0',
-                      borderBottom: '1px solid var(--divider)',
+                      padding: '10px 0',
+                      borderBottom: 'none',
                       cursor: isMine ? 'pointer' : 'default',
-                      ...(highContrast ? { borderBottomColor: 'rgba(255,193,7,0.3)' } : {}),
+                      ...(highContrast ? {} : {}),
                     }}
                   >
                     {isEditing ? (
@@ -295,12 +291,36 @@ export function LogFeed({
                             {formatDateTime(log.created_at)}
                           </span>
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: highContrast ? '#fff' : 'var(--text-primary)', marginBottom: 4 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: highContrast ? '#fff' : 'var(--text-primary)', marginBottom: 3 }}>
                           {getMemberName(log.actor_user_id)}
                         </div>
-                        <div style={{ fontSize: 15, color: highContrast ? '#e2e8f0' : 'var(--text-primary)', lineHeight: 1.5 }}>
-                          {log.action}
+                        <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : 'var(--text-primary)', lineHeight: 1.25 }}>
+                          {parseLogMeta(log.action).text}
                         </div>
+                        {(() => {
+                          const parsed = parseLogMeta(log.action);
+                          if (!parsed.locationName && !parsed.locationUrl) return null;
+                          return (
+                            <a
+                              href={parsed.locationUrl || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                marginTop: 4,
+                                fontSize: 11,
+                                color: highContrast ? '#ffc107' : '#3b82f6',
+                                textDecoration: 'none',
+                              }}
+                            >
+                              <MapPin size={16} strokeWidth={1.5} aria-hidden />
+                              {parsed.locationName || '지도 보기'}
+                              <ExternalLink size={16} strokeWidth={1.5} aria-hidden />
+                            </a>
+                          );
+                        })()}
                         {(() => {
                           const { imageUrls, videoUrl } = getLogMedia(log);
                           if (imageUrls.length === 0 && !videoUrl) return null;
@@ -308,12 +328,35 @@ export function LogFeed({
                             <div
                               style={{
                                 marginBottom: 8,
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: 8,
-                                maxWidth: '100%',
+                                position: 'relative',
+                                /* iPhone/Android에서 부모 패딩/랩을 완전히 무시하고 viewport 폭으로 고정 */
+                                width: '100vw',
+                                marginLeft: 'calc(50% - 50vw)',
+                                marginRight: 'calc(50% - 50vw)',
+                                display: 'block',
+                                maxWidth: '100vw',
                               }}
                             >
+                              {parseLogMeta(log.action).stickers?.[0] && (
+                                <div
+                                  aria-hidden
+                                  style={{
+                                    position: 'absolute',
+                                    top: 8,
+                                    left: 8,
+                                    zIndex: 3,
+                                    background: 'rgba(0,0,0,0.28)',
+                                    color: '#fff',
+                                    padding: '6px 8px',
+                                    borderRadius: 999,
+                                    fontSize: 18,
+                                    lineHeight: 1,
+                                    pointerEvents: 'none',
+                                  }}
+                                >
+                                  {parseLogMeta(log.action).stickers?.[0]}
+                                </div>
+                              )}
                               {imageUrls.map((url, i) => (
                                 <a
                                   key={i}
@@ -322,11 +365,8 @@ export function LogFeed({
                                   rel="noopener noreferrer"
                                   style={{
                                     display: 'block',
-                                    borderRadius: 10,
+                                    width: '100%',
                                     overflow: 'hidden',
-                                    maxWidth: '100%',
-                                    flex: '1 1 120px',
-                                    minWidth: 0,
                                   }}
                                 >
                                   <img
@@ -334,10 +374,10 @@ export function LogFeed({
                                     alt=""
                                     style={{
                                       width: '100%',
-                                      maxHeight: 240,
-                                      objectFit: 'contain',
+                                      maxHeight: 320,
+                                      objectFit: 'cover',
                                       display: 'block',
-                                      background: '#f1f5f9',
+                                      background: 'var(--bg-subtle)',
                                     }}
                                   />
                                 </a>
@@ -345,254 +385,99 @@ export function LogFeed({
                               {videoUrl && (
                                 <div
                                   style={{
-                                    flex: '1 1 200px',
-                                    minWidth: 0,
-                                    maxWidth: '100%',
-                                    borderRadius: 10,
+                                    position: 'relative',
+                                    width: '100%',
                                     overflow: 'hidden',
                                     background: '#000',
                                   }}
+                                  onClick={() => toggleVideo(log.id)}
+                                  onPointerDown={(e) => {
+                                    // Prevent iOS tap from selecting/dragging
+                                    e.preventDefault();
+                                  }}
                                 >
                                   <video
+                                    ref={(el) => {
+                                      videoRefs.current[log.id] = el;
+                                    }}
                                     src={videoUrl}
-                                    controls
+                                    muted
+                                    loop
                                     playsInline
+                                    autoPlay
                                     preload="metadata"
+                                    onPlay={() => setPausedVideoId((cur) => (cur === log.id ? null : cur))}
+                                    onPause={() => setPausedVideoId((cur) => (cur === log.id ? log.id : log.id))}
                                     style={{
                                       width: '100%',
-                                      maxHeight: 240,
+                                      maxHeight: 320,
                                       display: 'block',
                                     }}
                                   />
+                                  {pausedVideoId === log.id && (
+                                    <div
+                                      role="presentation"
+                                      aria-hidden
+                                      style={{
+                                        position: 'absolute',
+                                        inset: 0,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        background: 'rgba(0,0,0,0.12)',
+                                      }}
+                                    >
+                                      <Play size={48} color="#fff" strokeWidth={1.5} />
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
                           );
                         })()}
-                        {isMine && (
-                          <div style={{ marginTop: 8, fontSize: 11, color: highContrast ? '#ffffff' : 'var(--text-caption)' }}>
-                            {t('longPressEdit')}
-                          </div>
-                        )}
-                        {/* 댓글 · 답글 */}
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: highContrast ? '1px solid rgba(255,193,7,0.3)' : '1px solid var(--divider)' }}>
-                          {(() => {
-                            const list = commentsByLogId[log.id] ?? [];
-                            const topLevel = list
-                              .filter((c) => !c.parent_id)
-                              .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                            const getReplies = (parentId: string) =>
-                              list
-                                .filter((c) => c.parent_id === parentId)
-                                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                            const replyingToThis = replyingTo?.logId === log.id;
-                            const draft = commentDraft[log.id] ?? '';
-                            return (
-                              <>
-                                {topLevel.length > 0 && (
-                                  <div style={{ marginBottom: 10 }}>
-                                    {topLevel.map((c) => (
-                                      <div key={c.id} style={{ marginBottom: 8 }}>
-                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-                                          <span style={{ fontWeight: 600, fontSize: 13, color: highContrast ? '#ffc107' : '#0f172a' }}>{getMemberName(c.user_id)}</span>
-                                          <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>{formatDateTime(c.created_at)}</span>
-                                        </div>
-                                        <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : '#334155', marginTop: 2, paddingLeft: 0 }}>{c.content}</div>
-                                        {user && (
-                                          <button
-                                            type="button"
-                                            onClick={() => setReplyingTo(replyingTo?.commentId === c.id ? null : { logId: log.id, commentId: c.id })}
-                                            style={{
-                                              marginTop: 4,
-                                              padding: 0,
-                                              border: 'none',
-                                              background: 'none',
-                                              fontSize: 12,
-                                              color: highContrast ? '#ffc107' : '#64748b',
-                                              cursor: 'pointer',
-                                            }}
-                                          >
-                                            답글
-                                          </button>
-                                        )}
-                                        {getReplies(c.id).map((r) => (
-                                          <div key={r.id} style={{ marginLeft: 24, marginTop: 6, paddingLeft: 12, borderLeft: highContrast ? '2px solid rgba(255,193,7,0.4)' : '2px solid #e2e8f0' }}>
-                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-                                              <span style={{ fontWeight: 600, fontSize: 12, color: highContrast ? '#ffc107' : '#0f172a' }}>{getMemberName(r.user_id)}</span>
-                                              <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>{formatDateTime(r.created_at)}</span>
-                                            </div>
-                                            <div style={{ fontSize: 12, color: highContrast ? '#e2e8f0' : '#334155', marginTop: 2 }}>{r.content}</div>
-                                            {user && (
-                                              <button
-                                                type="button"
-                                                onClick={() => setReplyingTo(replyingTo?.commentId === r.id ? null : { logId: log.id, commentId: r.id })}
-                                                style={{
-                                                  marginTop: 4,
-                                                  padding: 0,
-                                                  border: 'none',
-                                                  background: 'none',
-                                                  fontSize: 11,
-                                                  color: highContrast ? '#ffc107' : '#64748b',
-                                                  cursor: 'pointer',
-                                                }}
-                                              >
-                                                답글
-                                              </button>
-                                            )}
-                                            {replyingToThis && replyingTo?.commentId === r.id && user && (
-                                              <div style={{ marginTop: 8 }}>
-                                                <input
-                                                  type="text"
-                                                  placeholder="답글 입력..."
-                                                  value={commentDraft[`${log.id}_reply_${r.id}`] ?? ''}
-                                                  onChange={(e) => setCommentDraft((prev) => ({ ...prev, [`${log.id}_reply_${r.id}`]: e.target.value }))}
-                                                  onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                      const v = (commentDraft[`${log.id}_reply_${r.id}`] ?? '').trim();
-                                                      if (v) addComment(log.id, v, r.id);
-                                                    }
-                                                  }}
-                                                  style={{
-                                                    width: '100%',
-                                                    boxSizing: 'border-box',
-                                                    padding: '8px 10px',
-                                                    borderRadius: 8,
-                                                    border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                                                    background: highContrast ? '#1e1e1e' : '#f8fafc',
-                                                    color: highContrast ? '#fff' : '#0f172a',
-                                                    fontSize: 13,
-                                                    outline: 'none',
-                                                  }}
-                                                />
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                    const v = (commentDraft[`${log.id}_reply_${r.id}`] ?? '').trim();
-                                                    if (v) addComment(log.id, v, r.id);
-                                                  }}
-                                                  disabled={commentSending}
-                                                  style={{
-                                                    marginTop: 6,
-                                                    padding: '6px 12px',
-                                                    borderRadius: 8,
-                                                    border: 'none',
-                                                    background: highContrast ? '#ffc107' : '#3b82f6',
-                                                    color: highContrast ? '#000' : '#fff',
-                                                    fontSize: 12,
-                                                    cursor: commentSending ? 'wait' : 'pointer',
-                                                  }}
-                                                >
-                                                  답글 등록
-                                                </button>
-                                              </div>
-                                            )}
-                                            {getReplies(r.id).map((r2) => (
-                                              <div key={r2.id} style={{ marginLeft: 20, marginTop: 6, paddingLeft: 10, borderLeft: highContrast ? '2px solid rgba(255,193,7,0.25)' : '2px solid #e2e8f0' }}>
-                                                <span style={{ fontWeight: 600, fontSize: 12, color: highContrast ? '#ffc107' : '#0f172a' }}>{getMemberName(r2.user_id)}</span>
-                                                <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b', marginLeft: 6 }}>{formatDateTime(r2.created_at)}</span>
-                                                <div style={{ fontSize: 12, color: highContrast ? '#e2e8f0' : '#334155', marginTop: 2 }}>{r2.content}</div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        ))}
-                                        {replyingToThis && replyingTo?.commentId === c.id && user && (
-                                          <div style={{ marginLeft: 24, marginTop: 8 }}>
-                                            <input
-                                              type="text"
-                                              placeholder="답글 입력..."
-                                              value={(replyingTo?.logId === log.id && replyingTo?.commentId === c.id ? commentDraft[`${log.id}_reply_${c.id}`] : undefined) ?? ''}
-                                              onChange={(e) => setCommentDraft((prev) => ({ ...prev, [`${log.id}_reply_${c.id}`]: e.target.value }))}
-                                              onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                  const v = (commentDraft[`${log.id}_reply_${c.id}`] ?? '').trim();
-                                                  if (v) addComment(log.id, v, c.id);
-                                                }
-                                              }}
-                                              style={{
-                                                width: '100%',
-                                                boxSizing: 'border-box',
-                                                padding: '8px 10px',
-                                                borderRadius: 8,
-                                                border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                                                background: highContrast ? '#1e1e1e' : '#f8fafc',
-                                                color: highContrast ? '#fff' : '#0f172a',
-                                                fontSize: 13,
-                                                outline: 'none',
-                                              }}
-                                            />
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                const v = (commentDraft[`${log.id}_reply_${c.id}`] ?? '').trim();
-                                                if (v) addComment(log.id, v, c.id);
-                                              }}
-                                              disabled={commentSending}
-                                              style={{
-                                                marginTop: 6,
-                                                padding: '6px 12px',
-                                                borderRadius: 8,
-                                                border: 'none',
-                                                background: highContrast ? '#ffc107' : '#3b82f6',
-                                                color: highContrast ? '#000' : '#fff',
-                                                fontSize: 12,
-                                                cursor: commentSending ? 'wait' : 'pointer',
-                                              }}
-                                            >
-                                              답글 등록
-                                            </button>
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {user && (
-                                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                                    <input
-                                      type="text"
-                                      placeholder="댓글 입력..."
-                                      value={draft}
-                                      onChange={(e) => setCommentDraft((prev) => ({ ...prev, [log.id]: e.target.value }))}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          if (draft.trim()) addComment(log.id, draft.trim(), null);
-                                        }
-                                      }}
-                                      style={{
-                                        flex: 1,
-                                        minWidth: 120,
-                                        boxSizing: 'border-box',
-                                        padding: '8px 12px',
-                                        borderRadius: 10,
-                                        border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                                        background: highContrast ? '#1e1e1e' : '#f8fafc',
-                                        color: highContrast ? '#fff' : '#0f172a',
-                                        fontSize: 13,
-                                        outline: 'none',
-                                      }}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => draft.trim() && addComment(log.id, draft.trim(), null)}
-                                      disabled={commentSending || !draft.trim()}
-                                      style={{
-                                        padding: '8px 14px',
-                                        borderRadius: 10,
-                                        border: 'none',
-                                        background: highContrast ? '#ffc107' : '#3b82f6',
-                                        color: highContrast ? '#000' : '#fff',
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        cursor: commentSending || !draft.trim() ? 'default' : 'pointer',
-                                      }}
-                                    >
-                                      댓글
-                                    </button>
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
+                        {/* 길게 누르면 수정/삭제 문구 제거 */}
+                        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {onPickSticker && (
+                            <button
+                              type="button"
+                              onClick={() => onPickSticker(log.id)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '4px 8px',
+                                borderRadius: 999,
+                                border: '1px solid var(--divider)',
+                                background: 'transparent',
+                                color: highContrast ? '#ffc107' : '#64748b',
+                                fontSize: 11,
+                                cursor: 'pointer',
+                              }}
+                              aria-label="스티커"
+                            >
+                              <Sparkles size={16} strokeWidth={1.5} aria-hidden />
+                              스티커
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setCommentTarget({ logId: log.id, parentId: null })}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '4px 8px',
+                              borderRadius: 999,
+                              border: '1px solid var(--divider)',
+                              background: 'transparent',
+                              color: highContrast ? '#ffc107' : '#64748b',
+                              fontSize: 11,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <MessageCircle size={16} strokeWidth={1.5} aria-hidden />
+                            {(commentsByLogId[log.id] ?? []).length}
+                          </button>
                         </div>
                       </>
                     )}

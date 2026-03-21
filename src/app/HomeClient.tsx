@@ -7,11 +7,12 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import jsQR from 'jsqr';
 import { getT, langLabels, type Lang } from './translations';
-import { Snowflake, Utensils, Bath, Calendar, Camera, Image as ImageIcon, X, ChevronLeft, ChevronRight, FileText, Accessibility } from 'lucide-react';
+import { Snowflake, Utensils, Bath, Calendar, Camera, Image as ImageIcon, X, ChevronLeft, ChevronRight, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles } from 'lucide-react';
 import { AppHeader } from '../components/layout/AppHeader';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
 import { MemberFilter } from '../components/home/MemberFilter';
 import { PlaceButtons } from '../components/home/PlaceButtons';
+import { PlaceFilterRow } from '../components/home/PlaceFilterRow';
 import { LogFeed } from '../components/home/LogFeed';
 
 type Log = {
@@ -53,6 +54,33 @@ type LogComment = {
   content: string;
   created_at: string;
 };
+
+type LogMeta = {
+  locationName?: string;
+  locationUrl?: string;
+  stickers?: string[];
+};
+
+function parseLogMeta(actionText: string): { text: string; meta: LogMeta } {
+  const marker = '\n@@meta:';
+  const idx = actionText.lastIndexOf(marker);
+  if (idx < 0) return { text: actionText, meta: {} };
+  const text = actionText.slice(0, idx).trim();
+  const raw = actionText.slice(idx + marker.length).trim();
+  try {
+    const parsed = JSON.parse(raw) as LogMeta;
+    return { text, meta: parsed ?? {} };
+  } catch {
+    return { text: actionText, meta: {} };
+  }
+}
+
+function composeActionWithMeta(text: string, meta: LogMeta): string {
+  const cleanText = text.trim() || 'clicked';
+  const hasMeta = !!(meta.locationName || meta.locationUrl || (meta.stickers && meta.stickers.length > 0));
+  if (!hasMeta) return cleanText;
+  return `${cleanText}\n@@meta:${JSON.stringify(meta)}`;
+}
 
 const PLACES = [
   { slug: 'fridge', label: '냉장고' },
@@ -99,30 +127,44 @@ const formatDateTime = (iso: string) => {
 const QUICK_PHRASES_KEY = 'family_qr_log_quick_phrases';
 const ACCESSIBILITY_KEY = 'family_qr_log_accessibility';
 const MEMO_KEY = 'family_qr_log_memo';
-const FONT_SCALES = [1, 1.25, 1.5, 2] as const;
-type FontScale = (typeof FONT_SCALES)[number];
+const FONT_STEPS = [0.875, 1, 1.125, 1.25, 1.375, 1.5, 1.75, 2] as const;
+type FontScaleStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+function legacyFontStep(scale: number): FontScaleStep {
+  const idx = FONT_STEPS.findIndex((s) => Math.abs(s - scale) < 0.03);
+  if (idx >= 0) return idx as FontScaleStep;
+  if (scale <= 0.9) return 0;
+  if (scale >= 1.9) return 7;
+  return 3;
+}
 
 function loadAccessibility(): {
   highContrast: boolean;
-  fontScale: FontScale;
+  fontScaleStep: FontScaleStep;
+  fontBold: boolean;
   simpleMode: boolean;
   language: Lang;
 } {
   try {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(ACCESSIBILITY_KEY) : null;
-    if (!raw) return { highContrast: false, fontScale: 1, simpleMode: false, language: 'ko' };
+    if (!raw) return { highContrast: false, fontScaleStep: 1, fontBold: false, simpleMode: false, language: 'ko' };
     const p = JSON.parse(raw);
     const lang = p.language && ['ko', 'en', 'ja', 'zh', 'vi'].includes(p.language) ? p.language : 'ko';
-    const scale = typeof p.fontScale === 'number' && FONT_SCALES.includes(p.fontScale as FontScale)
-      ? (p.fontScale as FontScale) : 1;
+    let fontScaleStep: FontScaleStep = 1;
+    if (typeof p.fontScaleStep === 'number' && p.fontScaleStep >= 0 && p.fontScaleStep <= 7) {
+      fontScaleStep = p.fontScaleStep as FontScaleStep;
+    } else if (typeof p.fontScale === 'number') {
+      fontScaleStep = legacyFontStep(p.fontScale);
+    }
     return {
       highContrast: !!p.highContrast,
-      fontScale: scale,
+      fontScaleStep,
+      fontBold: !!p.fontBold,
       simpleMode: !!p.simpleMode,
       language: lang,
     };
   } catch {
-    return { highContrast: false, fontScale: 1, simpleMode: false, language: 'ko' };
+    return { highContrast: false, fontScaleStep: 1, fontBold: false, simpleMode: false, language: 'ko' };
   }
 }
 
@@ -198,10 +240,13 @@ export default function HomeClient() {
   const [action, setAction] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [statusFading, setStatusFading] = useState(false);
   const [logImageFiles, setLogImageFiles] = useState<File[]>([]);
   const [logImagePreviews, setLogImagePreviews] = useState<string[]>([]);
   const [logVideoFile, setLogVideoFile] = useState<File | null>(null);
   const [logVideoPreview, setLogVideoPreview] = useState<string | null>(null);
+  const logMediaPreviewCount = logImagePreviews.length + (logVideoPreview ? 1 : 0);
+  const isSingleLogMediaPreview = logMediaPreviewCount === 1;
   const [imageCompressing, setImageCompressing] = useState(false);
   const [quickPhrases, setQuickPhrases] = useState<string[]>([]);
   const [showPhraseManager, setShowPhraseManager] = useState(false);
@@ -218,7 +263,8 @@ export default function HomeClient() {
   const [showNameEditModal, setShowNameEditModal] = useState(false);
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
-  const [fontScale, setFontScale] = useState<FontScale>(1);
+  const [fontScaleStep, setFontScaleStep] = useState<FontScaleStep>(1);
+  const [fontBold, setFontBold] = useState(false);
   const [simpleMode, setSimpleMode] = useState(false);
   const [language, setLanguage] = useState<Lang>('ko');
 
@@ -238,8 +284,18 @@ export default function HomeClient() {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [commentsByLogId, setCommentsByLogId] = useState<Record<string, LogComment[]>>({});
   const [replyingTo, setReplyingTo] = useState<{ logId: string; commentId: string } | null>(null);
+  const [commentTarget, setCommentTarget] = useState<{ logId: string; parentId: string | null } | null>(null);
+  const [commentSheetAnimated, setCommentSheetAnimated] = useState(false);
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [commentSending, setCommentSending] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentValue, setEditingCommentValue] = useState('');
+  const [logLocationName, setLogLocationName] = useState('');
+  const [logLocationUrl, setLogLocationUrl] = useState('');
+  const [showLocationTagEditor, setShowLocationTagEditor] = useState(false);
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
+  const [stickerPickerLogId, setStickerPickerLogId] = useState<string | null>(null);
+  const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const [showDrawModal, setShowDrawModal] = useState(false);
   const drawCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawLastRef = useRef<{ x: number; y: number } | null>(null);
@@ -248,6 +304,7 @@ export default function HomeClient() {
   const [editImageIndex, setEditImageIndex] = useState<number | null>(null);
   const [editImageTag, setEditImageTag] = useState('');
   const [editImageFilter, setEditImageFilter] = useState<'none' | 'grayscale' | 'sepia'>('none');
+  const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -256,6 +313,9 @@ export default function HomeClient() {
   const logPreviewUrlsRef = useRef<string[]>([]);
   const logVideoPreviewUrlRef = useRef<string | null>(null);
   const swipeStartRef = useRef<number | null>(null);
+  const memoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fontScale = FONT_STEPS[fontScaleStep];
 
   const effectivePlaceSlug = hasPlaceFromUrl ? urlPlace! : (selectedPlaceForLog ?? 'fridge');
 
@@ -363,17 +423,93 @@ export default function HomeClient() {
       if (raw != null) setMemoContent(raw);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (!householdId || !user) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.from('household_memos').select('content').eq('household_id', householdId).maybeSingle();
+      if (cancelled) return;
+      if (error) return;
+      if (data && typeof data.content === 'string') {
+        setMemoContent(data.content);
+        try {
+          localStorage.setItem(MEMO_KEY, data.content);
+        } catch {}
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [householdId, user]);
+
   useEffect(() => {
     try {
       localStorage.setItem(MEMO_KEY, memoContent);
     } catch {}
-  }, [memoContent]);
+    if (!householdId || !user) return;
+    if (memoSaveTimerRef.current) clearTimeout(memoSaveTimerRef.current);
+    memoSaveTimerRef.current = setTimeout(async () => {
+      const { error } = await supabase.from('household_memos').upsert(
+        { household_id: householdId, content: memoContent },
+        { onConflict: 'household_id' }
+      );
+      if (error && /relation|does not exist/i.test(error.message ?? '')) {
+        // Supabase에 household_memos 테이블 생성 후 가족 간 동기화 (DEPLOY.md 참고)
+      }
+    }, 900);
+    return () => {
+      if (memoSaveTimerRef.current) clearTimeout(memoSaveTimerRef.current);
+    };
+  }, [memoContent, householdId, user]);
+
+  useEffect(() => {
+    if (!status) return;
+    setStatusFading(false);
+
+    const autoHide =
+      status.includes('로그가 추가되었습니다') ||
+      status.includes('수정되었습니다') ||
+      status.includes('삭제되었습니다') ||
+      status.includes('이름이 저장되었습니다') ||
+      status.includes('프로필 사진이 변경되었습니다');
+
+    if (!autoHide) return;
+
+    const fadeTimer = window.setTimeout(() => setStatusFading(true), 1600);
+    const clearTimer = window.setTimeout(() => setStatus(null), 2400);
+    return () => {
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [status]);
+
+  useEffect(() => {
+    if (commentTarget) {
+      setCommentSheetAnimated(false);
+      const id = requestAnimationFrame(() => setCommentSheetAnimated(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setCommentSheetAnimated(false);
+    }
+  }, [commentTarget]);
+
+  useEffect(() => {
+    if (showMemoPanel) {
+      setMemoPanelAnimated(false);
+      const id = requestAnimationFrame(() => setMemoPanelAnimated(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setMemoPanelAnimated(false);
+    }
+  }, [showMemoPanel]);
 
   const accessibilityLoadedRef = useRef(false);
   useEffect(() => {
     const a = loadAccessibility();
     setHighContrast(a.highContrast);
-    setFontScale(a.fontScale);
+    setFontScaleStep(a.fontScaleStep);
+    setFontBold(a.fontBold);
     setSimpleMode(a.simpleMode);
     setLanguage(a.language);
     accessibilityLoadedRef.current = true;
@@ -384,12 +520,13 @@ export default function HomeClient() {
     try {
       localStorage.setItem(ACCESSIBILITY_KEY, JSON.stringify({
         highContrast,
-        fontScale,
+        fontScaleStep,
+        fontBold,
         simpleMode,
         language,
       }));
     } catch {}
-  }, [highContrast, fontScale, simpleMode, language]);
+  }, [highContrast, fontScaleStep, fontBold, simpleMode, language]);
 
   const t = useMemo(() => getT(language), [language]);
 
@@ -593,6 +730,81 @@ export default function HomeClient() {
     [user, commentSending, loadComments]
   );
 
+  const updateComment = useCallback(
+    async (commentId: string, logId: string, content: string) => {
+      if (!user || !content.trim()) return;
+      const { error } = await supabase.from('log_comments').update({ content: content.trim() }).eq('id', commentId).eq('user_id', user.id);
+      if (error) {
+        setStatus(`댓글 수정 실패: ${error.message}`);
+        return;
+      }
+      await loadComments([logId]);
+      setEditingCommentId(null);
+      setEditingCommentValue('');
+    },
+    [user, loadComments]
+  );
+
+  const deleteComment = useCallback(
+    async (commentId: string, logId: string) => {
+      if (!user) return;
+      const { error } = await supabase.from('log_comments').delete().eq('id', commentId).eq('user_id', user.id);
+      if (error) {
+        setStatus(`댓글 삭제 실패: ${error.message}`);
+        return;
+      }
+      await loadComments([logId]);
+      if (editingCommentId === commentId) {
+        setEditingCommentId(null);
+        setEditingCommentValue('');
+      }
+    },
+    [user, loadComments, editingCommentId]
+  );
+
+  const stickerOptions = ['✨', '❤️', '⭐', '🎉', '🧸', '🌿', '🌈', '☀️', '🍀', '💫'];
+  const openStickerPicker = (logId: string | null) => {
+    setStickerPickerLogId(logId);
+    setStickerPickerOpen(true);
+  };
+
+  const applyStickerToLog = useCallback(
+    async (logId: string, sticker: string | null) => {
+      if (!user || !householdId) return;
+      const targetLog = logs.find((l) => l.id === logId);
+      if (!targetLog) return;
+
+      const parsed = parseLogMeta(targetLog.action);
+      const nextMeta: LogMeta = {
+        ...parsed.meta,
+        stickers: sticker ? [sticker] : undefined,
+      };
+      const nextAction = composeActionWithMeta(parsed.text, nextMeta);
+
+      const { error } = await supabase
+        .from('logs')
+        .update({ action: nextAction })
+        .eq('id', logId);
+
+      if (error) {
+        setStatus(`스티커 저장 실패: ${error.message}`);
+        return;
+      }
+
+      const placeSlugFilter = placeViewFilter === 'all' ? undefined : placeViewFilter;
+      const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
+      await loadLogs(householdId, placeSlugFilter, actorId);
+      setStickerPickerOpen(false);
+      setStickerPickerLogId(null);
+    },
+    [user, householdId, logs, placeViewFilter, selectedMemberId, loadLogs]
+  );
+
+  const pickSticker = (sticker: string | null) => {
+    if (!stickerPickerLogId) return;
+    applyStickerToLog(stickerPickerLogId, sticker);
+  };
+
   useEffect(() => {
     if (!householdId || !user) return;
 
@@ -712,7 +924,10 @@ export default function HomeClient() {
     const payload: Record<string, unknown> = {
       household_id: householdId,
       place_slug: effectivePlaceSlug,
-      action: action || 'clicked',
+      action: composeActionWithMeta(action || 'clicked', {
+        locationName: logLocationName.trim() || undefined,
+        locationUrl: logLocationUrl.trim() || undefined,
+      }),
       actor_user_id: user.id,
     };
     if (imageUrls.length > 0) {
@@ -737,6 +952,9 @@ export default function HomeClient() {
     }
 
     setAction('');
+    setLogLocationName('');
+    setLogLocationUrl('');
+    setShowLocationTagEditor(false);
     logPreviewUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     logPreviewUrlsRef.current = [];
     if (logVideoPreviewUrlRef.current) {
@@ -950,6 +1168,45 @@ export default function HomeClient() {
   const selectedDayLogs = selectedCalendarDate ? (calendarDayLogsMap[selectedCalendarDate] || []).sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   ) : [];
+  const growthCutoffMs = useMemo(() => {
+    const now = new Date();
+    const d = new Date(now);
+    if (growthRange === 'week') d.setDate(d.getDate() - 7);
+    else if (growthRange === 'month') d.setMonth(d.getMonth() - 1);
+    else if (growthRange === 'quarter') d.setMonth(d.getMonth() - 3);
+    else if (growthRange === 'half') d.setMonth(d.getMonth() - 6);
+    else if (growthRange === 'year') d.setFullYear(d.getFullYear() - 1);
+    else return 0;
+    return d.getTime();
+  }, [growthRange]);
+  const growthTimelineLogs = useMemo(() => {
+    return logs
+      .filter((log) => {
+        const { imageUrls, videoUrl } = getLogMedia(log);
+        if (imageUrls.length === 0 && !videoUrl) return false;
+        const ts = new Date(log.created_at).getTime();
+        return growthCutoffMs === 0 || ts >= growthCutoffMs;
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [logs, growthCutoffMs]);
+  const todayMemoryLogs = useMemo(() => {
+    const now = new Date();
+    const month = now.getMonth();
+    const day = now.getDate();
+    const year = now.getFullYear();
+    return logs
+      .filter((log) => {
+        const d = new Date(log.created_at);
+        return d.getMonth() === month && d.getDate() === day && d.getFullYear() < year;
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 12);
+  }, [logs]);
+  const currentSheetComments = commentTarget ? (commentsByLogId[commentTarget.logId] ?? []) : [];
+  const closeMemoPanel = () => {
+    setMemoPanelAnimated(false);
+    setTimeout(() => setShowMemoPanel(false), 620);
+  };
 
   const theme = {
     bg: highContrast ? '#0f0f0f' : 'var(--bg-base)',
@@ -969,15 +1226,17 @@ export default function HomeClient() {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'stretch',
-          padding: '0 0 72px',
+          padding: '0 0 56px',
           background: theme.bg,
           color: theme.text,
           fontFamily: 'var(--font-geist-sans), system-ui, sans-serif',
-          ...(fontScale > 1 && { zoom: fontScale, minWidth: 0 } as React.CSSProperties),
+          ...(Math.abs(fontScale - 1) > 0.02 && { zoom: fontScale, minWidth: 0 } as React.CSSProperties),
+          ...(fontBold ? { fontWeight: 600 } : {}),
         }}
       data-accessibility-root
       data-high-contrast={highContrast ? 'true' : 'false'}
       data-font-scale={String(fontScale)}
+      data-font-bold={fontBold ? 'true' : 'false'}
       data-simple-mode={simpleMode ? 'true' : 'false'}
       id="main-content"
       role="main"
@@ -993,7 +1252,7 @@ export default function HomeClient() {
         [data-accessibility-root][data-high-contrast="true"] h1, [data-accessibility-root][data-high-contrast="true"] h2, [data-accessibility-root][data-high-contrast="true"] strong { color: #ffffff !important; }
         [data-accessibility-root][data-high-contrast="true"] .acc-inner { background: #0f0f0f !important; color: #ffffff !important; border: 2px solid #ffc107 !important; box-shadow: none !important; }
         [data-accessibility-root][data-high-contrast="true"] select { background: #1e1e1e !important; color: #fff !important; border-color: #ffc107 !important; }
-        [data-accessibility-root] *:focus { outline: 3px solid #ffc107 !important; outline-offset: 2px; }
+        [data-accessibility-root] *:focus { outline: 3px solid var(--accent) !important; outline-offset: 2px; }
       `}</style>
       <a
         href="#main-content"
@@ -1022,7 +1281,7 @@ export default function HomeClient() {
           maxWidth: 480,
           margin: '0 auto',
           flex: 1,
-          padding: '12px 16px 16px',
+          padding: '6px 12px 8px',
           background: 'transparent',
           color: theme.text,
           ...(highContrast && { background: '#0f0f0f', border: '2px solid #ffc107' }),
@@ -1036,12 +1295,23 @@ export default function HomeClient() {
           onChange={handleProfileAvatarChange}
           aria-hidden
         />
-        <AppHeader
-          theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
-          highContrast={highContrast}
-          t={t}
-        >
-          {user && householdId && (
+        {user && householdId ? (
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 30,
+              background: 'var(--bg-base)',
+              borderBottom: theme.border,
+              marginBottom: 6,
+              paddingBottom: 4,
+            }}
+          >
+            <AppHeader
+              theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
+              highContrast={highContrast}
+              t={t}
+            />
             <MemberFilter
               user={user}
               members={members}
@@ -1056,8 +1326,37 @@ export default function HomeClient() {
               onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
               onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
             />
-          )}
-        </AppHeader>
+            {activeTab === 'home' && !(hasPlaceFromUrl || selectedPlaceForLog) && (
+              <PlaceButtons
+                places={[
+                  { id: 'fridge', labelKey: 'fridge', color: 'var(--place-1)' },
+                  { id: 'table', labelKey: 'table', color: 'var(--place-2)' },
+                  { id: 'toilet', labelKey: 'toilet', color: 'var(--place-3)' },
+                ]}
+                onSelectPlace={(id) => setSelectedPlaceForLog(id as 'fridge' | 'table' | 'toilet')}
+                t={t}
+                highContrast={highContrast}
+                isAdmin={isAdmin}
+              />
+            )}
+            {(activeTab === 'home' || activeTab === 'search') && (
+              <PlaceFilterRow
+                placeViewFilter={placeViewFilter}
+                setPlaceViewFilter={setPlaceViewFilter}
+                t={t}
+                highContrast={highContrast}
+              />
+            )}
+          </div>
+        ) : (
+          <div style={{ borderBottom: theme.border, marginBottom: 8 }}>
+            <AppHeader
+              theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
+              highContrast={highContrast}
+              t={t}
+            />
+          </div>
+        )}
 
         {status && (
           <div
@@ -1066,6 +1365,8 @@ export default function HomeClient() {
               fontSize: 13,
               padding: '10px 14px',
               borderRadius: theme.radius,
+              opacity: statusFading ? 0 : 1,
+              transition: 'opacity 0.35s ease-out',
               color: status.includes('실패') || status.includes('필요') ? '#b91c1c' : 'var(--place-table-icon)',
               background:
                 status.includes('실패') || status.includes('필요')
@@ -1100,61 +1401,53 @@ export default function HomeClient() {
         {user && householdId && (
           <>
             {(hasPlaceFromUrl || selectedPlaceForLog) ? (
-              <section
-                style={{
-                  marginBottom: 20,
-                  padding: 20,
-                  borderRadius: theme.radiusLg,
-                  background: theme.card,
-                  border: theme.border,
-                  boxShadow: theme.cardShadow,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+              <section style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
                   <span style={{ fontSize: 11, letterSpacing: '0.05em', color: theme.textSecondary }}>{t('recordHere')}</span>
                   <button
                     type="button"
                     onClick={() => { setSelectedPlaceForLog(null); if (hasPlaceFromUrl) router.replace(pathname || '/'); }}
                     style={{
-                      padding: '6px 12px',
+                      padding: '4px 10px',
                       borderRadius: 8,
                       border: '1px solid #e2e8f0',
                       background: highContrast ? '#1e1e1e' : '#f1f5f9',
                       color: highContrast ? '#94a3b8' : '#64748b',
-                      fontSize: 12,
+                      fontSize: 11,
                       cursor: 'pointer',
                     }}
                   >
                     해제
                   </button>
                 </div>
-                <p style={{ fontSize: 13, color: theme.textSecondary, marginBottom: 12 }}>
+                <p style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 6 }}>
                   {t('currentPlace')}: <strong style={{ color: theme.text }}>{currentPlaceLabel}</strong>
                   {hasPlaceFromUrl ? ` · ${t('qrAccessed')}` : ' · 버튼으로 선택'}
                 </p>
                 {selectedPlaceForLog && !hasPlaceFromUrl && (
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
                     {(['fridge', 'table', 'toilet'] as const).map((slug) => (
                       <button
+                        className="place-pill-btn"
                         key={slug}
                         type="button"
                         onClick={() => setSelectedPlaceForLog(slug)}
                         style={{
-                          padding: '8px 14px',
+                          padding: '5px 10px',
                           borderRadius: 999,
-                          border: selectedPlaceForLog === slug ? '2px solid' : '1px solid #e2e8f0',
+                          border: '1px solid #e2e8f0',
                           background: selectedPlaceForLog === slug
                             ? (slug === 'fridge' ? 'var(--place-fridge)' : slug === 'table' ? 'var(--place-table)' : 'var(--place-toilet)')
                             : highContrast ? '#1e1e1e' : '#f8fafc',
                           color: selectedPlaceForLog === slug
                             ? (slug === 'fridge' ? 'var(--place-fridge-icon)' : slug === 'table' ? 'var(--place-table-icon)' : 'var(--place-toilet-icon)')
                             : highContrast ? '#94a3b8' : '#64748b',
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: selectedPlaceForLog === slug ? 600 : 400,
                           cursor: 'pointer',
                         }}
                       >
-                        {slug === 'fridge' ? <Snowflake size={20} strokeWidth={1.5} aria-hidden /> : slug === 'table' ? <Utensils size={20} strokeWidth={1.5} aria-hidden /> : <Bath size={20} strokeWidth={1.5} aria-hidden />}
+                        {slug === 'fridge' ? <Snowflake size={16} strokeWidth={1.5} aria-hidden /> : slug === 'table' ? <Utensils size={16} strokeWidth={1.5} aria-hidden /> : <Bath size={16} strokeWidth={1.5} aria-hidden />}
                           <span style={{ marginLeft: 4 }}>{t(slug)}</span>
                       </button>
                     ))}
@@ -1225,11 +1518,99 @@ export default function HomeClient() {
                     marginBottom: 10,
                   }}
                 />
+                <div style={{ marginBottom: 12 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationTagEditor((v) => !v)}
+                    style={{
+                      width: '100%',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                      padding: '10px 12px',
+                      borderRadius: 12,
+                      border: '1px solid #e2e8f0',
+                      background: highContrast ? '#1e1e1e' : '#f8fafc',
+                      color: highContrast ? '#fff' : '#475569',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <MapPin size={20} strokeWidth={1.5} aria-hidden />
+                      지도 장소 태그 (선택)
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>
+                      {showLocationTagEditor ? '숨김' : '입력'}
+                    </span>
+                  </button>
+
+                  {showLocationTagEditor && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                        <input
+                          type="text"
+                          value={logLocationName}
+                          onChange={(e) => setLogLocationName(e.target.value)}
+                          placeholder="예: 잠실 어린이병원"
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            borderRadius: 10,
+                            border: '1px solid #e2e8f0',
+                            padding: '10px 12px',
+                            fontSize: 13,
+                            background: '#f8fafc',
+                            color: '#0f172a',
+                            outline: 'none',
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!logLocationName.trim()) return;
+                            const q = encodeURIComponent(logLocationName.trim());
+                            setLogLocationUrl(`https://www.google.com/maps/search/?api=1&query=${q}`);
+                          }}
+                          style={{
+                            border: '1px solid #e2e8f0',
+                            background: '#fff',
+                            color: '#475569',
+                            borderRadius: 10,
+                            padding: '0 10px',
+                            fontSize: 12,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          지도링크
+                        </button>
+                      </div>
+                      <input
+                        type="url"
+                        value={logLocationUrl}
+                        onChange={(e) => setLogLocationUrl(e.target.value)}
+                        placeholder="Google Maps URL"
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          borderRadius: 10,
+                          border: '1px solid #e2e8f0',
+                          padding: '10px 12px',
+                          fontSize: 13,
+                          background: '#f8fafc',
+                          color: '#0f172a',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
 
                 <div style={{ marginBottom: 12 }}>
                   <input
                     type="file"
-                    accept="image/*,video/*"
+                    accept="image/*"
                     capture="environment"
                     id="log-camera-input"
                     style={{ display: 'none' }}
@@ -1324,18 +1705,37 @@ export default function HomeClient() {
                     </button>
                   </div>
                   {(logImagePreviews.length > 0 || logVideoPreview) && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 0,
+                        marginBottom: 8,
+                        marginLeft: -16,
+                        marginRight: -16,
+                        width: 'calc(100% + 32px)',
+                      }}
+                    >
                       {logImagePreviews.map((url, i) => (
-                        <div key={i} style={{ position: 'relative', display: 'inline-block' }}>
+                        <div
+                          key={i}
+                          style={{
+                            position: 'relative',
+                            flex: isSingleLogMediaPreview ? '0 0 100%' : '0 0 50%',
+                            width: isSingleLogMediaPreview ? '100%' : '50%',
+                            minWidth: 0,
+                          }}
+                        >
                           <img
                             src={url}
                             alt="미리보기"
                             style={{
-                              width: 80,
-                              height: 80,
+                              width: '100%',
+                              height: isSingleLogMediaPreview ? 240 : 160,
                               objectFit: 'cover',
-                              borderRadius: 10,
-                              border: '1px solid #e2e8f0',
+                              borderRadius: 0,
+                              border: 'none',
+                              display: 'block',
                             }}
                           />
                           <button
@@ -1390,15 +1790,23 @@ export default function HomeClient() {
                         </div>
                       ))}
                       {logVideoPreview && (
-                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <div
+                          style={{
+                            position: 'relative',
+                            flex: isSingleLogMediaPreview ? '0 0 100%' : '0 0 50%',
+                            width: isSingleLogMediaPreview ? '100%' : '50%',
+                            minWidth: 0,
+                          }}
+                        >
                           <video
                             src={logVideoPreview}
                             style={{
-                              width: 80,
-                              height: 80,
+                              width: '100%',
+                              height: isSingleLogMediaPreview ? 240 : 160,
                               objectFit: 'cover',
-                              borderRadius: 10,
-                              border: '1px solid #e2e8f0',
+                              borderRadius: 0,
+                              border: 'none',
+                              display: 'block',
                             }}
                             muted
                             playsInline
@@ -1449,33 +1857,21 @@ export default function HomeClient() {
                     width: '100%',
                     borderRadius: 12,
                     border: 'none',
-                    padding: '14px 16px',
-                    fontSize: 15,
+                    padding: '10px 14px',
+                    fontSize: 14,
                     fontWeight: 600,
                     cursor: loading ? 'not-allowed' : 'pointer',
                     background: loading
                       ? 'rgba(100,116,139,0.5)'
                       : 'var(--accent)',
                     color: '#fff',
-                    minHeight: 48,
+                    minHeight: 42,
                     boxShadow: 'var(--shadow-card)',
                   }}
                 >
                   {loading ? t('savingLog') : `"${currentPlaceLabel}" ${t('addLog')}`}
                 </button>
               </section>
-            ) : activeTab === 'home' && !(hasPlaceFromUrl || selectedPlaceForLog) ? (
-              <PlaceButtons
-                places={[
-                  { id: 'fridge', labelKey: 'fridge', color: 'var(--place-1)' },
-                  { id: 'table', labelKey: 'table', color: 'var(--place-2)' },
-                  { id: 'toilet', labelKey: 'toilet', color: 'var(--place-3)' },
-                ]}
-                onSelectPlace={(id) => setSelectedPlaceForLog(id as 'fridge' | 'table' | 'toilet')}
-                t={t}
-                highContrast={highContrast}
-                isAdmin={isAdmin}
-              />
             ) : null}
             {activeTab === 'qr' && !hasPlaceFromUrl && (
               <section
@@ -1602,7 +1998,7 @@ export default function HomeClient() {
                     display: 'grid',
                     gridTemplateColumns: 'repeat(7, 1fr)',
                     gap: 4,
-                    background: highContrast ? '#1e1e1e' : '#f8fafc',
+                    background: highContrast ? '#1e1e1e' : '#fff',
                     borderRadius: 12,
                     padding: 10,
                     border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
@@ -1634,12 +2030,12 @@ export default function HomeClient() {
                         type="button"
                         onClick={() => setSelectedCalendarDate(isInMonth && dateKey ? dateKey : null)}
                         style={{
-                          minHeight: 40,
-                          padding: 4,
+                          minHeight: 44,
+                          padding: 0,
                           border: 'none',
                           borderRadius: 8,
                           background: selected ? (highContrast ? 'rgba(255,193,7,0.3)' : 'rgba(59,130,246,0.2)') :
-                            !isInMonth ? 'transparent' : highContrast ? '#2a2a2a' : '#fff',
+                            !isInMonth ? '#fff' : highContrast ? '#2a2a2a' : '#fff',
                           color: !isInMonth ? (highContrast ? '#555' : '#cbd5e1') : selected ? (highContrast ? '#ffc107' : '#1d4ed8') : highContrast ? '#fff' : '#0f172a',
                           fontSize: 13,
                           fontWeight: selected ? 700 : 500,
@@ -1651,13 +2047,15 @@ export default function HomeClient() {
                           boxShadow: highContrast && selected ? '0 0 0 2px #ffc107' : undefined,
                         }}
                       >
-                        {isInMonth ? dayNum : ''}
+                        <span style={{ lineHeight: 1 }}>{isInMonth ? dayNum : ''}</span>
                         {count > 0 && (
                           <span
                             style={{
                               fontSize: 10,
-                              marginTop: 2,
+                              marginTop: 0,
                               color: highContrast ? '#ffc107' : '#64748b',
+                              lineHeight: 1.1,
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             {count}건
@@ -1730,7 +2128,33 @@ export default function HomeClient() {
                             >
                               <span className={`log-place-tag ${log.place_slug}`}>{t(getPlaceLabelKey(log.place_slug))}</span>
                               <div className="log-time" style={highContrast ? { color: '#94a3b8' } : undefined}>{formatDateTime(log.created_at)}</div>
-                              <div className="log-content" style={highContrast ? { color: '#fff' } : undefined}>{log.action}</div>
+                              <div className="log-content" style={highContrast ? { color: '#fff' } : undefined}>
+                                {parseLogMeta(log.action).text}
+                              </div>
+                              {(() => {
+                                const meta = parseLogMeta(log.action).meta;
+                                if (!meta.locationName && !meta.locationUrl) return null;
+                                return (
+                                  <a
+                                    href={meta.locationUrl || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                      margin: '6px 0 8px',
+                                      fontSize: 12,
+                                      color: highContrast ? '#ffc107' : '#3b82f6',
+                                      textDecoration: 'none',
+                                    }}
+                                  >
+                                    <MapPin size={16} strokeWidth={1.5} aria-hidden />
+                                    {meta.locationName || '지도 보기'}
+                                    <ExternalLink size={16} strokeWidth={1.5} aria-hidden />
+                                  </a>
+                                );
+                              })()}
                               {(() => {
                                 const { imageUrls, videoUrl } = getLogMedia(log);
                                 if (imageUrls.length === 0 && !videoUrl) return null;
@@ -1758,6 +2182,85 @@ export default function HomeClient() {
                     </div>
                   </div>
                 )}
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 14, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>
+                    <Baby size={20} strokeWidth={1.5} aria-hidden />
+                    성장 타임라인
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                    {[
+                      { key: 'week' as const, label: '1주' },
+                      { key: 'month' as const, label: '1개월' },
+                      { key: 'quarter' as const, label: '분기' },
+                      { key: 'half' as const, label: '반기' },
+                      { key: 'year' as const, label: '연간' },
+                      { key: 'all' as const, label: '전체' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => setGrowthRange(opt.key)}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: 999,
+                          border: `1px solid ${growthRange === opt.key ? 'var(--accent)' : '#e2e8f0'}`,
+                          background: growthRange === opt.key ? 'var(--accent-light)' : '#fff',
+                          color: growthRange === opt.key ? 'var(--accent)' : '#64748b',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                    {growthTimelineLogs.slice(0, 12).map((log) => {
+                      const { imageUrls, videoUrl } = getLogMedia(log);
+                      const thumb = imageUrls[0] || videoUrl || '';
+                      const parsed = parseLogMeta(log.action);
+                      return (
+                        <div key={`growth-${log.id}`} style={{ border: '1px solid var(--divider)', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+                          {thumb ? (
+                            videoUrl ? (
+                              <video src={thumb} muted playsInline preload="metadata" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block', background: '#000' }} />
+                            ) : (
+                              <img src={thumb} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />
+                            )
+                          ) : (
+                            <div style={{ height: 120, background: 'var(--bg-subtle)' }} />
+                          )}
+                          <div style={{ padding: 8 }}>
+                            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{formatDateTime(log.created_at).slice(0, 12)}</div>
+                            <div style={{ fontSize: 12, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{parsed.text}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div style={{ marginTop: 18 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 14, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>
+                    <History size={20} strokeWidth={1.5} aria-hidden />
+                    오늘의 회상
+                  </div>
+                  {todayMemoryLogs.length === 0 ? (
+                    <div style={{ fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>아직 같은 날짜의 과거 기록이 없어요.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {todayMemoryLogs.map((log) => {
+                        const year = new Date(log.created_at).getFullYear();
+                        const parsed = parseLogMeta(log.action);
+                        return (
+                          <div key={`memory-${log.id}`} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--divider)', background: highContrast ? '#1e1e1e' : '#fff' }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#ffc107' : '#334155', marginBottom: 4 }}>{year}년 오늘</div>
+                            <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : '#0f172a' }}>{parsed.text}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </section>
             )}
 
@@ -1765,8 +2268,6 @@ export default function HomeClient() {
               activeTab={activeTab}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
-              placeViewFilter={placeViewFilter}
-              setPlaceViewFilter={setPlaceViewFilter}
               t={t}
               theme={theme}
               highContrast={highContrast}
@@ -1789,12 +2290,305 @@ export default function HomeClient() {
               setCommentDraft={setCommentDraft}
               commentSending={commentSending}
               addComment={addComment}
+              commentTarget={commentTarget}
+              setCommentTarget={setCommentTarget}
               longPressTimerRef={longPressTimerRef}
               setActionPopupLogId={setActionPopupLogId}
+              onPickSticker={(logId) => openStickerPicker(logId)}
             />
           </>
         )}
       </div>
+
+      {user && householdId && commentTarget && (activeTab === 'home' || activeTab === 'search') && (
+        <>
+          <div
+            role="presentation"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.4)',
+              zIndex: 42,
+              transition: 'opacity 0.25s ease-out',
+            }}
+            onClick={() => {
+              setCommentSheetAnimated(false);
+              setTimeout(() => { setCommentTarget(null); setReplyingTo(null); }, 250);
+            }}
+            aria-hidden
+          />
+          <div
+            role="dialog"
+            aria-label={commentTarget.parentId ? '답글 입력' : '댓글 입력'}
+            style={{
+              position: 'fixed',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              maxWidth: 480,
+              margin: '0 auto',
+              zIndex: 43,
+              background: 'var(--bg-card)',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+              paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+              transform: commentSheetAnimated ? 'translateY(0)' : 'translateY(100%)',
+              transition: 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '12px 0 8px', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--divider)' }} aria-hidden />
+            </div>
+            <div style={{ padding: '0 16px 16px' }}>
+              <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+                {commentTarget.parentId ? '답글' : '댓글'}
+              </h3>
+              <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 10, paddingRight: 2 }}>
+                {currentSheetComments.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--text-caption)', padding: '8px 2px' }}>아직 댓글이 없어요.</div>
+                ) : (
+                  currentSheetComments.map((c) => (
+                    <div key={c.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--divider)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{getMemberName(c.user_id)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-caption)' }}>{formatDateTime(c.created_at)}</div>
+                      </div>
+                      {editingCommentId === c.id ? (
+                        <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
+                          <input
+                            type="text"
+                            value={editingCommentValue}
+                            onChange={(e) => setEditingCommentValue(e.target.value)}
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              padding: '8px 10px',
+                              borderRadius: 10,
+                              border: '1px solid var(--divider)',
+                              background: 'var(--bg-subtle)',
+                              color: 'var(--text-primary)',
+                              fontSize: 13,
+                              outline: 'none',
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateComment(c.id, commentTarget.logId, editingCommentValue)}
+                            disabled={!editingCommentValue.trim()}
+                            style={{ border: 'none', borderRadius: 10, padding: '8px 10px', background: 'var(--accent)', color: '#fff', fontSize: 12, cursor: 'pointer' }}
+                          >
+                            저장
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCommentId(null);
+                              setEditingCommentValue('');
+                            }}
+                            style={{ border: '1px solid var(--divider)', borderRadius: 10, padding: '8px 10px', background: 'transparent', color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer' }}
+                          >
+                            취소
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: 4, fontSize: 13, color: 'var(--text-secondary)' }}>{c.content}</div>
+                      )}
+                      {user && c.user_id === user.id && editingCommentId !== c.id && (
+                        <div style={{ marginTop: 6, display: 'flex', gap: 10 }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCommentId(c.id);
+                              setEditingCommentValue(c.content);
+                            }}
+                            style={{ border: 'none', background: 'transparent', padding: 0, fontSize: 12, color: 'var(--text-caption)', cursor: 'pointer' }}
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteComment(c.id, commentTarget.logId)}
+                            style={{ border: 'none', background: 'transparent', padding: 0, fontSize: 12, color: '#ef4444', cursor: 'pointer' }}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder={commentTarget.parentId ? '답글 입력...' : '댓글 입력...'}
+                  value={(commentTarget.parentId ? commentDraft[`${commentTarget.logId}_reply_${commentTarget.parentId}`] : commentDraft[commentTarget.logId]) ?? ''}
+                  onChange={(e) => {
+                    const key = commentTarget.parentId ? `${commentTarget.logId}_reply_${commentTarget.parentId}` : commentTarget.logId;
+                    setCommentDraft((prev) => ({ ...prev, [key]: e.target.value }));
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const key = commentTarget.parentId ? `${commentTarget.logId}_reply_${commentTarget.parentId}` : commentTarget.logId;
+                      const draft = (commentDraft[key] ?? '').trim();
+                      if (draft) {
+                        addComment(commentTarget.logId, draft, commentTarget.parentId);
+                        setCommentDraft((prev) => { const next = { ...prev }; delete next[key]; return next; });
+                        setCommentSheetAnimated(false);
+                        setTimeout(() => { setCommentTarget(null); setReplyingTo(null); }, 250);
+                      }
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    boxSizing: 'border-box',
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
+                    background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+                    color: highContrast ? '#fff' : '#0f172a',
+                    fontSize: 16,
+                    outline: 'none',
+                  }}
+                  aria-label={commentTarget.parentId ? '답글 입력' : '댓글 입력'}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const key = commentTarget.parentId ? `${commentTarget.logId}_reply_${commentTarget.parentId}` : commentTarget.logId;
+                    const draft = (commentDraft[key] ?? '').trim();
+                    if (draft) {
+                      addComment(commentTarget.logId, draft, commentTarget.parentId);
+                      setCommentDraft((prev) => { const next = { ...prev }; delete next[key]; return next; });
+                      setCommentSheetAnimated(false);
+                      setTimeout(() => { setCommentTarget(null); setReplyingTo(null); }, 250);
+                    }
+                  }}
+                  disabled={commentSending || !((commentTarget.parentId ? commentDraft[`${commentTarget.logId}_reply_${commentTarget.parentId}`] : commentDraft[commentTarget.logId]) ?? '').trim()}
+                  style={{
+                    padding: '12px 18px',
+                    borderRadius: 12,
+                    border: 'none',
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: commentSending ? 'wait' : 'pointer',
+                  }}
+                >
+                  {commentTarget.parentId ? '답글' : '전송'}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCommentSheetAnimated(false);
+                  setTimeout(() => { setCommentTarget(null); setReplyingTo(null); }, 250);
+                }}
+                style={{
+                  marginTop: 12,
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: 12,
+                  border: '1px solid var(--divider)',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  fontSize: 14,
+                  cursor: 'pointer',
+                }}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {stickerPickerOpen && (
+        <>
+          <div
+            role="presentation"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.45)',
+              zIndex: 44,
+            }}
+            onClick={() => {
+              setStickerPickerOpen(false);
+              setStickerPickerLogId(null);
+            }}
+            aria-hidden
+          />
+          <div
+            role="dialog"
+            aria-label="스티커 선택"
+            style={{
+              position: 'fixed',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 45,
+              background: highContrast ? '#1e1e1e' : '#fff',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+              paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+              paddingTop: 8,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--divider)' }} aria-hidden />
+            </div>
+            <div style={{ padding: '0 16px 12px' }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: highContrast ? '#fff' : '#0f172a', marginBottom: 10 }}>
+                스티커 선택
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => pickSticker(null)}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 999,
+                    border: '1px solid var(--divider)',
+                    background: 'transparent',
+                    color: highContrast ? '#94a3b8' : '#64748b',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  제거
+                </button>
+                {stickerOptions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => pickSticker(s)}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: 999,
+                      border: '1px solid var(--divider)',
+                      background: highContrast ? 'rgba(255,255,255,0.04)' : 'var(--bg-subtle)',
+                      color: highContrast ? '#fff' : '#0f172a',
+                      fontSize: 18,
+                      cursor: 'pointer',
+                      lineHeight: 1,
+                    }}
+                    aria-label={`스티커: ${s}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {showNameEditModal && (
         <>
@@ -2111,8 +2905,15 @@ export default function HomeClient() {
         <>
           <div
             role="presentation"
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 58 }}
-            onClick={() => setShowMemoPanel(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.3)',
+              zIndex: 58,
+              opacity: memoPanelAnimated ? 1 : 0,
+              transition: 'opacity 0.55s ease-out',
+            }}
+            onClick={closeMemoPanel}
           />
           <div
             role="dialog"
@@ -2130,6 +2931,9 @@ export default function HomeClient() {
               display: 'flex',
               flexDirection: 'column',
               padding: 16,
+              transform: memoPanelAnimated ? 'translateX(0)' : 'translateX(24px)',
+              opacity: memoPanelAnimated ? 1 : 0,
+              transition: 'transform 0.65s cubic-bezier(0.22, 0.9, 0.32, 1), opacity 0.55s ease-out',
             }}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => { const t = e.changedTouches?.[0]; if (t) memoSwipeStartRef.current = t.clientX; }}
@@ -2139,14 +2943,17 @@ export default function HomeClient() {
               const start = memoSwipeStartRef.current;
               const end = t.clientX;
               memoSwipeStartRef.current = null;
-              if (end - start > 50) setShowMemoPanel(false);
+              if (end - start > 50) closeMemoPanel();
             }}
           >
-            <div style={{ marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <FileText size={20} strokeWidth={1.5} aria-hidden />
-              메모
+            <div style={{ marginBottom: 8 }}>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FileText size={18} strokeWidth={1.5} aria-hidden />
+              {t('memoTitle')}
             </h3>
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', lineHeight: 1.35 }}>
+                {t('memoSharedHint')}
+              </p>
             </div>
             <textarea
               value={memoContent}
@@ -2166,7 +2973,6 @@ export default function HomeClient() {
                 outline: 'none',
               }}
             />
-            <p style={{ margin: '8px 0 0', fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>우→좌 스와이프로 열고, 좌→우 스와이프 또는 바깥을 눌러 닫을 수 있어요. 자동 저장됩니다.</p>
           </div>
         </>
       )}
@@ -2200,12 +3006,13 @@ export default function HomeClient() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.9)',
+            background: '#000',
             zIndex: 90,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: 20,
+            padding: 0,
+            touchAction: 'manipulation',
           }}
           onClick={() => setEnlargedAvatarUrl(null)}
         >
@@ -2213,12 +3020,14 @@ export default function HomeClient() {
             src={enlargedAvatarUrl}
             alt=""
             style={{
-              maxWidth: '100%',
-              maxHeight: '100%',
+              width: '100vw',
+              height: '100vh',
+              maxWidth: '100vw',
+              maxHeight: '100vh',
               objectFit: 'contain',
-              borderRadius: 8,
+              display: 'block',
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={() => setEnlargedAvatarUrl(null)}
           />
         </div>
       )}
@@ -2536,29 +3345,72 @@ export default function HomeClient() {
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{t('bigFont')}</p>
+              <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{t('fontSizeStyle')}</p>
               <p style={{ margin: '0 0 10px', fontSize: 12, color: '#64748b' }}>{t('bigFontHint')}</p>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {FONT_SCALES.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setFontScale(s)}
-                    aria-pressed={fontScale === s}
+              <div
+                style={{
+                  borderRadius: 14,
+                  border: '1px solid #e8eaed',
+                  background: '#fafafa',
+                  padding: '14px 14px 12px',
+                  marginBottom: 12,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: `clamp(13px, ${0.85 + fontScaleStep * 0.12}rem, 22px)`,
+                    fontWeight: fontBold ? 700 : 500,
+                    color: '#0f172a',
+                    lineHeight: 1.45,
+                    marginBottom: 6,
+                  }}
+                >
+                  {t('fontPreviewLine1')}
+                </div>
+                <div
+                  style={{
+                    fontSize: `clamp(12px, ${0.75 + fontScaleStep * 0.1}rem, 18px)`,
+                    fontWeight: fontBold ? 600 : 400,
+                    color: '#475569',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {t('fontPreviewLine2')}
+                </div>
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{t('fontSizeLabel')}</span>
+                  <span style={{ fontSize: 12, color: '#64748b' }}>{Math.round(fontScale * 100)}%</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', lineHeight: 1 }} aria-hidden>A</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={7}
+                    step={1}
+                    value={fontScaleStep}
+                    onChange={(e) => setFontScaleStep(Number(e.target.value) as FontScaleStep)}
+                    aria-valuetext={`${Math.round(fontScale * 100)}%`}
                     style={{
-                      padding: '10px 16px',
-                      borderRadius: 10,
-                      border: fontScale === s ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                      background: fontScale === s ? '#eff6ff' : '#f8fafc',
-                      color: '#0f172a',
-                      fontSize: 14,
+                      flex: 1,
+                      height: 6,
+                      accentColor: 'var(--accent)',
                       cursor: 'pointer',
                     }}
-                  >
-                    {t(s === 1 ? 'font100' : s === 1.25 ? 'font125' : s === 1.5 ? 'font150' : 'font200')}
-                  </button>
-                ))}
+                  />
+                  <span style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', lineHeight: 1 }} aria-hidden>A</span>
+                </div>
               </div>
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', padding: '10px 0', borderTop: '1px solid #f1f5f9' }}>
+                <span style={{ fontSize: 14, color: '#0f172a' }}>{t('fontBold')}</span>
+                <input
+                  type="checkbox"
+                  checked={fontBold}
+                  onChange={(e) => setFontBold(e.target.checked)}
+                />
+              </label>
             </div>
 
             <div style={{ marginBottom: 20 }}>

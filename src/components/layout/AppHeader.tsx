@@ -13,24 +13,24 @@ type AppHeaderProps = {
   theme: Theme;
   highContrast: boolean;
   t: (key: string) => string;
-  children?: React.ReactNode;
 };
 
-export function AppHeader({ theme, highContrast, t, children }: AppHeaderProps) {
+export function AppHeader({ theme, highContrast, t }: AppHeaderProps) {
   return (
-    <header style={{ marginBottom: 20, paddingBottom: 12, borderBottom: theme.border }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+    <header style={{ marginBottom: 0, paddingBottom: 2, borderBottom: 'none' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
         <h1
           id="app-title"
           style={{
             margin: 0,
-            fontFamily: 'var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif',
-            fontSize: 22,
-            fontWeight: 700,
-            letterSpacing: '-0.03em',
+            fontFamily: 'var(--font-app-title), var(--font-geist-sans), system-ui, sans-serif',
+            fontSize: 17,
+            fontWeight: 800,
+            letterSpacing: '-0.04em',
+            textAlign: 'center',
             color: theme.text,
-            flex: 1,
-            minWidth: 0,
+            width: '100%',
+            lineHeight: 1.15,
             background: highContrast ? undefined : 'var(--accent)',
             WebkitBackgroundClip: highContrast ? undefined : 'text',
             WebkitTextFillColor: highContrast ? undefined : 'transparent',
@@ -40,7 +40,6 @@ export function AppHeader({ theme, highContrast, t, children }: AppHeaderProps) 
           {t('appTitle')}
         </h1>
       </div>
-      {children}
     </header>
   );
 }

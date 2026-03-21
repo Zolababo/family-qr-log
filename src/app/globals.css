@@ -117,6 +117,7 @@ body {
   font-weight: 800 !important;
   letter-spacing: -0.04em !important;
   color: var(--text-primary) !important;
+  text-align: center !important;
 }
 
 [data-accessibility-root]:not([data-high-contrast="true"]) h2,
@@ -139,10 +140,51 @@ body {
 
 /* ========== Glassmorphism: 카드 & 모달 ========== */
 [data-accessibility-root]:not([data-high-contrast="true"]) section {
-  background: var(--bg-card) !important;
-  border: var(--glass-border) !important;
-  box-shadow: var(--shadow-card) !important;
-  border-radius: var(--radius-lg) !important;
+  /* Instagram-style: 기본 section은 배경/카드 처리를 하지 않음 */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+/* 하단 탭바는 포커스/선택 시 큰 외곽선이 생기지 않게 */
+[data-accessibility-root] .bottom-tab-btn:focus {
+  outline: none !important;
+  outline-offset: 0 !important;
+}
+
+/* 멤버 프로필 선택 시 큰 녹색 외곽선(포커스 링) 제거 */
+[data-accessibility-root] .member-filter-scroll button:focus,
+[data-accessibility-root] .member-filter-scroll button:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
+
+[data-accessibility-root] .profile-chip-btn,
+[data-accessibility-root] .place-pill-btn,
+[data-accessibility-root] .log-filter-btn {
+  box-shadow: none !important;
+}
+
+[data-accessibility-root] .profile-chip-btn:hover,
+[data-accessibility-root] .place-pill-btn:hover,
+[data-accessibility-root] .log-filter-btn:hover,
+[data-accessibility-root] .profile-chip-btn:focus,
+[data-accessibility-root] .place-pill-btn:focus,
+[data-accessibility-root] .log-filter-btn:focus,
+[data-accessibility-root] .profile-chip-btn:focus-visible,
+[data-accessibility-root] .place-pill-btn:focus-visible,
+[data-accessibility-root] .log-filter-btn:focus-visible {
+  transform: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  outline-offset: 0 !important;
+}
+
+[data-accessibility-root]:not([data-high-contrast="true"]) .member-filter-scroll button:hover:not(:disabled) {
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 [data-accessibility-root]:not([data-high-contrast="true"]) [role="dialog"],
@@ -240,11 +282,11 @@ body {
 
 .log-place-tag {
   display: inline-block;
-  padding: 4px 12px;
+  padding: 2px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .log-place-tag.fridge { background: var(--place-fridge); color: var(--place-fridge-icon); }
@@ -252,20 +294,20 @@ body {
 .log-place-tag.toilet { background: var(--place-toilet); color: var(--place-toilet-icon); }
 
 .log-time {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-caption);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .log-content {
-  font-size: 15px;
+  font-size: 13px;
   color: var(--text-primary);
-  line-height: 1.6;
-  margin-bottom: 8px;
+  line-height: 1.25;
+  margin-bottom: 4px;
 }
 
 .log-author {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
   font-weight: 500;
 }
