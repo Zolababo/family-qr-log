@@ -24,9 +24,9 @@ type MemberFilterProps = {
   onMemberAvatarError: (userId: string) => void;
 };
 
-const CHIP_HEIGHT = 40;
-const AVATAR_SIZE = 30;
-const AVATAR_RING_PAD = 3;
+const CHIP_HEIGHT = 78;
+const AVATAR_SIZE = 58;
+const AVATAR_RING_PAD = 6;
 
 export function MemberFilter({
   user,
@@ -49,18 +49,18 @@ export function MemberFilter({
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 4,
     minHeight: CHIP_HEIGHT,
-    padding: '2px 6px 4px',
+    padding: '4px 8px 6px',
     borderRadius: 999,
     border: 'none',
     background: 'transparent',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 600,
     whiteSpace: 'nowrap',
     flexShrink: 0,
     cursor: 'pointer',
-    minWidth: 72,
+    minWidth: 104,
     outline: 'none',
     boxShadow: 'none',
   } as const;
@@ -74,7 +74,7 @@ const avatarInnerWrap = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: 600,
     background: 'var(--bg-base)',
     color: '#fff',
@@ -100,7 +100,7 @@ const avatarInnerWrap = {
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        marginTop: 2,
+        marginTop: 4,
         width: '100%',
         minHeight: CHIP_HEIGHT,
         paddingTop: 0,
@@ -132,10 +132,10 @@ const avatarInnerWrap = {
               color: 'var(--text-secondary)',
             }}
           >
-            <Users size={16} strokeWidth={1.5} aria-hidden />
+            <Users size={20} strokeWidth={1.5} aria-hidden />
           </span>
         </span>
-        <span style={{ fontSize: 11, lineHeight: 1.1 }}>{t('allMembers')}</span>
+        <span style={{ fontSize: 12, lineHeight: 1.1 }}>{t('allMembers')}</span>
       </button>
 
       {/* 나 */}
@@ -182,7 +182,7 @@ const avatarInnerWrap = {
             )}
           </span>
         </span>
-        <span style={{ fontSize: 11, lineHeight: 1.1, color: isSelected('me') ? 'var(--accent)' : 'var(--text-secondary)' }}>
+        <span style={{ fontSize: 12, lineHeight: 1.1, color: isSelected('me') ? 'var(--accent)' : 'var(--text-secondary)' }}>
           {meDisplayName}
         </span>
       </button>
@@ -240,7 +240,7 @@ const avatarInnerWrap = {
                   )}
                 </span>
               </span>
-              <span style={{ fontSize: 11, lineHeight: 1.1, color: active ? 'var(--accent)' : 'var(--text-secondary)' }}>
+              <span style={{ fontSize: 12, lineHeight: 1.1, color: active ? 'var(--accent)' : 'var(--text-secondary)' }}>
                 {name}
               </span>
             </button>

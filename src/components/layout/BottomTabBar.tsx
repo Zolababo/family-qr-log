@@ -274,11 +274,12 @@ export function BottomTabBar({
                 <div style={{ fontSize: 13, color: secondaryColor, marginBottom: 6, paddingLeft: 14 }}>
                   {t('languageChange')}
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingLeft: 14 }}>
-                  {(Object.keys(langLabels) as Lang[]).map((lang) => (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingLeft: 14, alignItems: 'stretch' }}>
+                  {(['ko', 'en', 'ja', 'zh'] as const).map((lang) => (
                     <button
                       key={lang}
                       type="button"
+                      className="settings-lang-btn"
                       onClick={() => setLanguage(lang)}
                       style={{
                         padding: '8px 12px',
@@ -288,6 +289,12 @@ export function BottomTabBar({
                         color: textColor,
                         fontSize: 13,
                         cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxSizing: 'border-box',
+                        margin: 0,
+                        verticalAlign: 'middle',
                       }}
                     >
                       {langLabels[lang]}

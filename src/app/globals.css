@@ -209,9 +209,29 @@ body {
   box-shadow: var(--shadow-card) !important;
 }
 
-/* ========== Header border: subtle neon ========== */
-[data-accessibility-root]:not([data-high-contrast="true"]) header {
-  border-bottom: 1px solid var(--bg-subtle) !important;
+/* 상단 홈 영역: 뷰포트 풀폭 (내부 max-width 컨테이너에서 돌출) */
+.home-top-bleed {
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  box-sizing: border-box;
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
+  background: var(--bg-base);
+  overflow-x: clip;
+}
+
+/* 설정 모달 언어 칩: 전역 버튼 radius와 무관하게 테두리가 박스와 맞게 */
+.settings-lang-btn {
+  box-sizing: border-box !important;
+  border-radius: 10px !important;
+  line-height: 1.25 !important;
+}
+
+[data-accessibility-root] .settings-lang-btn:hover {
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 /* ========== 멤버 필터 (가로 스크롤 pill, 스크롤바 숨김) ========== */

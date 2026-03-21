@@ -149,7 +149,9 @@ function loadAccessibility(): {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(ACCESSIBILITY_KEY) : null;
     if (!raw) return { highContrast: false, fontScaleStep: 1, fontBold: false, simpleMode: false, language: 'ko' };
     const p = JSON.parse(raw);
-    const lang = p.language && ['ko', 'en', 'ja', 'zh', 'vi'].includes(p.language) ? p.language : 'ko';
+    const lang: Lang = ['ko', 'en', 'ja', 'zh'].includes(p.language as string)
+      ? (p.language as Lang)
+      : 'ko';
     let fontScaleStep: FontScaleStep = 1;
     if (typeof p.fontScaleStep === 'number' && p.fontScaleStep >= 0 && p.fontScaleStep <= 7) {
       fontScaleStep = p.fontScaleStep as FontScaleStep;
@@ -265,6 +267,7 @@ export default function HomeClient() {
   const [highContrast, setHighContrast] = useState(false);
   const [fontScaleStep, setFontScaleStep] = useState<FontScaleStep>(1);
   const [fontBold, setFontBold] = useState(false);
+  const [accFontDraft, setAccFontDraft] = useState<{ step: FontScaleStep; bold: boolean }>({ step: 1, bold: false });
   const [simpleMode, setSimpleMode] = useState(false);
   const [language, setLanguage] = useState<Lang>('ko');
 
@@ -503,6 +506,12 @@ export default function HomeClient() {
       setMemoPanelAnimated(false);
     }
   }, [showMemoPanel]);
+
+  useEffect(() => {
+    if (showAccessibilityModal) {
+      setAccFontDraft({ step: fontScaleStep, bold: fontBold });
+    }
+  }, [showAccessibilityModal]);
 
   const accessibilityLoadedRef = useRef(false);
   useEffect(() => {
@@ -1296,17 +1305,7 @@ export default function HomeClient() {
           aria-hidden
         />
         {user && householdId ? (
-          <div
-            style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 30,
-              background: 'var(--bg-base)',
-              borderBottom: theme.border,
-              marginBottom: 6,
-              paddingBottom: 4,
-            }}
-          >
+          <div className="home-top-bleed" style={{ marginBottom: 8 }}>
             <AppHeader
               theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
               highContrast={highContrast}
@@ -1349,7 +1348,7 @@ export default function HomeClient() {
             )}
           </div>
         ) : (
-          <div style={{ borderBottom: theme.border, marginBottom: 8 }}>
+          <div className="home-top-bleed" style={{ marginBottom: 8 }}>
             <AppHeader
               theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
               highContrast={highContrast}
@@ -3358,8 +3357,8 @@ export default function HomeClient() {
               >
                 <div
                   style={{
-                    fontSize: `clamp(13px, ${0.85 + fontScaleStep * 0.12}rem, 22px)`,
-                    fontWeight: fontBold ? 700 : 500,
+                    fontSize: `clamp(13px, ${0.85 + accFontDraft.step * 0.12}rem, 22px)`,
+                    fontWeight: accFontDraft.bold ? 700 : 500,
                     color: '#0f172a',
                     lineHeight: 1.45,
                     marginBottom: 6,
@@ -3369,8 +3368,8 @@ export default function HomeClient() {
                 </div>
                 <div
                   style={{
-                    fontSize: `clamp(12px, ${0.75 + fontScaleStep * 0.1}rem, 18px)`,
-                    fontWeight: fontBold ? 600 : 400,
+                    fontSize: `clamp(12px, ${0.75 + accFontDraft.step * 0.1}rem, 18px)`,
+                    fontWeight: accFontDraft.bold ? 600 : 400,
                     color: '#475569',
                     letterSpacing: '0.02em',
                   }}
@@ -3381,7 +3380,7 @@ export default function HomeClient() {
               <div style={{ marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{t('fontSizeLabel')}</span>
-                  <span style={{ fontSize: 12, color: '#64748b' }}>{Math.round(fontScale * 100)}%</span>
+                  <span style={{ fontSize: 12, color: '#64748b' }}>{Math.round(FONT_STEPS[accFontDraft.step] * 100)}%</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', lineHeight: 1 }} aria-hidden>A</span>
@@ -3390,9 +3389,11 @@ export default function HomeClient() {
                     min={0}
                     max={7}
                     step={1}
-                    value={fontScaleStep}
-                    onChange={(e) => setFontScaleStep(Number(e.target.value) as FontScaleStep)}
-                    aria-valuetext={`${Math.round(fontScale * 100)}%`}
+                    value={accFontDraft.step}
+                    onChange={(e) =>
+                      setAccFontDraft((d) => ({ ...d, step: Number(e.target.value) as FontScaleStep }))
+                    }
+                    aria-valuetext={`${Math.round(FONT_STEPS[accFontDraft.step] * 100)}%`}
                     style={{
                       flex: 1,
                       height: 6,
@@ -3407,8 +3408,8 @@ export default function HomeClient() {
                 <span style={{ fontSize: 14, color: '#0f172a' }}>{t('fontBold')}</span>
                 <input
                   type="checkbox"
-                  checked={fontBold}
-                  onChange={(e) => setFontBold(e.target.checked)}
+                  checked={accFontDraft.bold}
+                  onChange={(e) => setAccFontDraft((d) => ({ ...d, bold: e.target.checked }))}
                 />
               </label>
             </div>
@@ -3430,7 +3431,11 @@ export default function HomeClient() {
 
             <button
               type="button"
-              onClick={() => setShowAccessibilityModal(false)}
+              onClick={() => {
+                setFontScaleStep(accFontDraft.step);
+                setFontBold(accFontDraft.bold);
+                setShowAccessibilityModal(false);
+              }}
               style={{
                 display: 'block',
                 width: '100%',
