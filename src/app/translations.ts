@@ -109,6 +109,10 @@ export const translations: Record<Lang, Record<string, string>> = {
     doneEditing: '완료',
     feedFilterTitle: '목록에서 보기',
     nextPostTagLabel: '이번 글 태그',
+    listFilterPrefix: '목록:',
+    newLogHeading: '새 기록',
+    mediaAndDraw: '사진·영상·그리기',
+    mapLocationOptional: '지도 장소 (선택)',
   },
   en: {
     appTitle: 'Family QR log',
@@ -214,6 +218,10 @@ export const translations: Record<Lang, Record<string, string>> = {
     doneEditing: 'Done',
     feedFilterTitle: 'Filter list',
     nextPostTagLabel: 'Tag for this post',
+    listFilterPrefix: 'List:',
+    newLogHeading: 'New entry',
+    mediaAndDraw: 'Photo, video & draw',
+    mapLocationOptional: 'Map pin (optional)',
   },
   ja: {
     appTitle: 'Family QR log',
@@ -319,6 +327,10 @@ export const translations: Record<Lang, Record<string, string>> = {
     doneEditing: '完了',
     feedFilterTitle: '一覧の絞り込み',
     nextPostTagLabel: 'この投稿のタグ',
+    listFilterPrefix: '一覧:',
+    newLogHeading: '新しい記録',
+    mediaAndDraw: '写真・動画・お絵かき',
+    mapLocationOptional: '地図（任意）',
   },
   zh: {
     appTitle: 'Family QR log',
@@ -424,6 +436,10 @@ export const translations: Record<Lang, Record<string, string>> = {
     doneEditing: '完成',
     feedFilterTitle: '筛选列表',
     nextPostTagLabel: '本条标签',
+    listFilterPrefix: '列表:',
+    newLogHeading: '新记录',
+    mediaAndDraw: '照片·视频·涂鸦',
+    mapLocationOptional: '地图位置（可选）',
   },
 };
 

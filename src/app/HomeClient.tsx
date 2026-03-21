@@ -7,8 +7,31 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import jsQR from 'jsqr';
 import { getT, langLabels, type Lang } from './translations';
-import { Snowflake, Utensils, Bath, Calendar, Camera, Image as ImageIcon, X, ChevronLeft, ChevronRight, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Mic } from 'lucide-react';
+import { Snowflake, Utensils, Bath, Calendar, Camera, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Mic } from 'lucide-react';
 import { LOG_SLUG, PLACE_SLUGS, TOPIC_SLUGS, type LogFilterKey, filterSlugForQuery } from '../lib/logTags';
+
+function getLogFilterLabel(filter: LogFilterKey, tr: (key: string) => string): string {
+  if (filter === 'all') return tr('allPlaces');
+  if (filter === LOG_SLUG.general) return tr('logGeneral');
+  const topicMap: Record<string, 'topicHealth' | 'topicDiet' | 'topicKid' | 'topicPet' | 'topicTodo'> = {
+    health: 'topicHealth',
+    diet: 'topicDiet',
+    kid: 'topicKid',
+    pet: 'topicPet',
+    todo: 'topicTodo',
+  };
+  const topicKey = topicMap[filter];
+  if (topicKey) return tr(topicKey);
+  if (filter === 'fridge') return tr('fridge');
+  if (filter === 'table') return tr('table');
+  if (filter === 'toilet') return tr('toilet');
+  return filter;
+}
+
+function getPostTagLabel(selected: string | null, tr: (key: string) => string): string {
+  if (selected == null) return tr('logGeneral');
+  return getLogFilterLabel(selected as LogFilterKey, tr);
+}
 import { AppHeader } from '../components/layout/AppHeader';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
 import { MemberFilter } from '../components/home/MemberFilter';
@@ -235,6 +258,9 @@ export default function HomeClient() {
   const [placeViewFilter, setPlaceViewFilter] = useState<LogFilterKey>('all');
   /** null = 일반(general) 로그 */
   const [selectedLogTag, setSelectedLogTag] = useState<string | null>(null);
+  const [feedFilterOpen, setFeedFilterOpen] = useState(false);
+  const [familyNotesExpanded, setFamilyNotesExpanded] = useState(false);
+  const [mediaSectionOpen, setMediaSectionOpen] = useState(false);
   const [familyNotesEditing, setFamilyNotesEditing] = useState(false);
   const [familyNotice, setFamilyNotice] = useState('');
   const [shoppingList, setShoppingList] = useState('');
@@ -320,6 +346,7 @@ export default function HomeClient() {
   const logVideoPreviewUrlRef = useRef<string | null>(null);
   const swipeStartRef = useRef<number | null>(null);
   const memoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevAttachCountRef = useRef(0);
 
   const fontScale = FONT_STEPS[fontScaleStep];
 
@@ -1323,6 +1350,27 @@ export default function HomeClient() {
     setTimeout(() => setShowMemoPanel(false), 620);
   };
 
+  const attachmentCount = logImagePreviews.length + (logVideoPreview ? 1 : 0);
+  useEffect(() => {
+    const prev = prevAttachCountRef.current;
+    if (attachmentCount === 0) {
+      setMediaSectionOpen(false);
+      prevAttachCountRef.current = 0;
+      return;
+    }
+    if (attachmentCount > prev) setMediaSectionOpen(true);
+    prevAttachCountRef.current = attachmentCount;
+  }, [attachmentCount]);
+
+  const viewFilterLabel = useMemo(() => getLogFilterLabel(placeViewFilter, t), [placeViewFilter, t]);
+  const postTagLabel = useMemo(() => getPostTagLabel(selectedLogTag, t), [selectedLogTag, t]);
+  const familyMemoPreview = useMemo(() => {
+    const parts = [familyNotice.trim(), shoppingList.trim(), routinesNote.trim()].filter(Boolean);
+    const raw = parts[0] ?? '';
+    if (!raw) return t('emptyMemo');
+    return raw.length > 40 ? `${raw.slice(0, 40)}…` : raw;
+  }, [familyNotice, shoppingList, routinesNote, t]);
+
   const theme = {
     bg: highContrast ? '#0f0f0f' : 'var(--bg-base)',
     card: highContrast ? '#1a1a1a' : 'var(--bg-card)',
@@ -1432,15 +1480,49 @@ export default function HomeClient() {
               onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
             />
             {(activeTab === 'home' || activeTab === 'search') && (
-              <div style={{ marginBottom: 6 }}>
-                <p style={{ fontSize: 11, color: theme.textSecondary, margin: '0 0 6px' }}>{t('feedFilterTitle')}</p>
-                <PlaceFilterRow
-                  filter={placeViewFilter}
-                  setFilter={setPlaceViewFilter}
-                  t={t}
-                  highContrast={highContrast}
-                />
-              </div>
+              <details
+                className="home-disclosure"
+                open={feedFilterOpen}
+                onToggle={(e) => setFeedFilterOpen(e.currentTarget.open)}
+              >
+                <summary>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: 12, color: theme.textSecondary, fontWeight: 500 }}>{t('listFilterPrefix')}</span>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: theme.text,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {viewFilterLabel}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    size={18}
+                    strokeWidth={2}
+                    aria-hidden
+                    style={{
+                      flexShrink: 0,
+                      color: theme.textSecondary,
+                      transform: feedFilterOpen ? 'rotate(180deg)' : undefined,
+                      transition: 'transform 0.2s ease',
+                    }}
+                  />
+                </summary>
+                <div className="home-disclosure-body">
+                  <p style={{ fontSize: 11, color: theme.textSecondary, margin: '0 0 8px' }}>{t('feedFilterTitle')}</p>
+                  <PlaceFilterRow
+                    filter={placeViewFilter}
+                    setFilter={setPlaceViewFilter}
+                    t={t}
+                    highContrast={highContrast}
+                  />
+                </div>
+              </details>
             )}
           </div>
         ) : (
@@ -1501,6 +1583,149 @@ export default function HomeClient() {
                   {t('dailySummary')} · <strong style={{ color: theme.text }}>{todayLogCount}</strong>
                 </p>
 
+                <details
+                  className="home-disclosure"
+                  open={familyNotesExpanded}
+                  onToggle={(e) => {
+                    const o = e.currentTarget.open;
+                    setFamilyNotesExpanded(o);
+                    if (!o) setFamilyNotesEditing(false);
+                  }}
+                >
+                  <summary>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: theme.text, flexShrink: 0 }}>{t('familyBoardTitle')}</span>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: theme.textSecondary,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {familyMemoPreview}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      size={18}
+                      strokeWidth={2}
+                      aria-hidden
+                      style={{
+                        flexShrink: 0,
+                        color: theme.textSecondary,
+                        transform: familyNotesExpanded ? 'rotate(180deg)' : undefined,
+                        transition: 'transform 0.2s ease',
+                      }}
+                    />
+                  </summary>
+                  <div className="home-disclosure-body">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: familyNotesEditing ? 10 : 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFamilyNotesExpanded(true);
+                          setFamilyNotesEditing((v) => !v);
+                        }}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          padding: '6px 12px',
+                          borderRadius: 8,
+                          border: '1px solid #e2e8f0',
+                          background: highContrast ? '#1e1e1e' : '#f1f5f9',
+                          color: highContrast ? '#ffc107' : '#2563eb',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {familyNotesEditing ? t('doneEditing') : t('editFamilyNotes')}
+                      </button>
+                    </div>
+                    {!familyNotesEditing ? (
+                      <div style={{ fontSize: 13, lineHeight: 1.65, color: theme.text }}>
+                        <div>
+                          <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('familyNotice')}</span>
+                          {familyNotice.trim() ? familyNotice : t('emptyMemo')}
+                        </div>
+                        <div style={{ marginTop: 8 }}>
+                          <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('shoppingListTitle')}</span>
+                          {shoppingList.trim() ? shoppingList : t('emptyMemo')}
+                        </div>
+                        <div style={{ marginTop: 8 }}>
+                          <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('routinesTitle')}</span>
+                          {routinesNote.trim() ? routinesNote : t('emptyMemo')}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: 10 }}>
+                        <div>
+                          <label htmlFor="family-notice-input" style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>
+                            {t('familyNotice')}
+                          </label>
+                          <input
+                            id="family-notice-input"
+                            type="text"
+                            value={familyNotice}
+                            onChange={(e) => setFamilyNotice(e.target.value)}
+                            placeholder={t('familyNoticePlaceholder')}
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              borderRadius: 10,
+                              border: '1px solid #e2e8f0',
+                              padding: '10px 12px',
+                              fontSize: 13,
+                              background: highContrast ? '#1e1e1e' : '#fff',
+                              color: theme.text,
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>{t('shoppingListTitle')}</label>
+                          <input
+                            type="text"
+                            value={shoppingList}
+                            onChange={(e) => setShoppingList(e.target.value)}
+                            placeholder={t('shoppingPlaceholder')}
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              borderRadius: 10,
+                              border: '1px solid #e2e8f0',
+                              padding: '8px 10px',
+                              fontSize: 13,
+                              background: highContrast ? '#1e1e1e' : '#f8fafc',
+                              color: theme.text,
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>{t('routinesTitle')}</label>
+                          <input
+                            type="text"
+                            value={routinesNote}
+                            onChange={(e) => setRoutinesNote(e.target.value)}
+                            placeholder={t('routinesPlaceholder')}
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              borderRadius: 10,
+                              border: '1px solid #e2e8f0',
+                              padding: '8px 10px',
+                              fontSize: 13,
+                              background: highContrast ? '#1e1e1e' : '#f8fafc',
+                              color: theme.text,
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </details>
+
                 <div
                   style={{
                     marginBottom: 12,
@@ -1511,258 +1736,7 @@ export default function HomeClient() {
                     boxShadow: theme.cardShadow,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: familyNotesEditing ? 10 : 0 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>{t('familyBoardTitle')}</span>
-                    <button
-                      type="button"
-                      onClick={() => setFamilyNotesEditing((v) => !v)}
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        padding: '6px 12px',
-                        borderRadius: 8,
-                        border: '1px solid #e2e8f0',
-                        background: highContrast ? '#1e1e1e' : '#f1f5f9',
-                        color: highContrast ? '#ffc107' : '#2563eb',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {familyNotesEditing ? t('doneEditing') : t('editFamilyNotes')}
-                    </button>
-                  </div>
-                  {!familyNotesEditing ? (
-                    <div style={{ fontSize: 13, lineHeight: 1.65, color: theme.text }}>
-                      <div>
-                        <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('familyNotice')}</span>
-                        {familyNotice.trim() ? familyNotice : t('emptyMemo')}
-                      </div>
-                      <div style={{ marginTop: 8 }}>
-                        <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('shoppingListTitle')}</span>
-                        {shoppingList.trim() ? shoppingList : t('emptyMemo')}
-                      </div>
-                      <div style={{ marginTop: 8 }}>
-                        <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('routinesTitle')}</span>
-                        {routinesNote.trim() ? routinesNote : t('emptyMemo')}
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      <div>
-                        <label htmlFor="family-notice-input" style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>
-                          {t('familyNotice')}
-                        </label>
-                        <input
-                          id="family-notice-input"
-                          type="text"
-                          value={familyNotice}
-                          onChange={(e) => setFamilyNotice(e.target.value)}
-                          placeholder={t('familyNoticePlaceholder')}
-                          style={{
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            borderRadius: 10,
-                            border: '1px solid #e2e8f0',
-                            padding: '10px 12px',
-                            fontSize: 13,
-                            background: highContrast ? '#1e1e1e' : '#fff',
-                            color: theme.text,
-                            outline: 'none',
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>{t('shoppingListTitle')}</label>
-                        <input
-                          type="text"
-                          value={shoppingList}
-                          onChange={(e) => setShoppingList(e.target.value)}
-                          placeholder={t('shoppingPlaceholder')}
-                          style={{
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            borderRadius: 10,
-                            border: '1px solid #e2e8f0',
-                            padding: '8px 10px',
-                            fontSize: 13,
-                            background: highContrast ? '#1e1e1e' : '#f8fafc',
-                            color: theme.text,
-                            outline: 'none',
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>{t('routinesTitle')}</label>
-                        <input
-                          type="text"
-                          value={routinesNote}
-                          onChange={(e) => setRoutinesNote(e.target.value)}
-                          placeholder={t('routinesPlaceholder')}
-                          style={{
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            borderRadius: 10,
-                            border: '1px solid #e2e8f0',
-                            padding: '8px 10px',
-                            fontSize: 13,
-                            background: highContrast ? '#1e1e1e' : '#f8fafc',
-                            color: theme.text,
-                            outline: 'none',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <p style={{ fontSize: 11, color: theme.textSecondary, margin: '0 0 6px' }}>{t('nextPostTagLabel')}</p>
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: 6,
-                    marginBottom: 12,
-                    overflowX: 'auto',
-                    paddingBottom: 4,
-                    WebkitOverflowScrolling: 'touch',
-                    flexWrap: 'nowrap',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setSelectedLogTag(null)}
-                    style={{
-                      flexShrink: 0,
-                      padding: '6px 12px',
-                      borderRadius: 999,
-                      border: '1px solid #e2e8f0',
-                      background: selectedLogTag == null ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
-                      color: selectedLogTag == null ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
-                      fontSize: 12,
-                      fontWeight: selectedLogTag == null ? 600 : 400,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {t('logGeneral')}
-                  </button>
-                  {TOPIC_SLUGS.map((slug) => {
-                    const labelKey =
-                      slug === 'health'
-                        ? 'topicHealth'
-                        : slug === 'diet'
-                          ? 'topicDiet'
-                          : slug === 'kid'
-                            ? 'topicKid'
-                            : slug === 'pet'
-                              ? 'topicPet'
-                              : 'topicTodo';
-                    return (
-                      <button
-                        key={slug}
-                        type="button"
-                        onClick={() => setSelectedLogTag(slug)}
-                        style={{
-                          flexShrink: 0,
-                          padding: '6px 12px',
-                          borderRadius: 999,
-                          border: '1px solid #e2e8f0',
-                          background: selectedLogTag === slug ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
-                          color: selectedLogTag === slug ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
-                          fontSize: 12,
-                          fontWeight: selectedLogTag === slug ? 600 : 400,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {t(labelKey)}
-                      </button>
-                    );
-                  })}
-                  {PLACE_SLUGS.map((slug) => (
-                    <button
-                      key={slug}
-                      type="button"
-                      onClick={() => setSelectedLogTag(slug)}
-                      style={{
-                        flexShrink: 0,
-                        padding: '6px 12px',
-                        borderRadius: 999,
-                        border: '1px solid #e2e8f0',
-                        background: selectedLogTag === slug
-                          ? slug === 'fridge'
-                            ? 'var(--place-fridge)'
-                            : slug === 'table'
-                              ? 'var(--place-table)'
-                              : 'var(--place-toilet)'
-                          : highContrast
-                            ? '#1e1e1e'
-                            : '#f8fafc',
-                        color: selectedLogTag === slug
-                          ? slug === 'fridge'
-                            ? 'var(--place-fridge-icon)'
-                            : slug === 'table'
-                              ? 'var(--place-table-icon)'
-                              : 'var(--place-toilet-icon)'
-                          : highContrast
-                            ? '#94a3b8'
-                            : '#64748b',
-                        fontSize: 12,
-                        fontWeight: selectedLogTag === slug ? 600 : 400,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {slug === 'fridge' ? (
-                        <Snowflake size={14} strokeWidth={1.5} aria-hidden style={{ verticalAlign: 'middle' }} />
-                      ) : slug === 'table' ? (
-                        <Utensils size={14} strokeWidth={1.5} aria-hidden style={{ verticalAlign: 'middle' }} />
-                      ) : (
-                        <Bath size={14} strokeWidth={1.5} aria-hidden style={{ verticalAlign: 'middle' }} />
-                      )}{' '}
-                      {t(slug)}
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: highContrast ? '#ffffff' : '#64748b' }}>{t('quickPhrases')}</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowPhraseManager(true)}
-                      aria-label={quickPhrases.length > 0 ? t('manage') : t('add')}
-                      style={{
-                        fontSize: 12,
-                        color: highContrast ? '#ffc107' : '#3b82f6',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '2px 6px',
-                      }}
-                    >
-                      {quickPhrases.length > 0 ? t('manage') : t('add')}
-                    </button>
-                  </div>
-                  {quickPhrases.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {quickPhrases.map((phrase, i) => (
-                        <button
-                          key={`${i}-${phrase}`}
-                          type="button"
-                          onClick={() => setAction((prev) => (prev ? `${prev} ${phrase}` : phrase))}
-                          style={{
-                            padding: '8px 14px',
-                            borderRadius: 999,
-                            border: '1px solid #e2e8f0',
-                            background: '#fff',
-                            color: '#475569',
-                            fontSize: 13,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {phrase}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: theme.text, margin: '0 0 10px' }}>{t('newLogHeading')}</p>
 
                 <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', marginBottom: 10 }}>
                   <textarea
@@ -1808,36 +1782,227 @@ export default function HomeClient() {
                     <Mic size={22} strokeWidth={1.5} aria-hidden />
                   </button>
                 </div>
-                <div style={{ marginBottom: 12 }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowLocationTagEditor((v) => !v)}
-                    style={{
-                      width: '100%',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 10,
-                      padding: '10px 12px',
-                      borderRadius: 12,
-                      border: '1px solid #e2e8f0',
-                      background: highContrast ? '#1e1e1e' : '#f8fafc',
-                      color: highContrast ? '#fff' : '#475569',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                    }}
-                  >
+
+                <button
+                  type="button"
+                  onClick={handleInsert}
+                  disabled={loading}
+                  style={{
+                    width: '100%',
+                    borderRadius: 12,
+                    border: 'none',
+                    padding: '10px 14px',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    background: loading ? 'rgba(100,116,139,0.5)' : 'var(--accent)',
+                    color: '#fff',
+                    minHeight: 42,
+                    marginBottom: 10,
+                    boxShadow: 'var(--shadow-card)',
+                  }}
+                >
+                  {loading ? t('savingLog') : t('quickPost')}
+                </button>
+
+                <details className="home-disclosure">
+                  <summary>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 12, color: theme.textSecondary, fontWeight: 500 }}>{t('nextPostTagLabel')}</span>
+                      <span
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: theme.text,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {postTagLabel}
+                      </span>
+                    </span>
+                    <ChevronDown size={18} strokeWidth={2} aria-hidden style={{ flexShrink: 0, color: theme.textSecondary }} />
+                  </summary>
+                  <div className="home-disclosure-body">
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 6,
+                        overflowX: 'auto',
+                        paddingBottom: 4,
+                        WebkitOverflowScrolling: 'touch',
+                        flexWrap: 'nowrap',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLogTag(null)}
+                        style={{
+                          flexShrink: 0,
+                          padding: '6px 12px',
+                          borderRadius: 999,
+                          border: '1px solid #e2e8f0',
+                          background: selectedLogTag == null ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
+                          color: selectedLogTag == null ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
+                          fontSize: 12,
+                          fontWeight: selectedLogTag == null ? 600 : 400,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {t('logGeneral')}
+                      </button>
+                      {TOPIC_SLUGS.map((slug) => {
+                        const labelKey =
+                          slug === 'health'
+                            ? 'topicHealth'
+                            : slug === 'diet'
+                              ? 'topicDiet'
+                              : slug === 'kid'
+                                ? 'topicKid'
+                                : slug === 'pet'
+                                  ? 'topicPet'
+                                  : 'topicTodo';
+                        return (
+                          <button
+                            key={slug}
+                            type="button"
+                            onClick={() => setSelectedLogTag(slug)}
+                            style={{
+                              flexShrink: 0,
+                              padding: '6px 12px',
+                              borderRadius: 999,
+                              border: '1px solid #e2e8f0',
+                              background: selectedLogTag === slug ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
+                              color: selectedLogTag === slug ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
+                              fontSize: 12,
+                              fontWeight: selectedLogTag === slug ? 600 : 400,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {t(labelKey)}
+                          </button>
+                        );
+                      })}
+                      {PLACE_SLUGS.map((slug) => (
+                        <button
+                          key={slug}
+                          type="button"
+                          onClick={() => setSelectedLogTag(slug)}
+                          style={{
+                            flexShrink: 0,
+                            padding: '6px 12px',
+                            borderRadius: 999,
+                            border: '1px solid #e2e8f0',
+                            background: selectedLogTag === slug
+                              ? slug === 'fridge'
+                                ? 'var(--place-fridge)'
+                                : slug === 'table'
+                                  ? 'var(--place-table)'
+                                  : 'var(--place-toilet)'
+                              : highContrast
+                                ? '#1e1e1e'
+                                : '#f8fafc',
+                            color: selectedLogTag === slug
+                              ? slug === 'fridge'
+                                ? 'var(--place-fridge-icon)'
+                                : slug === 'table'
+                                  ? 'var(--place-table-icon)'
+                                  : 'var(--place-toilet-icon)'
+                              : highContrast
+                                ? '#94a3b8'
+                                : '#64748b',
+                            fontSize: 12,
+                            fontWeight: selectedLogTag === slug ? 600 : 400,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {slug === 'fridge' ? (
+                            <Snowflake size={14} strokeWidth={1.5} aria-hidden style={{ verticalAlign: 'middle' }} />
+                          ) : slug === 'table' ? (
+                            <Utensils size={14} strokeWidth={1.5} aria-hidden style={{ verticalAlign: 'middle' }} />
+                          ) : (
+                            <Bath size={14} strokeWidth={1.5} aria-hidden style={{ verticalAlign: 'middle' }} />
+                          )}{' '}
+                          {t(slug)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+
+                <details className="home-disclosure">
+                  <summary>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: theme.text }}>{t('quickPhrases')}</span>
+                    <ChevronDown size={18} strokeWidth={2} aria-hidden style={{ flexShrink: 0, color: theme.textSecondary }} />
+                  </summary>
+                  <div className="home-disclosure-body">
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowPhraseManager(true)}
+                        aria-label={quickPhrases.length > 0 ? t('manage') : t('add')}
+                        style={{
+                          fontSize: 12,
+                          color: highContrast ? '#ffc107' : '#3b82f6',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '2px 6px',
+                        }}
+                      >
+                        {quickPhrases.length > 0 ? t('manage') : t('add')}
+                      </button>
+                    </div>
+                    {quickPhrases.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {quickPhrases.map((phrase, i) => (
+                          <button
+                            key={`${i}-${phrase}`}
+                            type="button"
+                            onClick={() => setAction((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: 999,
+                              border: '1px solid #e2e8f0',
+                              background: '#fff',
+                              color: '#475569',
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {phrase}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </details>
+
+                <details
+                  className="home-disclosure"
+                  open={showLocationTagEditor}
+                  onToggle={(e) => setShowLocationTagEditor(e.currentTarget.open)}
+                >
+                  <summary>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <MapPin size={20} strokeWidth={1.5} aria-hidden />
-                      지도 장소 태그 (선택)
+                      {t('mapLocationOptional')}
                     </span>
-                    <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>
-                      {showLocationTagEditor ? '숨김' : '입력'}
-                    </span>
-                  </button>
-
-                  {showLocationTagEditor && (
-                    <div style={{ marginTop: 10 }}>
+                    <ChevronDown
+                      size={18}
+                      strokeWidth={2}
+                      aria-hidden
+                      style={{
+                        flexShrink: 0,
+                        color: theme.textSecondary,
+                        transform: showLocationTagEditor ? 'rotate(180deg)' : undefined,
+                        transition: 'transform 0.2s ease',
+                      }}
+                    />
+                  </summary>
+                  <div className="home-disclosure-body">
                       <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                         <input
                           type="text"
@@ -1893,11 +2058,34 @@ export default function HomeClient() {
                           outline: 'none',
                         }}
                       />
-                    </div>
-                  )}
-                </div>
+                  </div>
+                </details>
 
-                <div style={{ marginBottom: 12 }}>
+                <details
+                  className="home-disclosure"
+                  open={mediaSectionOpen}
+                  onToggle={(e) => setMediaSectionOpen(e.currentTarget.open)}
+                >
+                  <summary>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                      <span style={{ fontWeight: 600, color: theme.text }}>{t('mediaAndDraw')}</span>
+                      {attachmentCount > 0 ? (
+                        <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>({attachmentCount})</span>
+                      ) : null}
+                    </span>
+                    <ChevronDown
+                      size={18}
+                      strokeWidth={2}
+                      aria-hidden
+                      style={{
+                        flexShrink: 0,
+                        color: theme.textSecondary,
+                        transform: mediaSectionOpen ? 'rotate(180deg)' : undefined,
+                        transition: 'transform 0.2s ease',
+                      }}
+                    />
+                  </summary>
+                  <div className="home-disclosure-body" style={{ paddingLeft: 0, paddingRight: 0 }}>
                   <input
                     type="file"
                     accept="image/*"
@@ -2137,30 +2325,9 @@ export default function HomeClient() {
                   {imageCompressing && (
                     <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b' }}>사진 처리 중...</p>
                   )}
+                  </div>
+                </details>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleInsert}
-                  disabled={loading}
-                  style={{
-                    width: '100%',
-                    borderRadius: 12,
-                    border: 'none',
-                    padding: '10px 14px',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    background: loading
-                      ? 'rgba(100,116,139,0.5)'
-                      : 'var(--accent)',
-                    color: '#fff',
-                    minHeight: 42,
-                    boxShadow: 'var(--shadow-card)',
-                  }}
-                >
-                  {loading ? t('savingLog') : t('quickPost')}
-                </button>
               </section>
             ) : null}
             {activeTab === 'qr' && (
