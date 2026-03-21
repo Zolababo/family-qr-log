@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { Calendar, MessageCircle, Play, MapPin, ExternalLink, Sparkles, ChevronDown } from 'lucide-react';
+import { Calendar, MessageCircle, Play, MapPin, ExternalLink, Sparkles } from 'lucide-react';
 
 export type Log = {
   id: string;
@@ -115,12 +115,6 @@ export function LogFeed({
   };
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const [pausedVideoId, setPausedVideoId] = useState<string | null>(null);
-  const todayDateKey = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  }, []);
-  const [dayOpenOverride, setDayOpenOverride] = useState<Record<string, boolean>>({});
-  const isDayOpen = (key: string) => (key in dayOpenOverride ? dayOpenOverride[key]! : key === todayDateKey);
 
   const toggleVideo = async (logId: string) => {
     const el = videoRefs.current[logId];
@@ -184,34 +178,23 @@ export function LogFeed({
           )}
 
           {logsByDate.map((group) => (
-            <details
-              key={group.dateKey}
-              className="home-disclosure"
-              open={isDayOpen(group.dateKey)}
-              onToggle={(e) =>
-                setDayOpenOverride((prev) => ({ ...prev, [group.dateKey]: e.currentTarget.open }))
-              }
-              style={{ marginBottom: 10, marginLeft: 16, marginRight: 16 }}
-            >
-              <summary>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                  <Calendar size={20} strokeWidth={1.5} aria-hidden />
-                  <span style={{ letterSpacing: '0.02em' }}>
-                    {group.dateLabel} · {group.items.length}건
-                  </span>
-                </span>
-                <ChevronDown
-                  className="home-disclosure-chevron"
-                  size={18}
-                  strokeWidth={2}
-                  aria-hidden
-                  style={{
-                    flexShrink: 0,
-                    color: theme.textSecondary,
-                  }}
-                />
-              </summary>
-              <div style={{ paddingLeft: 0, paddingRight: 0 }}>
+            <div key={group.dateKey} style={{ marginBottom: 10, paddingLeft: 16, paddingRight: 16 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: theme.textSecondary,
+                  marginBottom: 6,
+                  padding: '4px 0',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                <Calendar size={20} strokeWidth={1.5} aria-hidden />
+                {group.dateLabel} · {group.items.length}건
+              </div>
               {group.items.map((log) => {
                 const isMine = user && log.actor_user_id === user.id;
                 const isEditing = editingLogId === log.id;
@@ -501,8 +484,7 @@ export function LogFeed({
                   </div>
                 );
               })}
-              </div>
-            </details>
+            </div>
           ))}
         </div>
       </section>

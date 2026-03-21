@@ -222,50 +222,6 @@ body {
   overflow-x: clip;
 }
 
-/* 홈·피드: 접기/펼치기 패널 (details/summary) */
-.home-disclosure {
-  border-radius: var(--radius-md);
-  border: 1px solid var(--divider);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-card);
-  margin-bottom: 10px;
-  overflow: hidden;
-}
-.home-disclosure > summary {
-  list-style: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  cursor: pointer;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-}
-.home-disclosure > summary::-webkit-details-marker {
-  display: none;
-}
-.home-disclosure .home-disclosure-body {
-  padding: 0 12px 12px;
-}
-[data-accessibility-root][data-high-contrast="true"] .home-disclosure {
-  border: 2px solid #ffc107;
-  background: #1a1a1a;
-  box-shadow: none;
-}
-[data-accessibility-root][data-high-contrast="true"] .home-disclosure > summary {
-  color: #fff;
-}
-.home-disclosure > summary .home-disclosure-chevron {
-  transition: transform 0.2s ease;
-}
-.home-disclosure[open] > summary .home-disclosure-chevron {
-  transform: rotate(180deg);
-}
-
 /* 설정 모달 언어 칩: 전역 버튼 radius와 무관하게 테두리가 박스와 맞게 */
 .settings-lang-btn {
   box-sizing: border-box !important;
