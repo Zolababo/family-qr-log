@@ -309,9 +309,18 @@ body {
   margin-bottom: 6px;
 }
 
+.log-place-tag.general { background: var(--bg-subtle); color: var(--text-secondary); }
 .log-place-tag.fridge { background: var(--place-fridge); color: var(--place-fridge-icon); }
 .log-place-tag.table  { background: var(--place-table);  color: var(--place-table-icon); }
 .log-place-tag.toilet { background: var(--place-toilet); color: var(--place-toilet-icon); }
+.log-place-tag.health,
+.log-place-tag.diet,
+.log-place-tag.kid,
+.log-place-tag.pet,
+.log-place-tag.todo {
+  background: var(--accent-light);
+  color: var(--accent);
+}
 
 .log-time {
   font-size: 11px;

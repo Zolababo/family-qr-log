@@ -7,11 +7,11 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import jsQR from 'jsqr';
 import { getT, langLabels, type Lang } from './translations';
-import { Snowflake, Utensils, Bath, Calendar, Camera, Image as ImageIcon, X, ChevronLeft, ChevronRight, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles } from 'lucide-react';
+import { Snowflake, Utensils, Bath, Calendar, Camera, Image as ImageIcon, X, ChevronLeft, ChevronRight, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Mic } from 'lucide-react';
+import { LOG_SLUG, PLACE_SLUGS, TOPIC_SLUGS, type LogFilterKey, filterSlugForQuery, getSuggestedSlugsByHour } from '../lib/logTags';
 import { AppHeader } from '../components/layout/AppHeader';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
 import { MemberFilter } from '../components/home/MemberFilter';
-import { PlaceButtons } from '../components/home/PlaceButtons';
 import { PlaceFilterRow } from '../components/home/PlaceFilterRow';
 import { LogFeed } from '../components/home/LogFeed';
 
@@ -226,18 +226,21 @@ export default function HomeClient() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const urlPlace = searchParams.get('place');
-  const hasPlaceFromUrl = urlPlace === 'fridge' || urlPlace === 'table' || urlPlace === 'toilet';
-  const placeSlug = hasPlaceFromUrl ? urlPlace! : 'fridge';
-
   const [user, setUser] = useState<User | null>(null);
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<'all' | 'me' | string>('all');
-  const [placeViewFilter, setPlaceViewFilter] = useState<'fridge' | 'table' | 'toilet' | 'all'>('all');
-  const [selectedPlaceForLog, setSelectedPlaceForLog] = useState<'fridge' | 'table' | 'toilet' | null>(null);
+  const [placeViewFilter, setPlaceViewFilter] = useState<LogFilterKey>('all');
+  /** null = 일반(general) 로그 */
+  const [selectedLogTag, setSelectedLogTag] = useState<string | null>(null);
+  const [composerTagsExpanded, setComposerTagsExpanded] = useState(false);
+  const [familyNotice, setFamilyNotice] = useState('');
+  const [shoppingList, setShoppingList] = useState('');
+  const [routinesNote, setRoutinesNote] = useState('');
+  const qrPrefillAppliedRef = useRef(false);
+  const [voiceListening, setVoiceListening] = useState(false);
 
   const [action, setAction] = useState('');
   const [loading, setLoading] = useState(false);
@@ -283,7 +286,7 @@ export default function HomeClient() {
     const d = new Date();
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   });
-  const [calendarPlaceFilter, setCalendarPlaceFilter] = useState<'fridge' | 'table' | 'toilet' | 'all'>('all');
+  const [calendarPlaceFilter, setCalendarPlaceFilter] = useState<LogFilterKey>('all');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [commentsByLogId, setCommentsByLogId] = useState<Record<string, LogComment[]>>({});
   const [replyingTo, setReplyingTo] = useState<{ logId: string; commentId: string } | null>(null);
@@ -320,7 +323,7 @@ export default function HomeClient() {
 
   const fontScale = FONT_STEPS[fontScaleStep];
 
-  const effectivePlaceSlug = hasPlaceFromUrl ? urlPlace! : (selectedPlaceForLog ?? 'fridge');
+  const effectivePlaceSlug = selectedLogTag ?? LOG_SLUG.general;
 
   useEffect(() => {
     const init = async () => {
@@ -419,6 +422,46 @@ export default function HomeClient() {
       setQuickPhrases([]);
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      const n = localStorage.getItem('family_qr_log_notice');
+      const s = localStorage.getItem('family_qr_log_shopping');
+      const r = localStorage.getItem('family_qr_log_routines');
+      if (n) setFamilyNotice(n);
+      if (s) setShoppingList(s);
+      if (r) setRoutinesNote(r);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('family_qr_log_notice', familyNotice);
+    } catch {}
+  }, [familyNotice]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('family_qr_log_shopping', shoppingList);
+    } catch {}
+  }, [shoppingList]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('family_qr_log_routines', routinesNote);
+    } catch {}
+  }, [routinesNote]);
+
+  useEffect(() => {
+    if (!user || qrPrefillAppliedRef.current) return;
+    const p = searchParams.get('place');
+    const valid = new Set<string>(Object.values(LOG_SLUG));
+    if (p && valid.has(p)) {
+      setSelectedLogTag(p);
+      qrPrefillAppliedRef.current = true;
+      router.replace(pathname || '/', { scroll: false });
+    }
+  }, [user, searchParams, pathname, router]);
 
   useEffect(() => {
     try {
@@ -800,7 +843,7 @@ export default function HomeClient() {
         return;
       }
 
-      const placeSlugFilter = placeViewFilter === 'all' ? undefined : placeViewFilter;
+      const placeSlugFilter = filterSlugForQuery(placeViewFilter);
       const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
       await loadLogs(householdId, placeSlugFilter, actorId);
       setStickerPickerOpen(false);
@@ -818,7 +861,7 @@ export default function HomeClient() {
     if (!householdId || !user) return;
 
     const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
-    const placeSlugFilter = placeViewFilter === 'all' ? undefined : placeViewFilter;
+    const placeSlugFilter = filterSlugForQuery(placeViewFilter);
 
     loadLogs(householdId, placeSlugFilter, actorId);
   }, [householdId, placeViewFilter, selectedMemberId, user, loadLogs]);
@@ -974,18 +1017,18 @@ export default function HomeClient() {
     setLogImagePreviews([]);
     setLogVideoFile(null);
     setLogVideoPreview(null);
-    const placeSlugFilter = placeViewFilter === 'all' ? undefined : placeViewFilter;
+    const placeSlugFilter = filterSlugForQuery(placeViewFilter);
     const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
     await loadLogs(householdId, placeSlugFilter, actorId);
     setStatus('로그가 추가되었습니다.');
-    setSelectedPlaceForLog(null);
+    setSelectedLogTag(null);
     setLoading(false);
     router.replace(pathname || '/');
   };
 
   const refreshLogs = useCallback(() => {
     if (!householdId || !user) return;
-    const placeSlugFilter = placeViewFilter === 'all' ? undefined : placeViewFilter;
+    const placeSlugFilter = filterSlugForQuery(placeViewFilter);
     const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
     loadLogs(householdId, placeSlugFilter, actorId);
   }, [householdId, placeViewFilter, selectedMemberId, user, loadLogs]);
@@ -1133,9 +1176,72 @@ export default function HomeClient() {
 
   const meDisplayName =
     profileName || (user?.email ? user.email.split('@')[0] : t('me'));
-  const getPlaceLabelKey = (slug: string) =>
-    slug === 'fridge' ? 'fridge' : slug === 'table' ? 'table' : slug === 'toilet' ? 'toilet' : 'allPlaces';
+  const getPlaceLabelKey = (slug: string) => {
+    const map: Record<string, string> = {
+      [LOG_SLUG.general]: 'logGeneral',
+      fridge: 'fridge',
+      table: 'table',
+      toilet: 'toilet',
+      health: 'topicHealth',
+      diet: 'topicDiet',
+      kid: 'topicKid',
+      pet: 'topicPet',
+      todo: 'topicTodo',
+    };
+    return map[slug] ?? 'logGeneral';
+  };
   const currentPlaceLabel = t(getPlaceLabelKey(effectivePlaceSlug));
+
+  const todayLogCount = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const d = now.getDate();
+    return logs.filter((l) => {
+      const dt = new Date(l.created_at);
+      return dt.getFullYear() === y && dt.getMonth() === m && dt.getDate() === d;
+    }).length;
+  }, [logs]);
+
+  const startVoiceInput = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    type RecCtor = new () => {
+      lang: string;
+      continuous: boolean;
+      interimResults: boolean;
+      onresult: ((e: { results: { 0: { 0: { transcript: string } } } }) => void) | null;
+      onend: (() => void) | null;
+      onerror: (() => void) | null;
+      start: () => void;
+    };
+    const w = window as unknown as {
+      SpeechRecognition?: RecCtor;
+      webkitSpeechRecognition?: RecCtor;
+    };
+    const SR = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+    if (!SR) {
+      setStatus(t('voiceNotSupported'));
+      return;
+    }
+    const rec = new SR();
+    rec.lang =
+      language === 'ko' ? 'ko-KR' : language === 'ja' ? 'ja-JP' : language === 'zh' ? 'zh-CN' : 'en-US';
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onresult = (e) => {
+      const text = e.results[0]?.[0]?.transcript;
+      if (text) setAction((prev) => (prev ? `${prev} ${text}` : text));
+    };
+    rec.onend = () => setVoiceListening(false);
+    rec.onerror = () => setVoiceListening(false);
+    setVoiceListening(true);
+    try {
+      rec.start();
+    } catch {
+      setVoiceListening(false);
+      setStatus(t('voiceNotSupported'));
+    }
+  }, [language, t]);
 
   const logsForList =
     activeTab === 'search' && searchQuery.trim()
@@ -1325,23 +1431,10 @@ export default function HomeClient() {
               onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
               onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
             />
-            {activeTab === 'home' && !(hasPlaceFromUrl || selectedPlaceForLog) && (
-              <PlaceButtons
-                places={[
-                  { id: 'fridge', labelKey: 'fridge', color: 'var(--place-1)' },
-                  { id: 'table', labelKey: 'table', color: 'var(--place-2)' },
-                  { id: 'toilet', labelKey: 'toilet', color: 'var(--place-3)' },
-                ]}
-                onSelectPlace={(id) => setSelectedPlaceForLog(id as 'fridge' | 'table' | 'toilet')}
-                t={t}
-                highContrast={highContrast}
-                isAdmin={isAdmin}
-              />
-            )}
             {(activeTab === 'home' || activeTab === 'search') && (
               <PlaceFilterRow
-                placeViewFilter={placeViewFilter}
-                setPlaceViewFilter={setPlaceViewFilter}
+                filter={placeViewFilter}
+                setFilter={setPlaceViewFilter}
                 t={t}
                 highContrast={highContrast}
               />
@@ -1399,63 +1492,257 @@ export default function HomeClient() {
 
         {user && householdId && (
           <>
-            {(hasPlaceFromUrl || selectedPlaceForLog) ? (
+            {activeTab === 'home' ? (
               <section style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 11, letterSpacing: '0.05em', color: theme.textSecondary }}>{t('recordHere')}</span>
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedPlaceForLog(null); if (hasPlaceFromUrl) router.replace(pathname || '/'); }}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 8,
-                      border: '1px solid #e2e8f0',
-                      background: highContrast ? '#1e1e1e' : '#f1f5f9',
-                      color: highContrast ? '#94a3b8' : '#64748b',
-                      fontSize: 11,
-                      cursor: 'pointer',
-                    }}
+                <div style={{ marginBottom: 10 }}>
+                  <label
+                    htmlFor="family-notice-input"
+                    style={{ display: 'block', fontSize: 11, letterSpacing: '0.05em', color: theme.textSecondary, marginBottom: 4 }}
                   >
-                    해제
-                  </button>
+                    {t('familyNotice')}
+                  </label>
+                  <input
+                    id="family-notice-input"
+                    type="text"
+                    value={familyNotice}
+                    onChange={(e) => setFamilyNotice(e.target.value)}
+                    placeholder={t('familyNoticePlaceholder')}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      borderRadius: 10,
+                      border: '1px solid #e2e8f0',
+                      padding: '10px 12px',
+                      fontSize: 13,
+                      background: highContrast ? '#1e1e1e' : '#fff',
+                      color: theme.text,
+                      outline: 'none',
+                    }}
+                  />
                 </div>
-                <p style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 6 }}>
-                  {t('currentPlace')}: <strong style={{ color: theme.text }}>{currentPlaceLabel}</strong>
-                  {hasPlaceFromUrl ? ` · ${t('qrAccessed')}` : ' · 버튼으로 선택'}
+                <p style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 8 }}>
+                  <strong style={{ color: theme.text }}>{t('dailySummary')}</strong> · {todayLogCount} · {t('dailySummaryBody')}
                 </p>
-                {selectedPlaceForLog && !hasPlaceFromUrl && (
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    {(['fridge', 'table', 'toilet'] as const).map((slug) => (
+                <div style={{ display: 'grid', gap: 8, marginBottom: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>{t('shoppingListTitle')}</label>
+                    <input
+                      type="text"
+                      value={shoppingList}
+                      onChange={(e) => setShoppingList(e.target.value)}
+                      placeholder={t('shoppingPlaceholder')}
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        borderRadius: 10,
+                        border: '1px solid #e2e8f0',
+                        padding: '8px 10px',
+                        fontSize: 12,
+                        background: highContrast ? '#1e1e1e' : '#f8fafc',
+                        color: theme.text,
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>{t('routinesTitle')}</label>
+                    <input
+                      type="text"
+                      value={routinesNote}
+                      onChange={(e) => setRoutinesNote(e.target.value)}
+                      placeholder={t('routinesPlaceholder')}
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        borderRadius: 10,
+                        border: '1px solid #e2e8f0',
+                        padding: '8px 10px',
+                        fontSize: 12,
+                        background: highContrast ? '#1e1e1e' : '#f8fafc',
+                        color: theme.text,
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setComposerTagsExpanded((v) => !v)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 12px',
+                    marginBottom: composerTagsExpanded ? 8 : 4,
+                    borderRadius: 12,
+                    border: '1px solid #e2e8f0',
+                    background: highContrast ? '#1e1e1e' : '#f8fafc',
+                    color: theme.text,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>
+                    {t('tagSectionTitle')}
+                    {selectedLogTag ? ` · ${currentPlaceLabel}` : ''}
+                  </span>
+                  <span style={{ fontSize: 12, opacity: 0.85 }}>{composerTagsExpanded ? '−' : '+'}</span>
+                </button>
+                {composerTagsExpanded && (
+                  <div style={{ marginBottom: 12 }}>
+                    {getSuggestedSlugsByHour().length > 0 && (
+                      <div style={{ marginBottom: 8 }}>
+                        <span style={{ fontSize: 11, color: theme.textSecondary, marginRight: 6 }}>{t('tagSuggested')}</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                          {getSuggestedSlugsByHour().map(({ slug }) => (
+                            <button
+                              key={`sug-${slug}`}
+                              type="button"
+                              onClick={() => setSelectedLogTag(slug === LOG_SLUG.general ? null : slug)}
+                              style={{
+                                padding: '5px 10px',
+                                borderRadius: 999,
+                                border: '1px solid #e2e8f0',
+                                background:
+                                  selectedLogTag === slug || (slug === LOG_SLUG.general && selectedLogTag == null)
+                                    ? 'var(--accent-light)'
+                                    : highContrast
+                                      ? '#1e1e1e'
+                                      : '#fff',
+                                color: theme.text,
+                                fontSize: 12,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {t(getPlaceLabelKey(slug))}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8, justifyContent: 'center' }}>
                       <button
-                        className="place-pill-btn"
-                        key={slug}
                         type="button"
-                        onClick={() => setSelectedPlaceForLog(slug)}
+                        onClick={() => setSelectedLogTag(null)}
                         style={{
                           padding: '5px 10px',
                           borderRadius: 999,
                           border: '1px solid #e2e8f0',
-                          background: selectedPlaceForLog === slug
-                            ? (slug === 'fridge' ? 'var(--place-fridge)' : slug === 'table' ? 'var(--place-table)' : 'var(--place-toilet)')
-                            : highContrast ? '#1e1e1e' : '#f8fafc',
-                          color: selectedPlaceForLog === slug
-                            ? (slug === 'fridge' ? 'var(--place-fridge-icon)' : slug === 'table' ? 'var(--place-table-icon)' : 'var(--place-toilet-icon)')
-                            : highContrast ? '#94a3b8' : '#64748b',
+                          background: selectedLogTag == null ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
+                          color: selectedLogTag == null ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
                           fontSize: 12,
-                          fontWeight: selectedPlaceForLog === slug ? 600 : 400,
+                          fontWeight: selectedLogTag == null ? 600 : 400,
                           cursor: 'pointer',
                         }}
                       >
-                        {slug === 'fridge' ? <Snowflake size={16} strokeWidth={1.5} aria-hidden /> : slug === 'table' ? <Utensils size={16} strokeWidth={1.5} aria-hidden /> : <Bath size={16} strokeWidth={1.5} aria-hidden />}
-                          <span style={{ marginLeft: 4 }}>{t(slug)}</span>
+                        {t('logGeneral')}
                       </button>
-                    ))}
+                      {TOPIC_SLUGS.map((slug) => {
+                        const labelKey =
+                          slug === 'health'
+                            ? 'topicHealth'
+                            : slug === 'diet'
+                              ? 'topicDiet'
+                              : slug === 'kid'
+                                ? 'topicKid'
+                                : slug === 'pet'
+                                  ? 'topicPet'
+                                  : 'topicTodo';
+                        return (
+                          <button
+                            key={slug}
+                            type="button"
+                            onClick={() => setSelectedLogTag(slug)}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: 999,
+                              border: '1px solid #e2e8f0',
+                              background: selectedLogTag === slug ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
+                              color: selectedLogTag === slug ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
+                              fontSize: 12,
+                              fontWeight: selectedLogTag === slug ? 600 : 400,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {t(labelKey)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                      {PLACE_SLUGS.map((slug) => (
+                        <button
+                          key={slug}
+                          type="button"
+                          onClick={() => setSelectedLogTag(slug)}
+                          style={{
+                            padding: '5px 10px',
+                            borderRadius: 999,
+                            border: '1px solid #e2e8f0',
+                            background: selectedLogTag === slug
+                              ? slug === 'fridge'
+                                ? 'var(--place-fridge)'
+                                : slug === 'table'
+                                  ? 'var(--place-table)'
+                                  : 'var(--place-toilet)'
+                              : highContrast
+                                ? '#1e1e1e'
+                                : '#f8fafc',
+                            color: selectedLogTag === slug
+                              ? slug === 'fridge'
+                                ? 'var(--place-fridge-icon)'
+                                : slug === 'table'
+                                  ? 'var(--place-table-icon)'
+                                  : 'var(--place-toilet-icon)'
+                              : highContrast
+                                ? '#94a3b8'
+                                : '#64748b',
+                            fontSize: 12,
+                            fontWeight: selectedLogTag === slug ? 600 : 400,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {slug === 'fridge' ? (
+                            <Snowflake size={16} strokeWidth={1.5} aria-hidden />
+                          ) : slug === 'table' ? (
+                            <Utensils size={16} strokeWidth={1.5} aria-hidden />
+                          ) : (
+                            <Bath size={16} strokeWidth={1.5} aria-hidden />
+                          )}
+                          <span style={{ marginLeft: 4 }}>{t(slug)}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
-
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={startVoiceInput}
+                    disabled={voiceListening}
+                    aria-label={t('voiceInput')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '10px 14px',
+                      borderRadius: 12,
+                      border: '1px solid #e2e8f0',
+                      background: voiceListening ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
+                      color: theme.text,
+                      fontSize: 13,
+                      cursor: voiceListening ? 'wait' : 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Mic size={20} strokeWidth={1.5} aria-hidden />
+                    {voiceListening ? '…' : t('voiceInput')}
+                  </button>
+                </div>
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, letterSpacing: '0.03em', color: highContrast ? '#ffffff' : '#64748b' }}>{t('quickPhrases')}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.03em', color: highContrast ? '#ffffff' : '#64748b' }}>{t('quickPhrases')}</span>
                     <button
                       type="button"
                       onClick={() => setShowPhraseManager(true)}
@@ -1480,14 +1767,15 @@ export default function HomeClient() {
                           type="button"
                           onClick={() => setAction((prev) => (prev ? `${prev} ${phrase}` : phrase))}
                           style={{
-                            padding: '8px 14px',
+                            padding: '12px 18px',
                             borderRadius: 999,
                             border: '1px solid #e2e8f0',
                             background: '#fff',
                             color: '#475569',
-                            fontSize: 13,
+                            fontSize: 14,
+                            fontWeight: 600,
                             cursor: 'pointer',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
                           }}
                         >
                           {phrase}
@@ -1868,11 +2156,11 @@ export default function HomeClient() {
                     boxShadow: 'var(--shadow-card)',
                   }}
                 >
-                  {loading ? t('savingLog') : `"${currentPlaceLabel}" ${t('addLog')}`}
+                  {loading ? t('savingLog') : t('quickPost')}
                 </button>
               </section>
             ) : null}
-            {activeTab === 'qr' && !hasPlaceFromUrl && (
+            {activeTab === 'qr' && (
               <section
                 style={{
                   marginBottom: 20,
@@ -1885,7 +2173,8 @@ export default function HomeClient() {
                   textAlign: 'center',
                 }}
               >
-                <p style={{ margin: '0 0 16px', fontSize: 14 }}>{t('scanQrFirst')} {t('scanQrSecond')}</p>
+                <p style={{ margin: '0 0 8px', fontSize: 14 }}>{t('scanQrFirst')} {t('scanQrSecond')}</p>
+                <p style={{ margin: '0 0 16px', fontSize: 12, color: highContrast ? '#cbd5e1' : '#64748b', lineHeight: 1.5 }}>{t('qrTabGuest')}</p>
                 <button
                   type="button"
                   onClick={() => setShowScanner(true)}
