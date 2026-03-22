@@ -3,15 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, QrCode, Search, Settings, X, Plus } from 'lucide-react';
+import { Home, Calendar, Search, Settings, X, Plus } from 'lucide-react';
 import type { Lang } from '../../app/translations';
 
-export type TabId = 'home' | 'calendar' | 'qr' | 'search';
+export type TabId = 'home' | 'calendar' | 'search';
 
 type BottomTabBarProps = {
   activeTab: TabId;
   onTabChange: (id: TabId) => void;
-  onQrPress: () => void;
   t: (key: string) => string;
   highContrast: boolean;
   language: Lang;
@@ -30,7 +29,6 @@ const STROKE = 1.5;
 export function BottomTabBar({
   activeTab,
   onTabChange,
-  onQrPress,
   t,
   highContrast,
   language,
@@ -104,7 +102,7 @@ export function BottomTabBar({
             style={{
               position: 'absolute',
               right: 12,
-              top: -22,
+              top: -40,
               width: 48,
               height: 48,
               borderRadius: '50%',
@@ -139,19 +137,6 @@ export function BottomTabBar({
         >
           <Calendar size={ICON_SIZE} strokeWidth={STROKE} aria-hidden />
           캘린더
-        </button>
-        <button
-          type="button"
-          className="bottom-tab-btn"
-          onClick={() => {
-            onTabChange('qr');
-            onQrPress();
-          }}
-          aria-current={activeTab === 'qr' ? 'true' : undefined}
-          style={tabStyle(activeTab === 'qr')}
-        >
-          <QrCode size={ICON_SIZE} strokeWidth={STROKE} aria-hidden />
-          QR
         </button>
         <button
           type="button"
@@ -306,7 +291,7 @@ export function BottomTabBar({
                     <button
                       key={lang}
                       type="button"
-                      className="settings-lang-btn"
+                      className="settings-lang-btn log-filter-btn"
                       onClick={() => setLanguage(lang)}
                       style={{
                         padding: '8px 12px',

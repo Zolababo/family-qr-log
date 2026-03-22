@@ -234,6 +234,15 @@ body {
   box-shadow: none !important;
 }
 
+/* 설정 모달 언어 칩: 포커스 시 흰 배경/녹색 링 제거 (목록 필터 칩과 동일) */
+[data-accessibility-root] .settings-lang-btn:focus,
+[data-accessibility-root] .settings-lang-btn:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
 /* ========== 멤버 필터 (가로 스크롤 pill, 스크롤바 숨김) ========== */
 .member-filter-scroll {
   scrollbar-width: none;

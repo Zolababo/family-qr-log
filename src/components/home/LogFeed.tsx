@@ -36,7 +36,7 @@ type Theme = {
 };
 
 type LogFeedProps = {
-  activeTab: 'home' | 'calendar' | 'qr' | 'search';
+  activeTab: 'home' | 'calendar' | 'search';
   searchQuery: string;
   setSearchQuery: (v: string) => void;
   t: (key: string) => string;
@@ -66,6 +66,8 @@ type LogFeedProps = {
   longPressTimerRef: RefObject<NodeJS.Timeout | null>;
   setActionPopupLogId: (v: string | null) => void;
   onPickSticker?: (logId: string) => void;
+  /** 스티커 오버레이를 다시 누르면 제거 */
+  onStickerRemove?: (logId: string) => void;
 };
 
 export function LogFeed({
@@ -99,6 +101,7 @@ export function LogFeed({
   longPressTimerRef,
   setActionPopupLogId,
   onPickSticker,
+  onStickerRemove,
 }: LogFeedProps) {
   const parseLogMeta = (actionText: string): { text: string; locationName?: string; locationUrl?: string; stickers?: string[] } => {
     const marker = '\n@@meta:';
@@ -338,24 +341,33 @@ export function LogFeed({
                               }}
                             >
                               {parseLogMeta(log.action).stickers?.[0] && (
-                                <div
-                                  aria-hidden
+                                <button
+                                  type="button"
+                                  aria-label={t('stickerRemoveAria')}
+                                  title={t('stickerRemoveHint')}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onStickerRemove?.(log.id);
+                                  }}
                                   style={{
                                     position: 'absolute',
                                     top: 8,
                                     left: 8,
                                     zIndex: 3,
-                                    background: 'rgba(0,0,0,0.28)',
+                                    background: 'rgba(0,0,0,0.42)',
                                     color: '#fff',
                                     padding: '6px 8px',
                                     borderRadius: 999,
                                     fontSize: 18,
                                     lineHeight: 1,
-                                    pointerEvents: 'none',
+                                    cursor: 'pointer',
+                                    border: 'none',
+                                    fontFamily: 'inherit',
                                   }}
                                 >
                                   {parseLogMeta(log.action).stickers?.[0]}
-                                </div>
+                                </button>
                               )}
                               {imageUrls.map((url, i) => (
                                 <a

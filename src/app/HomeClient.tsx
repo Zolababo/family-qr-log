@@ -5,9 +5,8 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
-import jsQR from 'jsqr';
 import { getT, langLabels, type Lang } from './translations';
-import { Calendar, Camera, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus } from 'lucide-react';
+import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus, MoreVertical } from 'lucide-react';
 import { LOG_SLUG, type LogFilterKey, filterSlugForQuery } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { AppHeader } from '../components/layout/AppHeader';
@@ -181,7 +180,6 @@ export default function HomeClient() {
 
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editingAction, setEditingAction] = useState('');
-  const [showScanner, setShowScanner] = useState(false);
   const [actionPopupLogId, setActionPopupLogId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [searchQuery, setSearchQuery] = useState('');
@@ -206,10 +204,6 @@ export default function HomeClient() {
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const memoSwipeStartRef = useRef<number | null>(null);
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const scanLoopRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
   const memoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -306,27 +300,6 @@ export default function HomeClient() {
 
   useEffect(() => {
     try {
-      const n = localStorage.getItem('family_qr_log_notice');
-      const s = localStorage.getItem('family_qr_log_shopping');
-      if (n) setFamilyNotice(n);
-      if (s) setShoppingList(s);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('family_qr_log_notice', familyNotice);
-    } catch {}
-  }, [familyNotice]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('family_qr_log_shopping', shoppingList);
-    } catch {}
-  }, [shoppingList]);
-
-  useEffect(() => {
-    try {
       const raw = localStorage.getItem(MEMO_KEY);
       if (raw != null) setMemoContent(raw);
     } catch {}
@@ -336,13 +309,48 @@ export default function HomeClient() {
     if (!householdId || !user) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase.from('household_memos').select('content').eq('household_id', householdId).maybeSingle();
+      const { data, error } = await supabase
+        .from('household_memos')
+        .select('content, family_notice, shopping_list')
+        .eq('household_id', householdId)
+        .maybeSingle();
       if (cancelled) return;
-      if (error) return;
+      if (error) {
+        const { data: fallback } = await supabase.from('household_memos').select('content').eq('household_id', householdId).maybeSingle();
+        if (!cancelled && fallback && typeof fallback.content === 'string') {
+          setMemoContent(fallback.content);
+          try {
+            localStorage.setItem(MEMO_KEY, fallback.content);
+          } catch {}
+        }
+        try {
+          const n = localStorage.getItem('family_qr_log_notice');
+          const s = localStorage.getItem('family_qr_log_shopping');
+          if (n) setFamilyNotice(n);
+          if (s) setShoppingList(s);
+        } catch {}
+        return;
+      }
       if (data && typeof data.content === 'string') {
         setMemoContent(data.content);
         try {
           localStorage.setItem(MEMO_KEY, data.content);
+        } catch {}
+      }
+      if (data && typeof data.family_notice === 'string') {
+        setFamilyNotice(data.family_notice);
+      } else {
+        try {
+          const n = localStorage.getItem('family_qr_log_notice');
+          if (n) setFamilyNotice(n);
+        } catch {}
+      }
+      if (data && typeof data.shopping_list === 'string') {
+        setShoppingList(data.shopping_list);
+      } else {
+        try {
+          const s = localStorage.getItem('family_qr_log_shopping');
+          if (s) setShoppingList(s);
         } catch {}
       }
     })();
@@ -355,13 +363,26 @@ export default function HomeClient() {
     try {
       localStorage.setItem(MEMO_KEY, memoContent);
     } catch {}
+    try {
+      localStorage.setItem('family_qr_log_notice', familyNotice);
+      localStorage.setItem('family_qr_log_shopping', shoppingList);
+    } catch {}
     if (!householdId || !user) return;
     if (memoSaveTimerRef.current) clearTimeout(memoSaveTimerRef.current);
     memoSaveTimerRef.current = setTimeout(async () => {
-      const { error } = await supabase.from('household_memos').upsert(
-        { household_id: householdId, content: memoContent },
-        { onConflict: 'household_id' }
-      );
+      const full = {
+        household_id: householdId,
+        content: memoContent,
+        family_notice: familyNotice,
+        shopping_list: shoppingList,
+      };
+      let { error } = await supabase.from('household_memos').upsert(full, { onConflict: 'household_id' });
+      if (error && /family_notice|shopping_list|schema|column/i.test(error.message ?? '')) {
+        const res = await supabase
+          .from('household_memos')
+          .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' });
+        error = res.error;
+      }
       if (error && /relation|does not exist/i.test(error.message ?? '')) {
         // Supabase에 household_memos 테이블 생성 후 가족 간 동기화 (DEPLOY.md 참고)
       }
@@ -369,7 +390,7 @@ export default function HomeClient() {
     return () => {
       if (memoSaveTimerRef.current) clearTimeout(memoSaveTimerRef.current);
     };
-  }, [memoContent, householdId, user]);
+  }, [memoContent, familyNotice, shoppingList, householdId, user]);
 
   useEffect(() => {
     if (!status) return;
@@ -443,53 +464,6 @@ export default function HomeClient() {
   }, [highContrast, fontScaleStep, fontBold, simpleMode, language]);
 
   const t = useMemo(() => getT(language), [language]);
-
-  useEffect(() => {
-    if (!showScanner || typeof window === 'undefined') return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
-
-    const tick = () => {
-      if (!video || !canvas || !streamRef.current) return;
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-        if (code) {
-          const url = code.data;
-          const match = url.match(/[?&]place=(fridge|table|toilet)/i);
-          const place = match ? match[1].toLowerCase() : null;
-          if (place) {
-            streamRef.current.getTracks().forEach((t) => t.stop());
-            streamRef.current = null;
-            setShowScanner(false);
-            window.location.href = `${window.location.origin}?place=${place}`;
-            return;
-          }
-        }
-      }
-      scanLoopRef.current = requestAnimationFrame(tick);
-    };
-
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then((stream) => {
-      streamRef.current = stream;
-      video.srcObject = stream;
-      video.play().then(() => { tick(); });
-    }).catch(() => {
-      setShowScanner(false);
-    });
-
-    return () => {
-      if (scanLoopRef.current) cancelAnimationFrame(scanLoopRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    };
-  }, [showScanner]);
 
   const loadLogs = useCallback(
     async (hid: string, slug: string | undefined, actorUserId?: string) => {
@@ -612,10 +586,9 @@ export default function HomeClient() {
       if (!targetLog) return;
 
       const parsed = parseLogMeta(targetLog.action);
-      const nextMeta: LogMeta = {
-        ...parsed.meta,
-        stickers: sticker ? [sticker] : undefined,
-      };
+      const nextMeta: LogMeta = { ...parsed.meta };
+      if (sticker) nextMeta.stickers = [sticker];
+      else delete nextMeta.stickers;
       const nextAction = composeActionWithMeta(parsed.text, nextMeta);
 
       const { error } = await supabase
@@ -1021,41 +994,48 @@ export default function HomeClient() {
               <>
                 <div
                   style={{
+                    position: 'relative',
                     marginBottom: 10,
                     padding: '10px 12px',
+                    paddingRight: 44,
                     borderRadius: theme.radiusLg,
                     border: theme.border,
                     background: theme.card,
                     boxShadow: theme.cardShadow,
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: familyNotesEditing ? 8 : 0 }}>
-                    <button
-                      type="button"
-                      onClick={() => setFamilyNotesEditing((v) => !v)}
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        padding: '6px 12px',
-                        borderRadius: 8,
-                        border: '1px solid #e2e8f0',
-                        background: highContrast ? '#1e1e1e' : '#f1f5f9',
-                        color: highContrast ? '#ffc107' : '#2563eb',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {familyNotesEditing ? t('doneEditing') : t('editFamilyNotes')}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFamilyNotesEditing((v) => !v)}
+                    aria-label={familyNotesEditing ? t('doneEditing') : t('editFamilyNotes')}
+                    aria-expanded={familyNotesEditing}
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      width: 36,
+                      height: 36,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: 10,
+                      border: '1px solid #e2e8f0',
+                      background: highContrast ? '#1e1e1e' : '#f8fafc',
+                      color: highContrast ? '#ffc107' : '#64748b',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <MoreVertical size={20} strokeWidth={1.75} aria-hidden />
+                  </button>
                   {!familyNotesEditing ? (
                     <div style={{ fontSize: 13, lineHeight: 1.65, color: theme.text }}>
                       <div>
                         <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('familyNotice')}</span>
-                        {familyNotice.trim() ? familyNotice : t('emptyMemo')}
+                        <span style={{ whiteSpace: 'pre-wrap' }}>{familyNotice.trim() ? familyNotice : t('emptyMemo')}</span>
                       </div>
                       <div style={{ marginTop: 8 }}>
                         <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('shoppingListTitle')}</span>
-                        {shoppingList.trim() ? shoppingList : t('emptyMemo')}
+                        <span style={{ whiteSpace: 'pre-wrap' }}>{shoppingList.trim() ? shoppingList : t('emptyMemo')}</span>
                       </div>
                     </div>
                   ) : (
@@ -1064,12 +1044,12 @@ export default function HomeClient() {
                         <label htmlFor="family-notice-input" style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>
                           {t('familyNotice')}
                         </label>
-                        <input
+                        <textarea
                           id="family-notice-input"
-                          type="text"
                           value={familyNotice}
                           onChange={(e) => setFamilyNotice(e.target.value)}
                           placeholder={t('familyNoticePlaceholder')}
+                          rows={3}
                           style={{
                             width: '100%',
                             boxSizing: 'border-box',
@@ -1077,29 +1057,40 @@ export default function HomeClient() {
                             border: '1px solid #e2e8f0',
                             padding: '10px 12px',
                             fontSize: 13,
+                            lineHeight: 1.5,
+                            resize: 'vertical',
+                            minHeight: 72,
                             background: highContrast ? '#1e1e1e' : '#fff',
                             color: theme.text,
                             outline: 'none',
+                            fontFamily: 'inherit',
                           }}
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>{t('shoppingListTitle')}</label>
-                        <input
-                          type="text"
+                        <label htmlFor="shopping-list-input" style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>
+                          {t('shoppingListTitle')}
+                        </label>
+                        <textarea
+                          id="shopping-list-input"
                           value={shoppingList}
                           onChange={(e) => setShoppingList(e.target.value)}
                           placeholder={t('shoppingPlaceholder')}
+                          rows={3}
                           style={{
                             width: '100%',
                             boxSizing: 'border-box',
                             borderRadius: 10,
                             border: '1px solid #e2e8f0',
-                            padding: '8px 10px',
+                            padding: '10px 12px',
                             fontSize: 13,
+                            lineHeight: 1.5,
+                            resize: 'vertical',
+                            minHeight: 72,
                             background: highContrast ? '#1e1e1e' : '#f8fafc',
                             color: theme.text,
                             outline: 'none',
+                            fontFamily: 'inherit',
                           }}
                         />
                       </div>
@@ -1196,46 +1187,6 @@ export default function HomeClient() {
 
               </section>
             ) : null}
-            {activeTab === 'qr' && (
-              <section
-                style={{
-                  marginBottom: 20,
-                  padding: '20px 16px',
-                  borderRadius: 16,
-                  background: highContrast ? '#1e1e1e' : '#f8fafc',
-                  border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
-                  color: highContrast ? '#ffffff' : '#475569',
-                  fontSize: 14,
-                  textAlign: 'center',
-                }}
-              >
-                <p style={{ margin: '0 0 8px', fontSize: 14 }}>{t('scanQrFirst')} {t('scanQrSecond')}</p>
-                <p style={{ margin: '0 0 16px', fontSize: 12, color: highContrast ? '#cbd5e1' : '#64748b', lineHeight: 1.5 }}>{t('qrTabGuest')}</p>
-                <button
-                  type="button"
-                  onClick={() => setShowScanner(true)}
-                  aria-label={t('qrScan')}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '14px 20px',
-                    borderRadius: 14,
-                    border: 'none',
-                    background: highContrast ? '#ffc107' : 'linear-gradient(135deg, #3b82f6, #06b6d4)',
-                    color: highContrast ? '#0f0f0f' : '#fff',
-                    fontSize: 15,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Camera size={20} strokeWidth={1.5} aria-hidden />
-                  {t('qrScan')}
-                </button>
-                <p style={{ margin: '12px 0 0', fontSize: 12, color: highContrast ? '#e0e0e0' : '#64748b' }}>{t('scanHint1')} {t('scanHint2')}</p>
-              </section>
-            )}
-
             {activeTab === 'calendar' && (
               <section aria-label="캘린더" style={{ marginBottom: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
@@ -1619,6 +1570,9 @@ export default function HomeClient() {
               longPressTimerRef={longPressTimerRef}
               setActionPopupLogId={setActionPopupLogId}
               onPickSticker={(logId) => openStickerPicker(logId)}
+              onStickerRemove={(logId) => {
+                void applyStickerToLog(logId, null);
+              }}
             />
           </>
         )}
@@ -2006,7 +1960,6 @@ export default function HomeClient() {
         <BottomTabBar
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          onQrPress={() => setShowScanner(true)}
           t={t}
           highContrast={highContrast}
           language={language}
@@ -2150,59 +2103,6 @@ export default function HomeClient() {
             }}
             onClick={() => setEnlargedAvatarUrl(null)}
           />
-        </div>
-      )}
-
-      {showScanner && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.85)',
-            zIndex: 100,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-          }}
-        >
-          <div style={{ fontSize: 16, color: '#fff', marginBottom: 12 }}>{t('qrScanTitle')}</div>
-          <div
-            style={{
-              width: 280,
-              height: 280,
-              borderRadius: 16,
-              overflow: 'hidden',
-              border: '3px solid #fff',
-              background: '#000',
-            }}
-          >
-            <video
-              ref={videoRef}
-              muted
-              playsInline
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-            <canvas ref={canvasRef} style={{ display: 'none' }} />
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowScanner(false)}
-            style={{
-              marginTop: 20,
-              padding: '12px 24px',
-              borderRadius: 12,
-              border: 'none',
-              background: '#64748b',
-              color: '#fff',
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            {t('close')}
-          </button>
         </div>
       )}
 
