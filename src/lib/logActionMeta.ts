@@ -2,6 +2,7 @@ export type LogMeta = {
   locationName?: string;
   locationUrl?: string;
   stickers?: string[];
+  stickerByUser?: Record<string, string>;
 };
 
 export function parseLogMeta(actionText: string): { text: string; meta: LogMeta } {
@@ -20,7 +21,12 @@ export function parseLogMeta(actionText: string): { text: string; meta: LogMeta 
 
 export function composeActionWithMeta(text: string, meta: LogMeta): string {
   const cleanText = text.trim() || 'clicked';
-  const hasMeta = !!(meta.locationName || meta.locationUrl || (meta.stickers && meta.stickers.length > 0));
+  const hasMeta = !!(
+    meta.locationName ||
+    meta.locationUrl ||
+    (meta.stickers && meta.stickers.length > 0) ||
+    (meta.stickerByUser && Object.keys(meta.stickerByUser).length > 0)
+  );
   if (!hasMeta) return cleanText;
   return `${cleanText}\n@@meta:${JSON.stringify(meta)}`;
 }

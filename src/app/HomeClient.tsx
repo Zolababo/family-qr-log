@@ -360,6 +360,42 @@ export default function HomeClient() {
   }, [householdId, user]);
 
   useEffect(() => {
+    if (!householdId) return;
+    const pull = async () => {
+      const { data } = await supabase
+        .from('household_memos')
+        .select('content, family_notice, shopping_list')
+        .eq('household_id', householdId)
+        .maybeSingle();
+      if (!data) return;
+      if (typeof data.content === 'string') setMemoContent(data.content);
+      if (typeof data.family_notice === 'string') setFamilyNotice(data.family_notice);
+      if (typeof data.shopping_list === 'string') setShoppingList(data.shopping_list);
+    };
+    const channel = supabase
+      .channel(`household-memos-${householdId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'household_memos', filter: `household_id=eq.${householdId}` },
+        (payload) => {
+          const next = payload.new as { content?: string; family_notice?: string; shopping_list?: string } | null;
+          if (!next) return;
+          if (typeof next.content === 'string') setMemoContent(next.content);
+          if (typeof next.family_notice === 'string') setFamilyNotice(next.family_notice);
+          if (typeof next.shopping_list === 'string') setShoppingList(next.shopping_list);
+        }
+      )
+      .subscribe();
+    const timer = window.setInterval(() => {
+      void pull();
+    }, 5000);
+    return () => {
+      window.clearInterval(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [householdId]);
+
+  useEffect(() => {
     try {
       localStorage.setItem(MEMO_KEY, memoContent);
     } catch {}
@@ -587,8 +623,12 @@ export default function HomeClient() {
 
       const parsed = parseLogMeta(targetLog.action);
       const nextMeta: LogMeta = { ...parsed.meta };
-      if (sticker) nextMeta.stickers = [sticker];
-      else delete nextMeta.stickers;
+      const byUser = { ...(nextMeta.stickerByUser ?? {}) };
+      if (sticker) byUser[user.id] = sticker;
+      else delete byUser[user.id];
+      nextMeta.stickerByUser = Object.keys(byUser).length > 0 ? byUser : undefined;
+      // legacy field cleanup
+      delete nextMeta.stickers;
       const nextAction = composeActionWithMeta(parsed.text, nextMeta);
 
       const { error } = await supabase
@@ -856,13 +896,15 @@ export default function HomeClient() {
   const growthTimelineLogs = useMemo(() => {
     return logs
       .filter((log) => {
+        const actorName = getMemberName(log.actor_user_id);
+        if (actorName !== '밤톨이') return false;
         const { imageUrls, videoUrl } = getLogMedia(log);
         if (imageUrls.length === 0 && !videoUrl) return false;
         const ts = new Date(log.created_at).getTime();
         return growthCutoffMs === 0 || ts >= growthCutoffMs;
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [logs, growthCutoffMs]);
+  }, [logs, growthCutoffMs, getMemberName]);
   const todayMemoryLogs = useMemo(() => {
     const now = new Date();
     const month = now.getMonth();
@@ -926,7 +968,7 @@ export default function HomeClient() {
         [data-accessibility-root][data-high-contrast="true"] h1, [data-accessibility-root][data-high-contrast="true"] h2, [data-accessibility-root][data-high-contrast="true"] strong { color: #ffffff !important; }
         [data-accessibility-root][data-high-contrast="true"] .acc-inner { background: #0f0f0f !important; color: #ffffff !important; border: 2px solid #ffc107 !important; box-shadow: none !important; }
         [data-accessibility-root][data-high-contrast="true"] select { background: #1e1e1e !important; color: #fff !important; border-color: #ffc107 !important; }
-        [data-accessibility-root] *:focus { outline: 3px solid var(--accent) !important; outline-offset: 2px; }
+        [data-accessibility-root] *:focus { outline: none !important; outline-offset: 0 !important; box-shadow: none !important; }
       `}</style>
       <a
         href="#main-content"
@@ -2137,8 +2179,7 @@ export default function HomeClient() {
                   <button
                     type="button"
                     onClick={() => {
-                      setEditingLogId(log.id);
-                      setEditingAction(log.action);
+                      router.push(`/write?edit=${encodeURIComponent(log.id)}`);
                       setActionPopupLogId(null);
                     }}
                     style={{

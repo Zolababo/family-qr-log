@@ -27,6 +27,7 @@ type MemberFilterProps = {
 const CHIP_HEIGHT = 78;
 const AVATAR_SIZE = 58;
 const AVATAR_RING_PAD = 6;
+const CUSTOM_MEMBER_LABELS = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리', '단이네', '우차차', '똘모닝'] as const;
 
 export function MemberFilter({
   user,
@@ -135,7 +136,7 @@ const avatarInnerWrap = {
             <Users size={20} strokeWidth={1.5} aria-hidden />
           </span>
         </span>
-        <span style={{ fontSize: 12, lineHeight: 1.1 }}>{t('allMembers')}</span>
+        <span style={{ fontSize: 12, lineHeight: 1.1 }}>전체</span>
       </button>
 
       {/* 나 */}
@@ -182,15 +183,14 @@ const avatarInnerWrap = {
             )}
           </span>
         </span>
-        <span style={{ fontSize: 12, lineHeight: 1.1, color: isSelected('me') ? 'var(--accent)' : 'var(--text-secondary)' }}>
-          {meDisplayName}
-        </span>
+        <span style={{ fontSize: 12, lineHeight: 1.1, color: isSelected('me') ? 'var(--accent)' : 'var(--text-secondary)' }}>다같이</span>
       </button>
 
       {members
         .filter((m) => m.user_id !== user.id)
-        .map((m) => {
-          const name = (m.display_name && m.display_name.trim()) || m.user_id.slice(0, 6);
+        .map((m, idx) => {
+          const fallbackName = (m.display_name && m.display_name.trim()) || m.user_id.slice(0, 6);
+          const name = CUSTOM_MEMBER_LABELS[idx] ?? fallbackName;
           const active = isSelected(m.user_id);
           const avatarUrl = m.avatar_url ?? null;
           const avatarFailed = avatarFailedUserIds.has(m.user_id);

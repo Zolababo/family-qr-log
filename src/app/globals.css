@@ -152,6 +152,11 @@ body {
   outline: none !important;
   outline-offset: 0 !important;
 }
+[data-accessibility-root] .bottom-tab-btn:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
 
 /* 멤버 프로필 선택 시 큰 녹색 외곽선(포커스 링) 제거 */
 [data-accessibility-root] .member-filter-scroll button:focus,
@@ -241,6 +246,15 @@ body {
   outline-offset: 0 !important;
   box-shadow: none !important;
   transform: none !important;
+}
+
+/* 링크/이미지 포커스 링 제거 */
+[data-accessibility-root] a:focus,
+[data-accessibility-root] a:focus-visible,
+[data-accessibility-root] img:focus,
+[data-accessibility-root] img:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* ========== 멤버 필터 (가로 스크롤 pill, 스크롤바 숨김) ========== */

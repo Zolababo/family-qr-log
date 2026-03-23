@@ -102,7 +102,7 @@ export function BottomTabBar({
             style={{
               position: 'absolute',
               right: 12,
-              top: -40,
+              top: -56,
               width: 48,
               height: 48,
               borderRadius: '50%',

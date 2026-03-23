@@ -103,15 +103,15 @@ export function LogFeed({
   onPickSticker,
   onStickerRemove,
 }: LogFeedProps) {
-  const parseLogMeta = (actionText: string): { text: string; locationName?: string; locationUrl?: string; stickers?: string[] } => {
+  const parseLogMeta = (actionText: string): { text: string; locationName?: string; locationUrl?: string; stickers?: string[]; stickerByUser?: Record<string, string> } => {
     const marker = '\n@@meta:';
     const idx = actionText.lastIndexOf(marker);
     if (idx < 0) return { text: actionText };
     const text = actionText.slice(0, idx).trim();
     const raw = actionText.slice(idx + marker.length).trim();
     try {
-      const parsed = JSON.parse(raw) as { locationName?: string; locationUrl?: string; stickers?: string[] };
-      return { text, locationName: parsed?.locationName, locationUrl: parsed?.locationUrl, stickers: parsed?.stickers };
+      const parsed = JSON.parse(raw) as { locationName?: string; locationUrl?: string; stickers?: string[]; stickerByUser?: Record<string, string> };
+      return { text, locationName: parsed?.locationName, locationUrl: parsed?.locationUrl, stickers: parsed?.stickers, stickerByUser: parsed?.stickerByUser };
     } catch {
       return { text: actionText };
     }
@@ -340,7 +340,15 @@ export function LogFeed({
                                 maxWidth: '100vw',
                               }}
                             >
-                              {parseLogMeta(log.action).stickers?.[0] && (
+                              {(() => {
+                                const parsed = parseLogMeta(log.action);
+                                const stickerMap = parsed.stickerByUser ?? {};
+                                const ownSticker = user ? stickerMap[user.id] : undefined;
+                                const stickers = Object.values(stickerMap);
+                                const fallback = parsed.stickers ?? [];
+                                const display = stickers.length > 0 ? stickers : fallback;
+                                if (display.length === 0) return null;
+                                return (
                                 <button
                                   type="button"
                                   aria-label={t('stickerRemoveAria')}
@@ -348,7 +356,7 @@ export function LogFeed({
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    onStickerRemove?.(log.id);
+                                    if (ownSticker || fallback.length > 0) onStickerRemove?.(log.id);
                                   }}
                                   style={{
                                     position: 'absolute',
@@ -359,16 +367,17 @@ export function LogFeed({
                                     color: '#fff',
                                     padding: '6px 8px',
                                     borderRadius: 999,
-                                    fontSize: 18,
+                                    fontSize: 16,
                                     lineHeight: 1,
-                                    cursor: 'pointer',
+                                    cursor: ownSticker || fallback.length > 0 ? 'pointer' : 'default',
                                     border: 'none',
                                     fontFamily: 'inherit',
                                   }}
                                 >
-                                  {parseLogMeta(log.action).stickers?.[0]}
+                                  {display.join(' ')}
                                 </button>
-                              )}
+                                );
+                              })()}
                               {imageUrls.map((url, i) => (
                                 <a
                                   key={i}

@@ -8,7 +8,7 @@ import { supabase } from '../api/supabaseClient';
 import { getT, type Lang } from '../translations';
 import { Camera, Image as ImageIcon, X, ChevronLeft, MapPin, Mic } from 'lucide-react';
 import { LOG_SLUG, TOPIC_SLUGS } from '../../lib/logTags';
-import { composeActionWithMeta, type LogMeta } from '../../lib/logActionMeta';
+import { composeActionWithMeta, parseLogMeta, type LogMeta } from '../../lib/logActionMeta';
 import { compressImageFile, VIDEO_MAX_MB } from '../../lib/imageCompress';
 
 const QUICK_PHRASES_KEY = 'family_qr_log_quick_phrases';
@@ -109,6 +109,7 @@ export default function WriteLogClient() {
   const drawCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawLastRef = useRef<{ x: number; y: number } | null>(null);
   const drawActiveRef = useRef(false);
+  const drawHistoryRef = useRef<ImageData[]>([]);
   const [editImageIndex, setEditImageIndex] = useState<number | null>(null);
   const [editImageTag, setEditImageTag] = useState('');
   const [editImageFilter, setEditImageFilter] = useState<'none' | 'grayscale' | 'sepia'>('none');
@@ -117,6 +118,8 @@ export default function WriteLogClient() {
 
   const fontScale = FONT_STEPS[fontScaleStep];
   const effectivePlaceSlug = selectedLogTag ?? LOG_SLUG.general;
+  const editingLogId = searchParams.get('edit');
+  const isEditMode = !!editingLogId;
 
   useEffect(() => {
     const init = async () => {
@@ -190,9 +193,44 @@ export default function WriteLogClient() {
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
+    drawHistoryRef.current = [ctx.getImageData(0, 0, w, h)];
     drawLastRef.current = null;
     drawActiveRef.current = false;
   }, [showDrawModal]);
+
+  useEffect(() => {
+    if (!user || !householdId || !editingLogId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.from('logs').select('*').eq('id', editingLogId).eq('household_id', householdId).maybeSingle();
+      if (cancelled || error || !data) return;
+      if (data.actor_user_id !== user.id) {
+        setStatus('본인이 작성한 로그만 수정할 수 있어요.');
+        return;
+      }
+      const parsed = parseLogMeta(data.action ?? '');
+      setAction(parsed.text ?? '');
+      setLogLocationName(parsed.meta.locationName ?? '');
+      setLogLocationUrl(parsed.meta.locationUrl ?? '');
+      setSelectedLogTag(data.place_slug ?? LOG_SLUG.general);
+      const imageUrls: string[] = [];
+      if (data.image_urls) {
+        try {
+          const arr = JSON.parse(data.image_urls);
+          if (Array.isArray(arr)) imageUrls.push(...arr.filter((x): x is string => typeof x === 'string'));
+        } catch {}
+      }
+      if (imageUrls.length === 0 && data.image_url) imageUrls.push(data.image_url);
+      setLogImagePreviews(imageUrls);
+      setLogImageFiles([]);
+      if (data.video_url) setLogVideoPreview(data.video_url);
+      else setLogVideoPreview(null);
+      setLogVideoFile(null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, householdId, editingLogId]);
 
   const t = useMemo(() => getT(language), [language]);
 
@@ -311,11 +349,12 @@ export default function WriteLogClient() {
 
   const handleInsert = async () => {
     if (!user || !householdId) return;
+    if (isEditMode && !editingLogId) return;
 
     setLoading(true);
     setStatus(null);
 
-    const imageUrls: string[] = [];
+    const uploadedImageUrls: string[] = [];
     for (let i = 0; i < logImageFiles.length; i++) {
       const file = logImageFiles[i];
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -331,10 +370,12 @@ export default function WriteLogClient() {
         return;
       }
       const { data: urlData } = supabase.storage.from('log-images').getPublicUrl(path);
-      imageUrls.push(urlData.publicUrl);
+      uploadedImageUrls.push(urlData.publicUrl);
     }
+    const retainedRemoteImageUrls = logImagePreviews.filter((u) => /^https?:\/\//i.test(u));
+    const imageUrls = [...retainedRemoteImageUrls, ...uploadedImageUrls];
 
-    let videoUrl: string | null = null;
+    let videoUrl: string | null = /^https?:\/\//i.test(logVideoPreview ?? '') ? (logVideoPreview as string) : null;
     if (logVideoFile) {
       const ext = logVideoFile.name.split('.').pop() || 'mp4';
       const path = `${householdId}/v/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
@@ -361,6 +402,9 @@ export default function WriteLogClient() {
       place_slug: effectivePlaceSlug,
       action: composeActionWithMeta(action || 'clicked', meta),
       actor_user_id: user.id,
+      image_url: null,
+      image_urls: null,
+      video_url: null,
     };
     if (imageUrls.length > 0) {
       payload.image_url = imageUrls[0];
@@ -368,12 +412,21 @@ export default function WriteLogClient() {
     }
     if (videoUrl) payload.video_url = videoUrl;
 
-    let { error } = await supabase.from('logs').insert(payload);
+    let error: { message: string } | null = null;
+    if (isEditMode && editingLogId) {
+      const res = await supabase.from('logs').update(payload).eq('id', editingLogId).eq('actor_user_id', user.id);
+      error = res.error;
+    } else {
+      const res = await supabase.from('logs').insert(payload);
+      error = res.error;
+    }
     if (error && imageUrls.length > 0 && /image_urls|schema\s*cache|column/i.test(error.message)) {
       const fallback = { ...payload };
       delete fallback.image_urls;
       (fallback as Record<string, unknown>).image_url = imageUrls[0];
-      const res = await supabase.from('logs').insert(fallback);
+      const res = isEditMode && editingLogId
+        ? await supabase.from('logs').update(fallback).eq('id', editingLogId).eq('actor_user_id', user.id)
+        : await supabase.from('logs').insert(fallback);
       error = res.error;
     }
     if (error) {
@@ -511,7 +564,7 @@ export default function WriteLogClient() {
         >
           <ChevronLeft size={22} strokeWidth={1.5} aria-hidden />
         </Link>
-        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, flex: 1 }}>{t('writeLogTitle')}</h1>
+        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, flex: 1 }}>{isEditMode ? t('edit') : t('writeLogTitle')}</h1>
       </header>
 
       <div style={{ padding: '16px 16px 24px', maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -1007,7 +1060,7 @@ export default function WriteLogClient() {
             boxShadow: 'var(--shadow-card)',
           }}
         >
-          {loading ? t('savingLog') : t('quickPost')}
+          {loading ? t('savingLog') : isEditMode ? t('save') : t('quickPost')}
         </button>
       </div>
 
@@ -1177,6 +1230,11 @@ export default function WriteLogClient() {
                 drawLastRef.current = { x, y };
               }}
               onPointerUp={() => {
+                const canvas = drawCanvasRef.current;
+                const ctx = canvas?.getContext('2d');
+                if (ctx) {
+                  drawHistoryRef.current.push(ctx.getImageData(0, 0, 320, 280));
+                }
                 drawActiveRef.current = false;
                 drawLastRef.current = null;
               }}
@@ -1191,10 +1249,25 @@ export default function WriteLogClient() {
                 onClick={() => {
                   const canvas = drawCanvasRef.current;
                   const ctx = canvas?.getContext('2d');
+                  if (!ctx || drawHistoryRef.current.length <= 1) return;
+                  drawHistoryRef.current.pop();
+                  const prev = drawHistoryRef.current[drawHistoryRef.current.length - 1];
+                  if (prev) ctx.putImageData(prev, 0, 0);
+                }}
+                style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 13, cursor: 'pointer' }}
+              >
+                되돌리기
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const canvas = drawCanvasRef.current;
+                  const ctx = canvas?.getContext('2d');
                   if (ctx) {
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, 320, 280);
                     ctx.strokeStyle = '#000000';
+                    drawHistoryRef.current = [ctx.getImageData(0, 0, 320, 280)];
                   }
                 }}
                 style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 13, cursor: 'pointer' }}
