@@ -54,22 +54,17 @@ function loadAccessibility(): {
   }
 }
 
-function topicLabelKey(slug: (typeof TOPIC_SLUGS)[number]): string {
-  switch (slug) {
-    case 'health':
-      return 'topicHealth';
-    case 'diet':
-      return 'topicDiet';
-    case 'kid':
-      return 'topicKid';
-    case 'outing':
-      return 'topicOuting';
-    case 'parking':
-      return 'topicParking';
-    default:
-      return 'logGeneral';
-  }
-}
+const MEMBER_LIKE_TAGS: { value: string | null; label: string }[] = [
+  { value: null, label: '전체' },
+  { value: LOG_SLUG.general, label: '다같이' },
+  { value: TOPIC_SLUGS[0], label: '밤톨대디' },
+  { value: TOPIC_SLUGS[1], label: '밤톨맘' },
+  { value: TOPIC_SLUGS[2], label: '밤톨이' },
+  { value: TOPIC_SLUGS[3], label: '엄니아부지' },
+  { value: TOPIC_SLUGS[4], label: '마더리빠더리' },
+  { value: LOG_SLUG.fridge, label: '단이네 우차차' },
+  { value: LOG_SLUG.table, label: '똘모닝' },
+];
 
 export default function WriteLogClient() {
   const router = useRouter();
@@ -193,7 +188,7 @@ export default function WriteLogClient() {
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
-    drawHistoryRef.current = [ctx.getImageData(0, 0, w, h)];
+    drawHistoryRef.current = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
     drawLastRef.current = null;
     drawActiveRef.current = false;
   }, [showDrawModal]);
@@ -584,41 +579,24 @@ export default function WriteLogClient() {
             flexWrap: 'nowrap',
           }}
         >
-          <button
-            type="button"
-            onClick={() => setSelectedLogTag(null)}
-            style={{
-              flexShrink: 0,
-              padding: '6px 12px',
-              borderRadius: 999,
-              border: '1px solid #e2e8f0',
-              background: selectedLogTag == null ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
-              color: selectedLogTag == null ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
-              fontSize: 12,
-              fontWeight: selectedLogTag == null ? 600 : 400,
-              cursor: 'pointer',
-            }}
-          >
-            {t('logGeneral')}
-          </button>
-          {TOPIC_SLUGS.map((slug) => (
+          {MEMBER_LIKE_TAGS.map((tag) => (
             <button
-              key={slug}
+              key={tag.label}
               type="button"
-              onClick={() => setSelectedLogTag(slug)}
+              onClick={() => setSelectedLogTag(tag.value)}
               style={{
                 flexShrink: 0,
                 padding: '6px 12px',
                 borderRadius: 999,
                 border: '1px solid #e2e8f0',
-                background: selectedLogTag === slug ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
-                color: selectedLogTag === slug ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
+                background: selectedLogTag === tag.value ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
+                color: selectedLogTag === tag.value ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
                 fontSize: 12,
-                fontWeight: selectedLogTag === slug ? 600 : 400,
+                fontWeight: selectedLogTag === tag.value ? 600 : 400,
                 cursor: 'pointer',
               }}
             >
-              {t(topicLabelKey(slug))}
+              {tag.label}
             </button>
           ))}
         </div>
@@ -765,7 +743,7 @@ export default function WriteLogClient() {
                   onClick={() => {
                     if (!logLocationName.trim()) return;
                     const q = encodeURIComponent(logLocationName.trim());
-                    setLogLocationUrl(`https://www.google.com/maps/search/?api=1&query=${q}`);
+                    window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank', 'noopener,noreferrer');
                   }}
                   style={{
                     border: '1px solid #e2e8f0',
@@ -777,14 +755,14 @@ export default function WriteLogClient() {
                     cursor: 'pointer',
                   }}
                 >
-                  {t('writeOpenMaps')}
+                  지도에서 검색
                 </button>
               </div>
               <input
                 type="url"
                 value={logLocationUrl}
                 onChange={(e) => setLogLocationUrl(e.target.value)}
-                placeholder="Google Maps URL"
+                placeholder="검색 후 복사한 Google Maps URL 붙여넣기"
                 style={{
                   width: '100%',
                   boxSizing: 'border-box',
@@ -1232,8 +1210,8 @@ export default function WriteLogClient() {
               onPointerUp={() => {
                 const canvas = drawCanvasRef.current;
                 const ctx = canvas?.getContext('2d');
-                if (ctx) {
-                  drawHistoryRef.current.push(ctx.getImageData(0, 0, 320, 280));
+                if (ctx && canvas) {
+                  drawHistoryRef.current.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
                 }
                 drawActiveRef.current = false;
                 drawLastRef.current = null;
@@ -1254,7 +1232,7 @@ export default function WriteLogClient() {
                   const prev = drawHistoryRef.current[drawHistoryRef.current.length - 1];
                   if (prev) ctx.putImageData(prev, 0, 0);
                 }}
-                style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 13, cursor: 'pointer' }}
+                style={{ flex: 1, minHeight: 42, padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
                 되돌리기
               </button>
@@ -1263,14 +1241,14 @@ export default function WriteLogClient() {
                 onClick={() => {
                   const canvas = drawCanvasRef.current;
                   const ctx = canvas?.getContext('2d');
-                  if (ctx) {
+                  if (ctx && canvas) {
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, 320, 280);
                     ctx.strokeStyle = '#000000';
-                    drawHistoryRef.current = [ctx.getImageData(0, 0, 320, 280)];
+                    drawHistoryRef.current = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
                   }
                 }}
-                style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 13, cursor: 'pointer' }}
+                style={{ flex: 1, minHeight: 42, padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
                 {t('writeDrawClear')}
               </button>
@@ -1289,7 +1267,7 @@ export default function WriteLogClient() {
                     setShowDrawModal(false);
                   }, 'image/png');
                 }}
-                style={{ flex: 1, padding: '10px 16px', borderRadius: 10, border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                style={{ flex: 1, minHeight: 42, padding: '10px 12px', borderRadius: 10, border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center' }}
               >
                 {t('writeDrawDone')}
               </button>

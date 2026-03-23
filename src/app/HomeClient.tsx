@@ -189,7 +189,7 @@ export default function HomeClient() {
     const d = new Date();
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   });
-  const [calendarPlaceFilter, setCalendarPlaceFilter] = useState<LogFilterKey>('all');
+  const [calendarMemberFilter, setCalendarMemberFilter] = useState<'all' | 'me' | string>('all');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [commentsByLogId, setCommentsByLogId] = useState<Record<string, LogComment[]>>({});
   const [replyingTo, setReplyingTo] = useState<{ logId: string; commentId: string } | null>(null);
@@ -860,8 +860,27 @@ export default function HomeClient() {
     return acc;
   }, []);
 
+  const calendarMemberOptions = useMemo(() => {
+    const labels = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리', '단이네 우차차', '똘모닝'];
+    const others = members
+      .filter((m) => m.user_id !== user?.id)
+      .map((m, idx) => ({
+        key: m.user_id,
+        label: labels[idx] ?? ((m.display_name && m.display_name.trim()) || m.user_id.slice(0, 6)),
+      }));
+    return [
+      { key: 'all' as const, label: '전체' },
+      { key: 'me' as const, label: '다같이' },
+      ...others,
+    ];
+  }, [members, user?.id]);
+
   const logsForCalendar =
-    calendarPlaceFilter === 'all' ? logs : logs.filter((l) => l.place_slug === calendarPlaceFilter);
+    calendarMemberFilter === 'all'
+      ? logs
+      : calendarMemberFilter === 'me'
+        ? logs.filter((l) => l.actor_user_id === user?.id)
+        : logs.filter((l) => l.actor_user_id === calendarMemberFilter);
   const [calYear, calMonth] = calendarYearMonth.split('-').map(Number);
   const calendarFirstDay = new Date(calYear, calMonth - 1, 1);
   const calendarLastDay = new Date(calYear, calMonth, 0);
@@ -1277,35 +1296,27 @@ export default function HomeClient() {
                     <ChevronRight size={20} strokeWidth={1.5} aria-hidden />
                   </button>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-                  {[
-                    { key: 'fridge' as const, labelKey: 'fridge' as const },
-                    { key: 'table' as const, labelKey: 'table' as const },
-                    { key: 'toilet' as const, labelKey: 'toilet' as const },
-                    { key: 'all' as const, labelKey: 'allPlaces' as const },
-                  ].map(({ key, labelKey }) => {
-                    const active = calendarPlaceFilter === key;
-                    const chipStyle = key === 'fridge' ? { bg: 'var(--place-fridge)', border: 'var(--place-fridge-icon)', color: 'var(--place-fridge-icon)' } :
-                      key === 'table' ? { bg: 'var(--place-table)', border: 'var(--place-table-icon)', color: 'var(--place-table-icon)' } :
-                      key === 'toilet' ? { bg: 'var(--place-toilet)', border: 'var(--place-toilet-icon)', color: 'var(--place-toilet-icon)' } :
-                      { bg: 'var(--bg-subtle)', border: 'var(--text-caption)', color: 'var(--text-secondary)' };
+                <div style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', gap: 6, marginBottom: 12, paddingBottom: 2 }}>
+                  {calendarMemberOptions.map(({ key, label }) => {
+                    const active = calendarMemberFilter === key;
                     return (
                       <button
                         key={key}
                         type="button"
-                        onClick={() => setCalendarPlaceFilter(key)}
+                        onClick={() => setCalendarMemberFilter(key)}
                         style={{
+                          flexShrink: 0,
                           padding: '6px 12px',
-                          borderRadius: 10,
-                          border: active ? `2px solid ${chipStyle.border}` : '1px solid #e2e8f0',
-                          background: active ? chipStyle.bg : highContrast ? '#1e1e1e' : '#f8fafc',
-                          color: active ? chipStyle.color : highContrast ? '#94a3b8' : '#64748b',
+                          borderRadius: 999,
+                          border: active ? '1px solid var(--accent)' : '1px solid #e2e8f0',
+                          background: active ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
+                          color: active ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
                           fontSize: 12,
                           fontWeight: active ? 600 : 400,
                           cursor: 'pointer',
                         }}
                       >
-                        {t(labelKey)}
+                        {label}
                       </button>
                     );
                   })}
@@ -1351,9 +1362,14 @@ export default function HomeClient() {
                           padding: 0,
                           border: 'none',
                           borderRadius: 8,
-                          background: selected ? (highContrast ? 'rgba(255,193,7,0.3)' : 'rgba(59,130,246,0.2)') :
-                            !isInMonth ? '#fff' : highContrast ? '#2a2a2a' : '#fff',
-                          color: !isInMonth ? (highContrast ? '#555' : '#cbd5e1') : selected ? (highContrast ? '#ffc107' : '#1d4ed8') : highContrast ? '#fff' : '#0f172a',
+                          background: selected ? (highContrast ? 'rgba(255,193,7,0.3)' : 'rgba(59,130,246,0.2)') : highContrast ? '#2a2a2a' : '#fff',
+                          color: !isInMonth
+                            ? (highContrast ? '#6b7280' : '#cbd5e1')
+                            : selected
+                              ? (highContrast ? '#ffc107' : '#1d4ed8')
+                              : highContrast
+                                ? '#fff'
+                                : '#0f172a',
                           fontSize: 13,
                           fontWeight: selected ? 700 : 500,
                           cursor: isInMonth ? 'pointer' : 'default',
@@ -1365,19 +1381,19 @@ export default function HomeClient() {
                         }}
                       >
                         <span style={{ lineHeight: 1 }}>{isInMonth ? dayNum : ''}</span>
-                        {count > 0 && (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              marginTop: 0,
-                              color: highContrast ? '#ffc107' : '#64748b',
-                              lineHeight: 1.1,
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {count}건
-                          </span>
-                        )}
+                        <span
+                          style={{
+                            fontSize: 10,
+                            marginTop: 0,
+                            minHeight: 12,
+                            color: highContrast ? '#ffc107' : '#64748b',
+                            lineHeight: 1.1,
+                            whiteSpace: 'nowrap',
+                            opacity: count > 0 ? 1 : 0,
+                          }}
+                        >
+                          {count > 0 ? `${count}건` : '0건'}
+                        </span>
                       </button>
                     );
                   })}

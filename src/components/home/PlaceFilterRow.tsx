@@ -28,81 +28,44 @@ const chip = (
   whiteSpace: 'nowrap' as const,
 });
 
-function topicLabelKey(slug: string): string {
-  switch (slug) {
-    case 'health':
-      return 'topicHealth';
-    case 'diet':
-      return 'topicDiet';
-    case 'kid':
-      return 'topicKid';
-    case 'outing':
-      return 'topicOuting';
-    case 'parking':
-      return 'topicParking';
-    default:
-      return 'logGeneral';
-  }
-}
-
-export function PlaceFilterRow({ filter, setFilter, t, highContrast }: PlaceFilterRowProps) {
-  const topicStyle = () => ({
-    bg: 'var(--accent-light)',
-    border: 'var(--accent)',
-    color: 'var(--accent)',
-  });
+export function PlaceFilterRow({ filter, setFilter, t: _t, highContrast }: PlaceFilterRowProps) {
+  const memberLikeTags: { key: LogFilterKey; label: string }[] = [
+    { key: 'all', label: '전체' },
+    { key: LOG_SLUG.general, label: '다같이' },
+    { key: TOPIC_SLUGS[0], label: '밤톨대디' },
+    { key: TOPIC_SLUGS[1], label: '밤톨맘' },
+    { key: TOPIC_SLUGS[2], label: '밤톨이' },
+    { key: TOPIC_SLUGS[3], label: '엄니아부지' },
+    { key: TOPIC_SLUGS[4], label: '마더리빠더리' },
+    { key: LOG_SLUG.fridge, label: '단이네 우차차' },
+    { key: LOG_SLUG.table, label: '똘모닝' },
+  ];
 
   return (
     <div style={{ marginTop: 4, marginBottom: 6, width: '100%' }}>
       <div
         style={{
           display: 'flex',
-          flexWrap: 'wrap',
+          flexWrap: 'nowrap',
+          overflowX: 'auto',
           gap: 6,
-          justifyContent: 'center',
+          justifyContent: 'flex-start',
           alignItems: 'center',
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: 2,
         }}
       >
-        <button
-          type="button"
-          className="log-filter-btn"
-          onClick={() => setFilter('all')}
-          style={chip(filter === 'all', 'var(--text-caption)', 'var(--bg-subtle)', 'var(--text-secondary)', highContrast)}
-        >
-          {t('filterAll')}
-        </button>
-        <button
-          type="button"
-          className="log-filter-btn"
-          onClick={() => setFilter(LOG_SLUG.general)}
-          style={chip(filter === LOG_SLUG.general, 'var(--accent)', 'var(--accent-light)', 'var(--accent)', highContrast)}
-        >
-          {t('logGeneral')}
-        </button>
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 6,
-          justifyContent: 'center',
-          marginTop: 6,
-        }}
-      >
-        {TOPIC_SLUGS.map((slug) => {
-          const st = topicStyle();
-          return (
-            <button
-              key={slug}
-              type="button"
-              className="log-filter-btn"
-              onClick={() => setFilter(slug)}
-              style={chip(filter === slug, st.border, st.bg, st.color, highContrast)}
-            >
-              {t(topicLabelKey(slug))}
-            </button>
-          );
-        })}
+        {memberLikeTags.map((tag) => (
+          <button
+            key={tag.key}
+            type="button"
+            className="log-filter-btn"
+            onClick={() => setFilter(tag.key)}
+            style={chip(filter === tag.key, 'var(--accent)', 'var(--accent-light)', 'var(--accent)', highContrast)}
+          >
+            {tag.label}
+          </button>
+        ))}
       </div>
     </div>
   );
