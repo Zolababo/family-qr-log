@@ -1,11 +1,9 @@
 'use client';
 
-import type { LogFilterKey } from '../../lib/logTags';
-import { LOG_SLUG, TOPIC_SLUGS } from '../../lib/logTags';
-
 type PlaceFilterRowProps = {
-  filter: LogFilterKey;
-  setFilter: (v: LogFilterKey) => void;
+  filter: string;
+  setFilter: (v: string) => void;
+  options: { key: string; label: string }[];
   t: (key: string) => string;
   highContrast: boolean;
 };
@@ -28,20 +26,7 @@ const chip = (
   whiteSpace: 'nowrap' as const,
 });
 
-export function PlaceFilterRow({ filter, setFilter, t: _t, highContrast }: PlaceFilterRowProps) {
-  const memberLikeTags: { key: LogFilterKey; label: string }[] = [
-    { key: 'all', label: '전체' },
-    { key: LOG_SLUG.general, label: '다같이' },
-    { key: TOPIC_SLUGS[0], label: '밤톨대디' },
-    { key: TOPIC_SLUGS[1], label: '밤톨맘' },
-    { key: TOPIC_SLUGS[2], label: '밤톨이' },
-    { key: TOPIC_SLUGS[3], label: '엄니아부지' },
-    { key: TOPIC_SLUGS[4], label: '마더리빠더리' },
-    { key: LOG_SLUG.fridge, label: '단이네' },
-    { key: LOG_SLUG.table, label: '우차차' },
-    { key: LOG_SLUG.toilet, label: '똘모닝' },
-  ];
-
+export function PlaceFilterRow({ filter, setFilter, options, t: _t, highContrast }: PlaceFilterRowProps) {
   return (
     <div style={{ marginTop: 4, marginBottom: 6, width: '100%' }}>
       <div
@@ -57,7 +42,7 @@ export function PlaceFilterRow({ filter, setFilter, t: _t, highContrast }: Place
           paddingBottom: 2,
         }}
       >
-        {memberLikeTags.map((tag) => (
+        {options.map((tag) => (
           <button
             key={tag.key}
             type="button"

@@ -7,7 +7,7 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
 import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus, MoreVertical } from 'lucide-react';
-import { LOG_SLUG, type LogFilterKey, filterSlugForQuery } from '../lib/logTags';
+import { LOG_SLUG } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { AppHeader } from '../components/layout/AppHeader';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
@@ -174,7 +174,7 @@ export default function HomeClient() {
   const [members, setMembers] = useState<Member[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<'all' | 'me' | string>('all');
-  const [placeViewFilter, setPlaceViewFilter] = useState<LogFilterKey>('all');
+  const [feedMemberFilter, setFeedMemberFilter] = useState<'all' | 'me' | string>('all');
   const [familyNotesEditing, setFamilyNotesEditing] = useState(false);
   const [familyNotice, setFamilyNotice] = useState('');
   const [shoppingList, setShoppingList] = useState('');
@@ -227,11 +227,16 @@ export default function HomeClient() {
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const memoSwipeStartRef = useRef<number | null>(null);
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
+  const sharedMemoTypingUntilRef = useRef(0);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
   const memoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fontScale = FONT_STEPS[fontScaleStep];
+  const canApplyIncomingSharedMemo = useCallback(() => {
+    const typing = Date.now() < sharedMemoTypingUntilRef.current;
+    return !typing && !familyNotesEditing && !showMemoPanel;
+  }, [familyNotesEditing, showMemoPanel]);
 
   useEffect(() => {
     const init = async () => {
@@ -342,7 +347,7 @@ export default function HomeClient() {
           .limit(1);
         const latest = fallbackLogs?.[0];
         const parsed = parseSharedMemoSnapshot(latest?.action);
-        if (!parsed || cancelled) return;
+        if (!parsed || cancelled || !canApplyIncomingSharedMemo()) return;
         if (typeof parsed.content === 'string') setMemoContent(parsed.content);
         if (typeof parsed.family_notice === 'string') setFamilyNotice(parsed.family_notice);
         if (typeof parsed.shopping_list === 'string') setShoppingList(parsed.shopping_list);
@@ -373,13 +378,13 @@ export default function HomeClient() {
         } catch {}
         return;
       }
-      if (data && typeof data.content === 'string') {
+      if (data && typeof data.content === 'string' && canApplyIncomingSharedMemo()) {
         setMemoContent(data.content);
         try {
           localStorage.setItem(MEMO_KEY, data.content);
         } catch {}
       }
-      if (data && typeof data.family_notice === 'string') {
+      if (data && typeof data.family_notice === 'string' && canApplyIncomingSharedMemo()) {
         setFamilyNotice(data.family_notice);
       } else {
         try {
@@ -387,7 +392,7 @@ export default function HomeClient() {
           if (n) setFamilyNotice(n);
         } catch {}
       }
-      if (data && typeof data.shopping_list === 'string') {
+      if (data && typeof data.shopping_list === 'string' && canApplyIncomingSharedMemo()) {
         setShoppingList(data.shopping_list);
       } else {
         try {
@@ -399,7 +404,7 @@ export default function HomeClient() {
     return () => {
       cancelled = true;
     };
-  }, [householdId, user]);
+  }, [householdId, user, canApplyIncomingSharedMemo]);
 
   useEffect(() => {
     if (!householdId) return;
@@ -410,6 +415,7 @@ export default function HomeClient() {
         .eq('household_id', householdId)
         .maybeSingle();
       if (!data) return;
+      if (!canApplyIncomingSharedMemo()) return;
       if (typeof data.content === 'string') setMemoContent(data.content);
       if (typeof data.family_notice === 'string') setFamilyNotice(data.family_notice);
       if (typeof data.shopping_list === 'string') setShoppingList(data.shopping_list);
@@ -424,7 +430,7 @@ export default function HomeClient() {
         .limit(1);
       const latest = data?.[0];
       const parsed = parseSharedMemoSnapshot(latest?.action);
-      if (!parsed) return;
+      if (!parsed || !canApplyIncomingSharedMemo()) return;
       if (typeof parsed.content === 'string') setMemoContent(parsed.content);
       if (typeof parsed.family_notice === 'string') setFamilyNotice(parsed.family_notice);
       if (typeof parsed.shopping_list === 'string') setShoppingList(parsed.shopping_list);
@@ -437,6 +443,7 @@ export default function HomeClient() {
         (payload) => {
           const next = payload.new as { content?: string; family_notice?: string; shopping_list?: string } | null;
           if (!next) return;
+          if (!canApplyIncomingSharedMemo()) return;
           if (typeof next.content === 'string') setMemoContent(next.content);
           if (typeof next.family_notice === 'string') setFamilyNotice(next.family_notice);
           if (typeof next.shopping_list === 'string') setShoppingList(next.shopping_list);
@@ -451,7 +458,7 @@ export default function HomeClient() {
       window.clearInterval(timer);
       void supabase.removeChannel(channel);
     };
-  }, [householdId]);
+  }, [householdId, canApplyIncomingSharedMemo]);
 
   useEffect(() => {
     try {
@@ -714,13 +721,12 @@ export default function HomeClient() {
         return;
       }
 
-      const placeSlugFilter = filterSlugForQuery(placeViewFilter);
-      const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
-      await loadLogs(householdId, placeSlugFilter, actorId);
+      const actorId = feedMemberFilter === 'all' ? undefined : feedMemberFilter === 'me' ? user.id : feedMemberFilter;
+      await loadLogs(householdId, undefined, actorId);
       setStickerPickerOpen(false);
       setStickerPickerLogId(null);
     },
-    [user, householdId, logs, placeViewFilter, selectedMemberId, loadLogs]
+    [user, householdId, logs, feedMemberFilter, loadLogs]
   );
 
   const pickSticker = (sticker: string | null) => {
@@ -731,18 +737,15 @@ export default function HomeClient() {
   useEffect(() => {
     if (!householdId || !user) return;
 
-    const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
-    const placeSlugFilter = filterSlugForQuery(placeViewFilter);
-
-    loadLogs(householdId, placeSlugFilter, actorId);
-  }, [householdId, placeViewFilter, selectedMemberId, user, loadLogs]);
+    const actorId = feedMemberFilter === 'all' ? undefined : feedMemberFilter === 'me' ? user.id : feedMemberFilter;
+    loadLogs(householdId, undefined, actorId);
+  }, [householdId, feedMemberFilter, user, loadLogs]);
 
   const refreshLogs = useCallback(() => {
     if (!householdId || !user) return;
-    const placeSlugFilter = filterSlugForQuery(placeViewFilter);
-    const actorId = selectedMemberId === 'all' ? undefined : selectedMemberId === 'me' ? user.id : selectedMemberId;
-    loadLogs(householdId, placeSlugFilter, actorId);
-  }, [householdId, placeViewFilter, selectedMemberId, user, loadLogs]);
+    const actorId = feedMemberFilter === 'all' ? undefined : feedMemberFilter === 'me' ? user.id : feedMemberFilter;
+    loadLogs(householdId, undefined, actorId);
+  }, [householdId, feedMemberFilter, user, loadLogs]);
 
   const handleUpdateLog = async (logId: string, newAction: string) => {
     if (!user || !householdId) return;
@@ -947,6 +950,9 @@ export default function HomeClient() {
       ...others,
     ];
   }, [members, user?.id]);
+  const feedMemberOptions = useMemo(() => {
+    return calendarMemberOptions;
+  }, [calendarMemberOptions]);
 
   const logsForCalendar =
     calendarMemberFilter === 'all'
@@ -1223,7 +1229,10 @@ export default function HomeClient() {
                         <textarea
                           id="family-notice-input"
                           value={familyNotice}
-                          onChange={(e) => setFamilyNotice(e.target.value)}
+                          onChange={(e) => {
+                            sharedMemoTypingUntilRef.current = Date.now() + 2500;
+                            setFamilyNotice(e.target.value);
+                          }}
                           placeholder={t('familyNoticePlaceholder')}
                           rows={3}
                           style={{
@@ -1250,7 +1259,10 @@ export default function HomeClient() {
                         <textarea
                           id="shopping-list-input"
                           value={shoppingList}
-                          onChange={(e) => setShoppingList(e.target.value)}
+                          onChange={(e) => {
+                            sharedMemoTypingUntilRef.current = Date.now() + 2500;
+                            setShoppingList(e.target.value);
+                          }}
                           placeholder={t('shoppingPlaceholder')}
                           rows={3}
                           style={{
@@ -1311,8 +1323,9 @@ export default function HomeClient() {
                   </summary>
                   <div style={{ paddingLeft: 2, paddingRight: 2, paddingBottom: 8 }}>
                     <PlaceFilterRow
-                      filter={placeViewFilter}
-                      setFilter={setPlaceViewFilter}
+                      filter={feedMemberFilter}
+                      setFilter={(v) => setFeedMemberFilter(v as 'all' | 'me' | string)}
+                      options={feedMemberOptions}
                       t={t}
                       highContrast={highContrast}
                     />
@@ -1429,7 +1442,7 @@ export default function HomeClient() {
                     <ChevronRight size={20} strokeWidth={1.5} aria-hidden />
                   </button>
                 </div>
-                <div className="horizontal-scroll-hide" style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', gap: 6, marginBottom: 12, paddingBottom: 2 }}>
+                <div className="horizontal-scroll-hide" style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', gap: 6, marginBottom: 6, paddingBottom: 2 }}>
                   {calendarMemberOptions.map(({ key, label }) => {
                     const active = calendarMemberFilter === key;
                     return (
@@ -1454,6 +1467,9 @@ export default function HomeClient() {
                     );
                   })}
                 </div>
+                <p style={{ margin: '0 0 10px', fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>
+                  작성자 기준 필터 (누가 기록했는지)
+                </p>
                 <div
                   style={{
                     display: 'grid',
@@ -2228,7 +2244,10 @@ export default function HomeClient() {
             </div>
             <textarea
               value={memoContent}
-              onChange={(e) => setMemoContent(e.target.value)}
+              onChange={(e) => {
+                sharedMemoTypingUntilRef.current = Date.now() + 2500;
+                setMemoContent(e.target.value);
+              }}
               placeholder="메모를 입력하세요..."
               style={{
                 flex: 1,
