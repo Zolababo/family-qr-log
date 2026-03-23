@@ -184,6 +184,7 @@ export default function HomeClient() {
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [memoContent, setMemoContent] = useState('');
+  const [memoSaving, setMemoSaving] = useState(false);
   const [showMemoPanel, setShowMemoPanel] = useState(false);
   const [calendarYearMonth, setCalendarYearMonth] = useState(() => {
     const d = new Date();
@@ -861,7 +862,7 @@ export default function HomeClient() {
   }, []);
 
   const calendarMemberOptions = useMemo(() => {
-    const labels = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리', '단이네 우차차', '똘모닝'];
+    const labels = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리', '단이네', '우차차', '똘모닝'];
     const others = members
       .filter((m) => m.user_id !== user?.id)
       .map((m, idx) => ({
@@ -886,6 +887,10 @@ export default function HomeClient() {
   const calendarLastDay = new Date(calYear, calMonth, 0);
   const startWeekday = calendarFirstDay.getDay();
   const daysInMonth = calendarLastDay.getDate();
+  const calendarCellCount = useMemo(() => {
+    const used = startWeekday + daysInMonth;
+    return Math.ceil(used / 7) * 7;
+  }, [startWeekday, daysInMonth]);
   const calendarDayLogsMap = useMemo(() => {
     const map: Record<string, Log[]> = {};
     const prefix = `${calYear}-${String(calMonth).padStart(2, '0')}-`;
@@ -942,6 +947,30 @@ export default function HomeClient() {
     setMemoPanelAnimated(false);
     setTimeout(() => setShowMemoPanel(false), 620);
   };
+
+  const saveSharedMemos = useCallback(async () => {
+    if (!householdId || !user) return;
+    setMemoSaving(true);
+    const full = {
+      household_id: householdId,
+      content: memoContent,
+      family_notice: familyNotice,
+      shopping_list: shoppingList,
+    };
+    let { error } = await supabase.from('household_memos').upsert(full, { onConflict: 'household_id' });
+    if (error && /family_notice|shopping_list|schema|column/i.test(error.message ?? '')) {
+      const res = await supabase
+        .from('household_memos')
+        .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' });
+      error = res.error;
+    }
+    setMemoSaving(false);
+    if (error) {
+      setStatus(`메모 저장 실패: ${error.message}`);
+      return;
+    }
+    setStatus('가족 메모가 저장되었습니다.');
+  }, [householdId, user, memoContent, familyNotice, shoppingList]);
 
   const theme = {
     bg: highContrast ? '#0f0f0f' : 'var(--bg-base)',
@@ -1155,6 +1184,24 @@ export default function HomeClient() {
                           }}
                         />
                       </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          onClick={() => void saveSharedMemos()}
+                          disabled={memoSaving}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: 10,
+                            border: '1px solid #e2e8f0',
+                            background: memoSaving ? '#e2e8f0' : '#f8fafc',
+                            color: memoSaving ? '#94a3b8' : '#334155',
+                            fontSize: 12,
+                            cursor: memoSaving ? 'wait' : 'pointer',
+                          }}
+                        >
+                          {memoSaving ? '저장 중...' : t('save')}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1296,7 +1343,7 @@ export default function HomeClient() {
                     <ChevronRight size={20} strokeWidth={1.5} aria-hidden />
                   </button>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', gap: 6, marginBottom: 12, paddingBottom: 2 }}>
+                <div className="horizontal-scroll-hide" style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', gap: 6, marginBottom: 12, paddingBottom: 2 }}>
                   {calendarMemberOptions.map(({ key, label }) => {
                     const active = calendarMemberFilter === key;
                     return (
@@ -1346,7 +1393,7 @@ export default function HomeClient() {
                       {w}
                     </div>
                   ))}
-                  {Array.from({ length: 42 }, (_, i) => {
+                  {Array.from({ length: calendarCellCount }, (_, i) => {
                     const dayNum = i < startWeekday ? null : i - startWeekday + 1;
                     const isInMonth = dayNum !== null && dayNum <= daysInMonth;
                     const dateKey = isInMonth ? `${calYear}-${String(calMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}` : null;
@@ -1362,7 +1409,13 @@ export default function HomeClient() {
                           padding: 0,
                           border: 'none',
                           borderRadius: 8,
-                          background: selected ? (highContrast ? 'rgba(255,193,7,0.3)' : 'rgba(59,130,246,0.2)') : highContrast ? '#2a2a2a' : '#fff',
+                          background: !isInMonth
+                            ? 'transparent'
+                            : selected
+                              ? (highContrast ? 'rgba(255,193,7,0.3)' : 'rgba(59,130,246,0.2)')
+                              : highContrast
+                                ? '#2a2a2a'
+                                : '#fff',
                           color: !isInMonth
                             ? (highContrast ? '#6b7280' : '#cbd5e1')
                             : selected
@@ -2105,6 +2158,24 @@ export default function HomeClient() {
                 outline: 'none',
               }}
             />
+            <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => void saveSharedMemos()}
+                disabled={memoSaving}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 10,
+                  border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                  background: highContrast ? '#1e1e1e' : '#fff',
+                  color: highContrast ? '#fff' : '#334155',
+                  fontSize: 12,
+                  cursor: memoSaving ? 'wait' : 'pointer',
+                }}
+              >
+                {memoSaving ? '저장 중...' : t('save')}
+              </button>
+            </div>
           </div>
         </>
       )}

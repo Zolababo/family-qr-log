@@ -62,8 +62,9 @@ const MEMBER_LIKE_TAGS: { value: string | null; label: string }[] = [
   { value: TOPIC_SLUGS[2], label: '밤톨이' },
   { value: TOPIC_SLUGS[3], label: '엄니아부지' },
   { value: TOPIC_SLUGS[4], label: '마더리빠더리' },
-  { value: LOG_SLUG.fridge, label: '단이네 우차차' },
-  { value: LOG_SLUG.table, label: '똘모닝' },
+  { value: LOG_SLUG.fridge, label: '단이네' },
+  { value: LOG_SLUG.table, label: '우차차' },
+  { value: LOG_SLUG.toilet, label: '똘모닝' },
 ];
 
 export default function WriteLogClient() {
@@ -98,6 +99,8 @@ export default function WriteLogClient() {
 
   const [logLocationName, setLogLocationName] = useState('');
   const [logLocationUrl, setLogLocationUrl] = useState('');
+  const [locationResults, setLocationResults] = useState<{ name: string; lat: string; lon: string }[]>([]);
+  const [locationSearching, setLocationSearching] = useState(false);
   const [showLocationTagEditor, setShowLocationTagEditor] = useState(false);
   const [voiceListening, setVoiceListening] = useState(false);
   const [showDrawModal, setShowDrawModal] = useState(false);
@@ -569,6 +572,7 @@ export default function WriteLogClient() {
 
         <p style={{ fontSize: 11, color: theme.textSecondary, margin: '0 0 6px' }}>{t('nextPostTagLabel')}</p>
         <div
+          className="horizontal-scroll-hide"
           style={{
             display: 'flex',
             gap: 6,
@@ -743,7 +747,17 @@ export default function WriteLogClient() {
                   onClick={() => {
                     if (!logLocationName.trim()) return;
                     const q = encodeURIComponent(logLocationName.trim());
-                    window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank', 'noopener,noreferrer');
+                    setLocationSearching(true);
+                    void fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${q}`)
+                      .then((r) => r.json())
+                      .then((arr: Array<{ display_name?: string; lat?: string; lon?: string }>) => {
+                        const next = (arr ?? [])
+                          .filter((x) => x.display_name && x.lat && x.lon)
+                          .map((x) => ({ name: x.display_name as string, lat: x.lat as string, lon: x.lon as string }));
+                        setLocationResults(next);
+                      })
+                      .catch(() => setLocationResults([]))
+                      .finally(() => setLocationSearching(false));
                   }}
                   style={{
                     border: '1px solid #e2e8f0',
@@ -755,14 +769,44 @@ export default function WriteLogClient() {
                     cursor: 'pointer',
                   }}
                 >
-                  지도에서 검색
+                  {locationSearching ? '검색 중...' : '장소 찾기'}
                 </button>
               </div>
+              {locationResults.length > 0 && (
+                <div className="horizontal-scroll-hide" style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 8 }}>
+                  {locationResults.map((result) => (
+                    <button
+                      key={`${result.lat}-${result.lon}`}
+                      type="button"
+                      onClick={() => {
+                        setLogLocationName(result.name);
+                        setLogLocationUrl(`https://www.google.com/maps?q=${result.lat},${result.lon}`);
+                        setLocationResults([]);
+                      }}
+                      style={{
+                        flexShrink: 0,
+                        maxWidth: 260,
+                        padding: '8px 10px',
+                        borderRadius: 10,
+                        border: '1px solid #e2e8f0',
+                        background: highContrast ? '#1e1e1e' : '#fff',
+                        color: highContrast ? '#fff' : '#334155',
+                        fontSize: 12,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        whiteSpace: 'normal',
+                      }}
+                    >
+                      {result.name}
+                    </button>
+                  ))}
+                </div>
+              )}
               <input
                 type="url"
                 value={logLocationUrl}
                 onChange={(e) => setLogLocationUrl(e.target.value)}
-                placeholder="검색 후 복사한 Google Maps URL 붙여넣기"
+                placeholder="선택한 장소 링크가 자동 입력됩니다"
                 style={{
                   width: '100%',
                   boxSizing: 'border-box',

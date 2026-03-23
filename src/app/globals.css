@@ -266,6 +266,15 @@ body {
   display: none;
 }
 
+/* 가로 칩 스크롤: 필요시 스크롤되지만 스크롤바는 숨김 */
+.horizontal-scroll-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.horizontal-scroll-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ========== 장소 선택 카드 (3열 그리드) ========== */
 .place-grid {
   display: grid;

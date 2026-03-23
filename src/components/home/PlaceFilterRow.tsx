@@ -37,13 +37,15 @@ export function PlaceFilterRow({ filter, setFilter, t: _t, highContrast }: Place
     { key: TOPIC_SLUGS[2], label: '밤톨이' },
     { key: TOPIC_SLUGS[3], label: '엄니아부지' },
     { key: TOPIC_SLUGS[4], label: '마더리빠더리' },
-    { key: LOG_SLUG.fridge, label: '단이네 우차차' },
-    { key: LOG_SLUG.table, label: '똘모닝' },
+    { key: LOG_SLUG.fridge, label: '단이네' },
+    { key: LOG_SLUG.table, label: '우차차' },
+    { key: LOG_SLUG.toilet, label: '똘모닝' },
   ];
 
   return (
     <div style={{ marginTop: 4, marginBottom: 6, width: '100%' }}>
       <div
+        className="horizontal-scroll-hide"
         style={{
           display: 'flex',
           flexWrap: 'nowrap',
