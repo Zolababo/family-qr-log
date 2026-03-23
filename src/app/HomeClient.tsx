@@ -7,7 +7,7 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
 import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus, MoreVertical } from 'lucide-react';
-import { LOG_SLUG } from '../lib/logTags';
+import { LOG_SLUG, TOPIC_SLUGS, type LogSlug } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { AppHeader } from '../components/layout/AppHeader';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
@@ -212,7 +212,7 @@ export default function HomeClient() {
     const d = new Date();
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   });
-  const [calendarMemberFilter, setCalendarMemberFilter] = useState<'all' | 'me' | string>('all');
+  const [calendarTagFilter, setCalendarTagFilter] = useState<'all' | LogSlug>('all');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [commentsByLogId, setCommentsByLogId] = useState<Record<string, LogComment[]>>({});
   const [replyingTo, setReplyingTo] = useState<{ logId: string; commentId: string } | null>(null);
@@ -936,7 +936,7 @@ export default function HomeClient() {
     return acc;
   }, []);
 
-  const calendarMemberOptions = useMemo(() => {
+  const memberFilterOptions = useMemo(() => {
     const labels = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리', '단이네', '우차차', '똘모닝'];
     const others = members
       .filter((m) => m.user_id !== user?.id)
@@ -950,16 +950,29 @@ export default function HomeClient() {
       ...others,
     ];
   }, [members, user?.id]);
+  const calendarTagOptions = useMemo(
+    () => [
+      { key: 'all' as const, label: '전체' },
+      { key: LOG_SLUG.general, label: '다같이' },
+      { key: TOPIC_SLUGS[0], label: '밤톨대디' },
+      { key: TOPIC_SLUGS[1], label: '밤톨맘' },
+      { key: TOPIC_SLUGS[2], label: '밤톨이' },
+      { key: TOPIC_SLUGS[3], label: '엄니아부지' },
+      { key: TOPIC_SLUGS[4], label: '마더리빠더리' },
+      { key: LOG_SLUG.fridge, label: '단이네' },
+      { key: LOG_SLUG.table, label: '우차차' },
+      { key: LOG_SLUG.toilet, label: '똘모닝' },
+    ],
+    []
+  );
   const feedMemberOptions = useMemo(() => {
-    return calendarMemberOptions;
-  }, [calendarMemberOptions]);
+    return memberFilterOptions;
+  }, [memberFilterOptions]);
 
   const logsForCalendar =
-    calendarMemberFilter === 'all'
+    calendarTagFilter === 'all'
       ? logs
-      : calendarMemberFilter === 'me'
-        ? logs.filter((l) => l.actor_user_id === user?.id)
-        : logs.filter((l) => l.actor_user_id === calendarMemberFilter);
+      : logs.filter((l) => l.place_slug === calendarTagFilter);
   const [calYear, calMonth] = calendarYearMonth.split('-').map(Number);
   const calendarFirstDay = new Date(calYear, calMonth - 1, 1);
   const calendarLastDay = new Date(calYear, calMonth, 0);
@@ -1443,13 +1456,13 @@ export default function HomeClient() {
                   </button>
                 </div>
                 <div className="horizontal-scroll-hide" style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', gap: 6, marginBottom: 6, paddingBottom: 2 }}>
-                  {calendarMemberOptions.map(({ key, label }) => {
-                    const active = calendarMemberFilter === key;
+                  {calendarTagOptions.map(({ key, label }) => {
+                    const active = calendarTagFilter === key;
                     return (
                       <button
                         key={key}
                         type="button"
-                        onClick={() => setCalendarMemberFilter(key)}
+                        onClick={() => setCalendarTagFilter(key)}
                         style={{
                           flexShrink: 0,
                           padding: '6px 12px',
@@ -1468,7 +1481,7 @@ export default function HomeClient() {
                   })}
                 </div>
                 <p style={{ margin: '0 0 10px', fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>
-                  작성자 기준 필터 (누가 기록했는지)
+                  태그 기준 필터 (해당 태그 기록 수)
                 </p>
                 <div
                   style={{
