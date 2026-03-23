@@ -55,6 +55,28 @@ type LogComment = {
   created_at: string;
 };
 
+const SHARED_MEMO_LOG_PREFIX = '[[HOUSEHOLD_MEMO_V1]]';
+type SharedMemoSnapshot = {
+  content?: string;
+  family_notice?: string;
+  shopping_list?: string;
+};
+
+function parseSharedMemoSnapshot(action: string | null | undefined): SharedMemoSnapshot | null {
+  if (!action || !action.startsWith(SHARED_MEMO_LOG_PREFIX)) return null;
+  const raw = action.slice(SHARED_MEMO_LOG_PREFIX.length);
+  try {
+    const parsed = JSON.parse(raw) as SharedMemoSnapshot;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function composeSharedMemoSnapshot(snapshot: SharedMemoSnapshot): string {
+  return `${SHARED_MEMO_LOG_PREFIX}${JSON.stringify(snapshot)}`;
+}
+
 const PLACES = [
   { slug: 'fridge', label: '냉장고' },
   { slug: 'table', label: '식탁' },
@@ -310,6 +332,21 @@ export default function HomeClient() {
     if (!householdId || !user) return;
     let cancelled = false;
     (async () => {
+      const loadFromSharedMemoLog = async () => {
+        const { data: fallbackLogs } = await supabase
+          .from('logs')
+          .select('action, created_at')
+          .eq('household_id', householdId)
+          .like('action', `${SHARED_MEMO_LOG_PREFIX}%`)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const latest = fallbackLogs?.[0];
+        const parsed = parseSharedMemoSnapshot(latest?.action);
+        if (!parsed || cancelled) return;
+        if (typeof parsed.content === 'string') setMemoContent(parsed.content);
+        if (typeof parsed.family_notice === 'string') setFamilyNotice(parsed.family_notice);
+        if (typeof parsed.shopping_list === 'string') setShoppingList(parsed.shopping_list);
+      };
       const { data, error } = await supabase
         .from('household_memos')
         .select('content, family_notice, shopping_list')
@@ -317,6 +354,10 @@ export default function HomeClient() {
         .maybeSingle();
       if (cancelled) return;
       if (error) {
+        if (/relation|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
+          await loadFromSharedMemoLog();
+          return;
+        }
         const { data: fallback } = await supabase.from('household_memos').select('content').eq('household_id', householdId).maybeSingle();
         if (!cancelled && fallback && typeof fallback.content === 'string') {
           setMemoContent(fallback.content);
@@ -373,6 +414,21 @@ export default function HomeClient() {
       if (typeof data.family_notice === 'string') setFamilyNotice(data.family_notice);
       if (typeof data.shopping_list === 'string') setShoppingList(data.shopping_list);
     };
+    const pullFromSharedMemoLog = async () => {
+      const { data } = await supabase
+        .from('logs')
+        .select('action, created_at')
+        .eq('household_id', householdId)
+        .like('action', `${SHARED_MEMO_LOG_PREFIX}%`)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const latest = data?.[0];
+      const parsed = parseSharedMemoSnapshot(latest?.action);
+      if (!parsed) return;
+      if (typeof parsed.content === 'string') setMemoContent(parsed.content);
+      if (typeof parsed.family_notice === 'string') setFamilyNotice(parsed.family_notice);
+      if (typeof parsed.shopping_list === 'string') setShoppingList(parsed.shopping_list);
+    };
     const channel = supabase
       .channel(`household-memos-${householdId}`)
       .on(
@@ -389,6 +445,7 @@ export default function HomeClient() {
       .subscribe();
     const timer = window.setInterval(() => {
       void pull();
+      void pullFromSharedMemoLog();
     }, 5000);
     return () => {
       window.clearInterval(timer);
@@ -420,8 +477,22 @@ export default function HomeClient() {
           .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' });
         error = res.error;
       }
-      if (error && /relation|does not exist/i.test(error.message ?? '')) {
-        // Supabase에 household_memos 테이블 생성 후 가족 간 동기화 (DEPLOY.md 참고)
+      if (error && /relation|does not exist|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
+        const snapshotAction = composeSharedMemoSnapshot({
+          content: memoContent,
+          family_notice: familyNotice,
+          shopping_list: shoppingList,
+        });
+        const res = await supabase.from('logs').insert({
+          household_id: householdId,
+          place_slug: LOG_SLUG.general,
+          action: snapshotAction,
+          actor_user_id: user.id,
+        });
+        error = res.error;
+      }
+      if (error) {
+        setStatus(`메모 저장 실패: ${error.message}`);
       }
     }, 900);
     return () => {
@@ -526,7 +597,8 @@ export default function HomeClient() {
         return;
       }
 
-      setLogs(data ?? []);
+      const next = (data ?? []).filter((l) => !String(l.action ?? '').startsWith(SHARED_MEMO_LOG_PREFIX));
+      setLogs(next);
     },
     []
   );
@@ -962,6 +1034,20 @@ export default function HomeClient() {
       const res = await supabase
         .from('household_memos')
         .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' });
+      error = res.error;
+    }
+    if (error && /relation|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
+      const snapshotAction = composeSharedMemoSnapshot({
+        content: memoContent,
+        family_notice: familyNotice,
+        shopping_list: shoppingList,
+      });
+      const res = await supabase.from('logs').insert({
+        household_id: householdId,
+        place_slug: LOG_SLUG.general,
+        action: snapshotAction,
+        actor_user_id: user.id,
+      });
       error = res.error;
     }
     setMemoSaving(false);
