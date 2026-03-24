@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, Search, Settings, X, Plus } from 'lucide-react';
+import { Home, Calendar, Search, Settings, X, Plus, CheckSquare2 } from 'lucide-react';
 import type { Lang } from '../../app/translations';
 
-export type TabId = 'home' | 'calendar' | 'search';
+export type TabId = 'home' | 'calendar' | 'search' | 'todo';
 
 type BottomTabBarProps = {
   activeTab: TabId;
@@ -147,6 +147,16 @@ export function BottomTabBar({
         >
           <Search size={ICON_SIZE} strokeWidth={STROKE} aria-hidden />
           검색
+        </button>
+        <button
+          type="button"
+          className="bottom-tab-btn"
+          onClick={() => onTabChange('todo')}
+          aria-current={activeTab === 'todo' ? 'true' : undefined}
+          style={tabStyle(activeTab === 'todo')}
+        >
+          <CheckSquare2 size={ICON_SIZE} strokeWidth={STROKE} aria-hidden />
+          할 일
         </button>
         <button
           type="button"
