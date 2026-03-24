@@ -6,7 +6,7 @@ import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
-import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus, MoreVertical } from 'lucide-react';
+import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus, MoreVertical, CheckSquare2, RotateCcw, Trash2 } from 'lucide-react';
 import { LOG_SLUG, TOPIC_SLUGS, type LogSlug } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { AppHeader } from '../components/layout/AppHeader';
@@ -55,7 +55,26 @@ type LogComment = {
   created_at: string;
 };
 
+type TodoPriorityKey = 'urgentImportant' | 'notUrgentImportant' | 'urgentNotImportant' | 'notUrgentNotImportant';
+type TodoTask = {
+  id: number;
+  text: string;
+  key: TodoPriorityKey;
+  done: boolean;
+  createdAt: string;
+  completedAt: string | null;
+};
+
 const SHARED_MEMO_LOG_PREFIX = '[[HOUSEHOLD_MEMO_V1]]';
+const TODO_STORAGE_KEY = 'family_qr_log_todo_tasks';
+const TODO_PERIOD_OPTIONS = ['day', 'week', 'month'] as const;
+type TodoPeriod = (typeof TODO_PERIOD_OPTIONS)[number];
+const TODO_GROUPS: { key: TodoPriorityKey; label: string }[] = [
+  { key: 'urgentImportant', label: '⚡ 중요하고 긴급' },
+  { key: 'notUrgentImportant', label: '💡 중요하지만 여유' },
+  { key: 'urgentNotImportant', label: '🔔 덜 중요하나 긴급' },
+  { key: 'notUrgentNotImportant', label: '💤 덜 중요하고 여유' },
+];
 type SharedMemoSnapshot = {
   content?: string;
   family_notice?: string;
@@ -208,6 +227,12 @@ export default function HomeClient() {
   const [memoContent, setMemoContent] = useState('');
   const [memoSaving, setMemoSaving] = useState(false);
   const [showMemoPanel, setShowMemoPanel] = useState(false);
+  const [showTodoPanel, setShowTodoPanel] = useState(false);
+  const [todoPanelAnimated, setTodoPanelAnimated] = useState(false);
+  const [todoTasks, setTodoTasks] = useState<TodoTask[]>([]);
+  const [todoInput, setTodoInput] = useState('');
+  const [todoKey, setTodoKey] = useState<TodoPriorityKey>('urgentImportant');
+  const [todoCompletedPeriod, setTodoCompletedPeriod] = useState<TodoPeriod>('day');
   const [calendarYearMonth, setCalendarYearMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -226,6 +251,7 @@ export default function HomeClient() {
   const [stickerPickerLogId, setStickerPickerLogId] = useState<string | null>(null);
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const memoSwipeStartRef = useRef<number | null>(null);
+  const todoSwipeStartRef = useRef<number | null>(null);
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const sharedMemoTypingUntilRef = useRef(0);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -332,6 +358,30 @@ export default function HomeClient() {
       if (raw != null) setMemoContent(raw);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(TODO_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      const next = parsed.filter(
+        (t): t is TodoTask =>
+          t &&
+          typeof t.id === 'number' &&
+          typeof t.text === 'string' &&
+          typeof t.key === 'string' &&
+          typeof t.done === 'boolean'
+      );
+      setTodoTasks(next);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todoTasks));
+    } catch {}
+  }, [todoTasks]);
 
   useEffect(() => {
     if (!householdId || !user) return;
@@ -547,6 +597,16 @@ export default function HomeClient() {
       setMemoPanelAnimated(false);
     }
   }, [showMemoPanel]);
+
+  useEffect(() => {
+    if (showTodoPanel) {
+      setTodoPanelAnimated(false);
+      const id = requestAnimationFrame(() => setTodoPanelAnimated(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setTodoPanelAnimated(false);
+    }
+  }, [showTodoPanel]);
 
   useEffect(() => {
     if (showAccessibilityModal) {
@@ -997,6 +1057,42 @@ export default function HomeClient() {
   const selectedDayLogs = selectedCalendarDate ? (calendarDayLogsMap[selectedCalendarDate] || []).sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   ) : [];
+  const todoActiveByGroup = useMemo(() => {
+    const map: Record<TodoPriorityKey, TodoTask[]> = {
+      urgentImportant: [],
+      notUrgentImportant: [],
+      urgentNotImportant: [],
+      notUrgentNotImportant: [],
+    };
+    todoTasks
+      .filter((task) => !task.done)
+      .forEach((task) => {
+        map[task.key].push(task);
+      });
+    return map;
+  }, [todoTasks]);
+  const todoCompletedGroups = useMemo(() => {
+    const grouped: Record<string, TodoTask[]> = {};
+    const done = todoTasks.filter((task) => task.done && task.completedAt);
+    done.forEach((task) => {
+      const d = new Date(task.completedAt as string);
+      let key = '';
+      if (todoCompletedPeriod === 'day') key = d.toISOString().slice(0, 10);
+      else if (todoCompletedPeriod === 'month') key = d.toISOString().slice(0, 7);
+      else {
+        const day = d.getDay();
+        const diff = (day + 6) % 7;
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - diff);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        key = `${weekStart.toISOString().slice(0, 10)} ~ ${weekEnd.toISOString().slice(0, 10)}`;
+      }
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(task);
+    });
+    return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [todoTasks, todoCompletedPeriod]);
   const growthCutoffMs = useMemo(() => {
     const now = new Date();
     const d = new Date(now);
@@ -1038,6 +1134,34 @@ export default function HomeClient() {
     setMemoPanelAnimated(false);
     setTimeout(() => setShowMemoPanel(false), 620);
   };
+  const closeTodoPanel = () => {
+    setTodoPanelAnimated(false);
+    setTimeout(() => setShowTodoPanel(false), 620);
+  };
+
+  const addTodoTask = useCallback(() => {
+    const text = todoInput.trim();
+    if (!text) return;
+    setTodoTasks((prev) => [
+      { id: Date.now(), text, key: todoKey, done: false, createdAt: new Date().toISOString(), completedAt: null },
+      ...prev,
+    ]);
+    setTodoInput('');
+  }, [todoInput, todoKey]);
+
+  const toggleTodoTaskDone = useCallback((id: number) => {
+    setTodoTasks((prev) =>
+      prev.map((task) =>
+        task.id === id
+          ? { ...task, done: !task.done, completedAt: task.done ? null : new Date().toISOString() }
+          : task
+      )
+    );
+  }, []);
+
+  const removeTodoTask = useCallback((id: number) => {
+    setTodoTasks((prev) => prev.filter((task) => task.id !== id));
+  }, []);
 
   const saveSharedMemos = useCallback(async () => {
     if (!householdId || !user) return;
@@ -2201,6 +2325,193 @@ export default function HomeClient() {
 
 
 
+      {showTodoPanel && (
+        <>
+          <div
+            role="presentation"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.3)',
+              zIndex: 58,
+              opacity: todoPanelAnimated ? 1 : 0,
+              transition: 'opacity 0.55s ease-out',
+            }}
+            onClick={closeTodoPanel}
+          />
+          <div
+            role="dialog"
+            aria-label="할 일 목록"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              bottom: 0,
+              width: 'min(360px, 92vw)',
+              background: highContrast ? '#1e1e1e' : '#fff',
+              borderRight: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+              boxShadow: '10px 0 30px rgba(0,0,0,0.15)',
+              zIndex: 59,
+              display: 'flex',
+              flexDirection: 'column',
+              padding: 16,
+              transform: todoPanelAnimated ? 'translateX(0)' : 'translateX(-24px)',
+              opacity: todoPanelAnimated ? 1 : 0,
+              transition: 'transform 0.65s cubic-bezier(0.22, 0.9, 0.32, 1), opacity 0.55s ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => { const t = e.changedTouches?.[0]; if (t) todoSwipeStartRef.current = t.clientX; }}
+            onTouchEnd={(e) => {
+              const t = e.changedTouches?.[0];
+              if (!t || todoSwipeStartRef.current == null) return;
+              const start = todoSwipeStartRef.current;
+              const end = t.clientX;
+              todoSwipeStartRef.current = null;
+              if (end - start > 70) closeTodoPanel();
+            }}
+          >
+            <div style={{ marginBottom: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CheckSquare2 size={18} strokeWidth={1.5} aria-hidden />
+                할 일 목록
+              </h3>
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>
+                왼쪽 패널에서 빠르게 추가/완료 관리
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+              <input
+                type="text"
+                value={todoInput}
+                onChange={(e) => setTodoInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') addTodoTask();
+                }}
+                placeholder="할 일을 입력하세요"
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  borderRadius: 10,
+                  border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  background: highContrast ? '#0f0f0f' : '#f8fafc',
+                  color: highContrast ? '#fff' : '#0f172a',
+                  outline: 'none',
+                }}
+              />
+              <button
+                type="button"
+                onClick={addTodoTask}
+                style={{
+                  border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                  borderRadius: 10,
+                  background: highContrast ? '#1e1e1e' : '#fff',
+                  color: highContrast ? '#fff' : '#334155',
+                  padding: '0 10px',
+                  fontSize: 16,
+                  cursor: 'pointer',
+                }}
+                aria-label="추가"
+              >
+                <Plus size={18} strokeWidth={1.75} aria-hidden />
+              </button>
+            </div>
+            <select
+              value={todoKey}
+              onChange={(e) => setTodoKey(e.target.value as TodoPriorityKey)}
+              style={{
+                width: '100%',
+                marginBottom: 10,
+                borderRadius: 10,
+                border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                padding: '8px 10px',
+                fontSize: 12,
+                background: highContrast ? '#0f0f0f' : '#f8fafc',
+                color: highContrast ? '#fff' : '#0f172a',
+              }}
+            >
+              {TODO_GROUPS.map((g) => (
+                <option key={g.key} value={g.key}>
+                  {g.label}
+                </option>
+              ))}
+            </select>
+            <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gap: 8 }}>
+              {TODO_GROUPS.map((group) => (
+                <div key={group.key} style={{ border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 10, padding: 8, background: highContrast ? '#121212' : '#f8fafc' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: highContrast ? '#fff' : '#334155' }}>{group.label}</div>
+                  <div style={{ display: 'grid', gap: 4 }}>
+                    {todoActiveByGroup[group.key].length === 0 ? (
+                      <div style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#94a3b8' }}>비어 있음</div>
+                    ) : (
+                      todoActiveByGroup[group.key].map((task) => (
+                        <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: highContrast ? '#1a1a1a' : '#fff', border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
+                          <span style={{ flex: 1, fontSize: 12, color: highContrast ? '#fff' : '#0f172a' }}>{task.text}</span>
+                          <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#16a34a' }} aria-label="완료">
+                            <CheckSquare2 size={16} strokeWidth={1.75} aria-hidden />
+                          </button>
+                          <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444' }} aria-label="삭제">
+                            <Trash2 size={16} strokeWidth={1.75} aria-hidden />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div style={{ border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 10, padding: 8, background: highContrast ? '#121212' : '#f8fafc' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#fff' : '#334155' }}>✅ 완료된 항목</div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {TODO_PERIOD_OPTIONS.map((period) => (
+                      <button
+                        key={period}
+                        type="button"
+                        onClick={() => setTodoCompletedPeriod(period)}
+                        style={{
+                          fontSize: 11,
+                          padding: '3px 8px',
+                          borderRadius: 999,
+                          border: todoCompletedPeriod === period ? '1px solid var(--accent)' : '1px solid #e2e8f0',
+                          background: todoCompletedPeriod === period ? 'var(--accent-light)' : '#fff',
+                          color: todoCompletedPeriod === period ? 'var(--accent)' : '#64748b',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {period === 'day' ? '일별' : period === 'week' ? '주별' : '월별'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {todoCompletedGroups.length === 0 ? (
+                  <div style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#94a3b8' }}>완료 항목 없음</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {todoCompletedGroups.map(([label, tasks]) => (
+                      <div key={label}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: highContrast ? '#e5e7eb' : '#475569', marginBottom: 3 }}>{label}</div>
+                        {tasks.map((task) => (
+                          <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0' }}>
+                            <span style={{ flex: 1, fontSize: 12, color: highContrast ? '#d1d5db' : '#475569' }}>{task.text}</span>
+                            <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#0ea5e9' }} aria-label="복원">
+                              <RotateCcw size={15} strokeWidth={1.75} aria-hidden />
+                            </button>
+                            <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444' }} aria-label="삭제">
+                              <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {showMemoPanel && (
         <>
           <div
@@ -2316,7 +2627,34 @@ export default function HomeClient() {
           const start = swipeStartRef.current;
           const end = t.clientX;
           swipeStartRef.current = null;
-          if (start > window.innerWidth - 80 && start - end > 50) setShowMemoPanel(true);
+          if (start > window.innerWidth - 80 && start - end > 50) {
+            setShowTodoPanel(false);
+            setShowMemoPanel(true);
+          }
+        }}
+      />
+      <div
+        role="presentation"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: 28,
+          zIndex: 35,
+          touchAction: 'pan-y',
+        }}
+        onTouchStart={(e) => { const t = e.changedTouches?.[0]; if (t) todoSwipeStartRef.current = t.clientX; }}
+        onTouchEnd={(e) => {
+          const t = e.changedTouches?.[0];
+          if (!t || todoSwipeStartRef.current == null) return;
+          const start = todoSwipeStartRef.current;
+          const end = t.clientX;
+          todoSwipeStartRef.current = null;
+          if (start < 80 && end - start > 50) {
+            setShowMemoPanel(false);
+            setShowTodoPanel(true);
+          }
         }}
       />
 
