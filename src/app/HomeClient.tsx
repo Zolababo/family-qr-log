@@ -6,7 +6,7 @@ import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
-import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus, MoreVertical, CheckSquare2, RotateCcw, Trash2 } from 'lucide-react';
+import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus, MoreVertical } from 'lucide-react';
 import { LOG_SLUG, TOPIC_SLUGS, type LogSlug } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { AppHeader } from '../components/layout/AppHeader';
@@ -14,6 +14,7 @@ import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
 import { MemberFilter } from '../components/home/MemberFilter';
 import { PlaceFilterRow } from '../components/home/PlaceFilterRow';
 import { LogFeed } from '../components/home/LogFeed';
+import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 
 type Log = {
   id: string;
@@ -55,26 +56,8 @@ type LogComment = {
   created_at: string;
 };
 
-type TodoPriorityKey = 'urgentImportant' | 'notUrgentImportant' | 'urgentNotImportant' | 'notUrgentNotImportant';
-type TodoTask = {
-  id: number;
-  text: string;
-  key: TodoPriorityKey;
-  done: boolean;
-  createdAt: string;
-  completedAt: string | null;
-};
-
 const SHARED_MEMO_LOG_PREFIX = '[[HOUSEHOLD_MEMO_V1]]';
-const TODO_STORAGE_KEY = 'family_qr_log_todo_tasks';
-const TODO_PERIOD_OPTIONS = ['day', 'week', 'month'] as const;
-type TodoPeriod = (typeof TODO_PERIOD_OPTIONS)[number];
-const TODO_GROUPS: { key: TodoPriorityKey; label: string }[] = [
-  { key: 'urgentImportant', label: '⚡ 중요하고 긴급' },
-  { key: 'notUrgentImportant', label: '💡 중요하지만 여유' },
-  { key: 'urgentNotImportant', label: '🔔 덜 중요하나 긴급' },
-  { key: 'notUrgentNotImportant', label: '💤 덜 중요하고 여유' },
-];
+const TODO_SNAPSHOT_PREFIX = '[[TODO_SNAPSHOT_V1]]';
 type SharedMemoSnapshot = {
   content?: string;
   family_notice?: string;
@@ -94,6 +77,21 @@ function parseSharedMemoSnapshot(action: string | null | undefined): SharedMemoS
 
 function composeSharedMemoSnapshot(snapshot: SharedMemoSnapshot): string {
   return `${SHARED_MEMO_LOG_PREFIX}${JSON.stringify(snapshot)}`;
+}
+
+function parseTodoSnapshot(action: string | null | undefined): TodoTask[] | null {
+  if (!action || !action.startsWith(TODO_SNAPSHOT_PREFIX)) return null;
+  const raw = action.slice(TODO_SNAPSHOT_PREFIX.length);
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as TodoTask[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function composeTodoSnapshot(tasks: TodoTask[]): string {
+  return `${TODO_SNAPSHOT_PREFIX}${JSON.stringify(tasks)}`;
 }
 
 const PLACES = [
@@ -193,7 +191,7 @@ export default function HomeClient() {
   const [members, setMembers] = useState<Member[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<'all' | 'me' | string>('all');
-  const [feedMemberFilter, setFeedMemberFilter] = useState<'all' | 'me' | string>('all');
+  const [feedTagFilter, setFeedTagFilter] = useState<'all' | LogSlug>('all');
   const [familyNotesEditing, setFamilyNotesEditing] = useState(false);
   const [familyNotice, setFamilyNotice] = useState('');
   const [shoppingList, setShoppingList] = useState('');
@@ -357,28 +355,44 @@ export default function HomeClient() {
   }, []);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(TODO_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return;
-      const next = parsed.filter(
-        (t): t is TodoTask =>
-          t &&
-          typeof t.id === 'number' &&
-          typeof t.text === 'string' &&
-          typeof t.key === 'string' &&
-          typeof t.done === 'boolean'
-      );
-      setTodoTasks(next);
-    } catch {}
-  }, []);
+    if (!householdId || !user) return;
+    let cancelled = false;
+    const loadTodo = async () => {
+      const { data } = await supabase
+        .from('logs')
+        .select('action, created_at')
+        .eq('household_id', householdId)
+        .eq('actor_user_id', user.id)
+        .like('action', `${TODO_SNAPSHOT_PREFIX}%`)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (cancelled) return;
+      const parsed = parseTodoSnapshot(data?.[0]?.action);
+      if (parsed) setTodoTasks(parsed);
+    };
+    void loadTodo();
+    const timer = window.setInterval(() => {
+      void loadTodo();
+    }, 7000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [householdId, user]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todoTasks));
-    } catch {}
-  }, [todoTasks]);
+    if (!householdId || !user) return;
+    const timer = window.setTimeout(async () => {
+      const action = composeTodoSnapshot(todoTasks);
+      await supabase.from('logs').insert({
+        household_id: householdId,
+        place_slug: LOG_SLUG.todo,
+        action,
+        actor_user_id: user.id,
+      });
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [todoTasks, householdId, user]);
 
   useEffect(() => {
     if (!householdId || !user) return;
@@ -651,7 +665,12 @@ export default function HomeClient() {
         return;
       }
 
-      const next = (data ?? []).filter((l) => !String(l.action ?? '').startsWith(SHARED_MEMO_LOG_PREFIX));
+      const next = (data ?? []).filter((l) => {
+        const action = String(l.action ?? '');
+        if (action.startsWith(SHARED_MEMO_LOG_PREFIX)) return false;
+        if (action.startsWith(TODO_SNAPSHOT_PREFIX)) return false;
+        return true;
+      });
       setLogs(next);
     },
     []
@@ -768,12 +787,12 @@ export default function HomeClient() {
         return;
       }
 
-      const actorId = feedMemberFilter === 'all' ? undefined : feedMemberFilter === 'me' ? user.id : feedMemberFilter;
-      await loadLogs(householdId, undefined, actorId);
+      const placeSlugFilter = feedTagFilter === 'all' ? undefined : feedTagFilter;
+      await loadLogs(householdId, placeSlugFilter, undefined);
       setStickerPickerOpen(false);
       setStickerPickerLogId(null);
     },
-    [user, householdId, logs, feedMemberFilter, loadLogs]
+    [user, householdId, logs, feedTagFilter, loadLogs]
   );
 
   const pickSticker = (sticker: string | null) => {
@@ -784,15 +803,15 @@ export default function HomeClient() {
   useEffect(() => {
     if (!householdId || !user) return;
 
-    const actorId = feedMemberFilter === 'all' ? undefined : feedMemberFilter === 'me' ? user.id : feedMemberFilter;
-    loadLogs(householdId, undefined, actorId);
-  }, [householdId, feedMemberFilter, user, loadLogs]);
+    const placeSlugFilter = feedTagFilter === 'all' ? undefined : feedTagFilter;
+    loadLogs(householdId, placeSlugFilter, undefined);
+  }, [householdId, feedTagFilter, user, loadLogs]);
 
   const refreshLogs = useCallback(() => {
     if (!householdId || !user) return;
-    const actorId = feedMemberFilter === 'all' ? undefined : feedMemberFilter === 'me' ? user.id : feedMemberFilter;
-    loadLogs(householdId, undefined, actorId);
-  }, [householdId, feedMemberFilter, user, loadLogs]);
+    const placeSlugFilter = feedTagFilter === 'all' ? undefined : feedTagFilter;
+    loadLogs(householdId, placeSlugFilter, undefined);
+  }, [householdId, feedTagFilter, user, loadLogs]);
 
   const handleUpdateLog = async (logId: string, newAction: string) => {
     if (!user || !householdId) return;
@@ -983,20 +1002,6 @@ export default function HomeClient() {
     return acc;
   }, []);
 
-  const memberFilterOptions = useMemo(() => {
-    const labels = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리', '단이네', '우차차', '똘모닝'];
-    const others = members
-      .filter((m) => m.user_id !== user?.id)
-      .map((m, idx) => ({
-        key: m.user_id,
-        label: labels[idx] ?? ((m.display_name && m.display_name.trim()) || m.user_id.slice(0, 6)),
-      }));
-    return [
-      { key: 'all' as const, label: '전체' },
-      { key: 'me' as const, label: '다같이' },
-      ...others,
-    ];
-  }, [members, user?.id]);
   const calendarTagOptions = useMemo(
     () => [
       { key: 'all' as const, label: '전체' },
@@ -1012,9 +1017,7 @@ export default function HomeClient() {
     ],
     []
   );
-  const feedMemberOptions = useMemo(() => {
-    return memberFilterOptions;
-  }, [memberFilterOptions]);
+  const feedTagOptions = useMemo(() => calendarTagOptions, [calendarTagOptions]);
 
   const logsForCalendar =
     calendarTagFilter === 'all'
@@ -1271,7 +1274,7 @@ export default function HomeClient() {
           aria-hidden
         />
         {user && householdId ? (
-          <div className="home-top-bleed" style={{ marginBottom: 8 }}>
+          <div className="home-top-bleed" style={{ marginBottom: 8, position: 'sticky', top: 0, zIndex: 24, background: theme.bg }}>
             <AppHeader
               theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
               highContrast={highContrast}
@@ -1442,9 +1445,9 @@ export default function HomeClient() {
                   </summary>
                   <div style={{ paddingLeft: 2, paddingRight: 2, paddingBottom: 8 }}>
                     <PlaceFilterRow
-                      filter={feedMemberFilter}
-                      setFilter={(v) => setFeedMemberFilter(v as 'all' | 'me' | string)}
-                      options={feedMemberOptions}
+                      filter={feedTagFilter}
+                      setFilter={(v) => setFeedTagFilter(v as 'all' | LogSlug)}
+                      options={feedTagOptions}
                       t={t}
                       highContrast={highContrast}
                     />
@@ -1454,7 +1457,7 @@ export default function HomeClient() {
             )}
           </div>
         ) : (
-          <div className="home-top-bleed" style={{ marginBottom: 8 }}>
+          <div className="home-top-bleed" style={{ marginBottom: 8, position: 'sticky', top: 0, zIndex: 24, background: theme.bg }}>
             <AppHeader
               theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
               highContrast={highContrast}
@@ -1514,146 +1517,20 @@ export default function HomeClient() {
               </section>
             ) : null}
             {activeTab === 'todo' && (
-              <section aria-label="할 일 목록" style={{ marginBottom: 20 }}>
-                <div style={{ marginBottom: 10 }}>
-                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckSquare2 size={18} strokeWidth={1.5} aria-hidden />
-                    할 일 목록
-                  </h3>
-                  <p style={{ margin: '6px 0 0', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>
-                    중요도/긴급도 기준으로 관리
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                  <input
-                    type="text"
-                    value={todoInput}
-                    onChange={(e) => setTodoInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') addTodoTask();
-                    }}
-                    placeholder="할 일을 입력하세요"
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      borderRadius: 10,
-                      border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                      padding: '10px 12px',
-                      fontSize: 13,
-                      background: highContrast ? '#0f0f0f' : '#f8fafc',
-                      color: highContrast ? '#fff' : '#0f172a',
-                      outline: 'none',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={addTodoTask}
-                    style={{
-                      border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                      borderRadius: 10,
-                      background: highContrast ? '#1e1e1e' : '#fff',
-                      color: highContrast ? '#fff' : '#334155',
-                      padding: '0 10px',
-                      fontSize: 16,
-                      cursor: 'pointer',
-                    }}
-                    aria-label="추가"
-                  >
-                    <Plus size={18} strokeWidth={1.75} aria-hidden />
-                  </button>
-                </div>
-                <select
-                  value={todoKey}
-                  onChange={(e) => setTodoKey(e.target.value as TodoPriorityKey)}
-                  style={{
-                    width: '100%',
-                    marginBottom: 10,
-                    borderRadius: 10,
-                    border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                    padding: '8px 10px',
-                    fontSize: 12,
-                    background: highContrast ? '#0f0f0f' : '#f8fafc',
-                    color: highContrast ? '#fff' : '#0f172a',
-                  }}
-                >
-                  {TODO_GROUPS.map((g) => (
-                    <option key={g.key} value={g.key}>
-                      {g.label}
-                    </option>
-                  ))}
-                </select>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  {TODO_GROUPS.map((group) => (
-                    <div key={group.key} style={{ border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 10, padding: 8, background: highContrast ? '#121212' : '#f8fafc' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: highContrast ? '#fff' : '#334155' }}>{group.label}</div>
-                      <div style={{ display: 'grid', gap: 4 }}>
-                        {todoActiveByGroup[group.key].length === 0 ? (
-                          <div style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#94a3b8' }}>비어 있음</div>
-                        ) : (
-                          todoActiveByGroup[group.key].map((task) => (
-                            <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: highContrast ? '#1a1a1a' : '#fff', border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
-                              <span style={{ flex: 1, fontSize: 12, color: highContrast ? '#fff' : '#0f172a' }}>{task.text}</span>
-                              <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#16a34a' }} aria-label="완료">
-                                <CheckSquare2 size={16} strokeWidth={1.75} aria-hidden />
-                              </button>
-                              <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444' }} aria-label="삭제">
-                                <Trash2 size={16} strokeWidth={1.75} aria-hidden />
-                              </button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  <div style={{ border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 10, padding: 8, background: highContrast ? '#121212' : '#f8fafc' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#fff' : '#334155' }}>✅ 완료된 항목</div>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {TODO_PERIOD_OPTIONS.map((period) => (
-                          <button
-                            key={period}
-                            type="button"
-                            onClick={() => setTodoCompletedPeriod(period)}
-                            style={{
-                              fontSize: 11,
-                              padding: '3px 8px',
-                              borderRadius: 999,
-                              border: todoCompletedPeriod === period ? '1px solid var(--accent)' : '1px solid #e2e8f0',
-                              background: todoCompletedPeriod === period ? 'var(--accent-light)' : '#fff',
-                              color: todoCompletedPeriod === period ? 'var(--accent)' : '#64748b',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            {period === 'day' ? '일별' : period === 'week' ? '주별' : '월별'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {todoCompletedGroups.length === 0 ? (
-                      <div style={{ fontSize: 11, color: highContrast ? '#94a3b8' : '#94a3b8' }}>완료 항목 없음</div>
-                    ) : (
-                      <div style={{ display: 'grid', gap: 6 }}>
-                        {todoCompletedGroups.map(([label, tasks]) => (
-                          <div key={label}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: highContrast ? '#e5e7eb' : '#475569', marginBottom: 3 }}>{label}</div>
-                            {tasks.map((task) => (
-                              <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0' }}>
-                                <span style={{ flex: 1, fontSize: 12, color: highContrast ? '#d1d5db' : '#475569' }}>{task.text}</span>
-                                <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#0ea5e9' }} aria-label="복원">
-                                  <RotateCcw size={15} strokeWidth={1.75} aria-hidden />
-                                </button>
-                                <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444' }} aria-label="삭제">
-                                  <Trash2 size={15} strokeWidth={1.75} aria-hidden />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </section>
+              <TodoBoard
+                highContrast={highContrast}
+                todoInput={todoInput}
+                setTodoInput={setTodoInput}
+                todoKey={todoKey}
+                setTodoKey={setTodoKey}
+                todoCompletedPeriod={todoCompletedPeriod}
+                setTodoCompletedPeriod={setTodoCompletedPeriod}
+                todoActiveByGroup={todoActiveByGroup}
+                todoCompletedGroups={todoCompletedGroups}
+                addTodoTask={addTodoTask}
+                toggleTodoTaskDone={toggleTodoTaskDone}
+                removeTodoTask={removeTodoTask}
+              />
             )}
             {activeTab === 'calendar' && (
               <section aria-label="캘린더" style={{ marginBottom: 20 }}>
@@ -2479,6 +2356,9 @@ export default function HomeClient() {
               display: 'flex',
               flexDirection: 'column',
               padding: 16,
+              overflow: 'hidden',
+              overscrollBehavior: 'contain',
+              touchAction: 'pan-y',
               transform: memoPanelAnimated ? 'translateX(0)' : 'translateX(24px)',
               opacity: memoPanelAnimated ? 1 : 0,
               transition: 'transform 0.65s cubic-bezier(0.22, 0.9, 0.32, 1), opacity 0.55s ease-out',
@@ -2521,8 +2401,11 @@ export default function HomeClient() {
                 color: highContrast ? '#fff' : '#0f172a',
                 fontSize: 14,
                 resize: 'none',
+                overflowY: 'auto',
+                overscrollBehavior: 'contain',
                 outline: 'none',
               }}
+              onWheel={(e) => e.stopPropagation()}
             />
             <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
               <button
