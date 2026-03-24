@@ -16,12 +16,12 @@ export type TodoPeriod = 'day' | 'week' | 'month';
 
 const TODO_PERIOD_OPTIONS: TodoPeriod[] = ['day', 'week', 'month'];
 
-/** 아이젠하워: 위줄=중요, 아랫줄=덜 중요 / 왼열=긴급, 오른열=여유 */
-const MATRIX: { key: TodoPriorityKey; title: string; hint: string; accent: string }[] = [
-  { key: 'urgentImportant', title: '긴급 · 중요', hint: '바로 처리', accent: 'rgba(220, 38, 38, 0.12)' },
-  { key: 'notUrgentImportant', title: '중요 · 여유', hint: '계획·습관', accent: 'rgba(22, 163, 74, 0.14)' },
-  { key: 'urgentNotImportant', title: '긴급 · 덜중요', hint: '짧게·위임', accent: 'rgba(234, 179, 8, 0.16)' },
-  { key: 'notUrgentNotImportant', title: '여유 · 덜중요', hint: '보류·정리', accent: 'rgba(100, 116, 139, 0.14)' },
+/** 순서: 좌상(Q1) → 우상(Q2) → 좌하(Q3) → 우하(Q4). 제목만으로 축 구분. */
+const MATRIX: { key: TodoPriorityKey; title: string; accent: string }[] = [
+  { key: 'urgentImportant', title: '긴급 · 중요', accent: 'rgba(220, 38, 38, 0.12)' },
+  { key: 'notUrgentImportant', title: '중요 · 여유', accent: 'rgba(22, 163, 74, 0.14)' },
+  { key: 'urgentNotImportant', title: '긴급 · 덜중요', accent: 'rgba(234, 179, 8, 0.16)' },
+  { key: 'notUrgentNotImportant', title: '여유 · 덜중요', accent: 'rgba(100, 116, 139, 0.14)' },
 ];
 
 type TodoBoardProps = {
@@ -69,7 +69,7 @@ export function TodoBoard({
   );
 
   const renderQuadrant = (meta: (typeof MATRIX)[number]) => {
-    const { key, title, hint, accent } = meta;
+    const { key, title, accent } = meta;
     const tasks = todoActiveByGroup[key];
     const border = highContrast ? '1px solid #444' : '1px solid #e2e8f0';
     return (
@@ -78,20 +78,31 @@ export function TodoBoard({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: 168,
-          maxHeight: 320,
+          width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
+          boxSizing: 'border-box',
+          minHeight: 0,
           borderRadius: 12,
           border,
           background: highContrast ? `linear-gradient(180deg, ${accent}, #121212 40%)` : `linear-gradient(180deg, ${accent}, #fff 35%)`,
-          padding: '8px 8px 6px',
-          boxSizing: 'border-box',
+          padding: '7px 8px 6px',
         }}
       >
         <div style={{ marginBottom: 6, flexShrink: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', lineHeight: 1.25 }}>{title}</div>
-          <div style={{ fontSize: 10, color: highContrast ? '#94a3b8' : '#64748b', marginTop: 2 }}>{hint}</div>
         </div>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', marginBottom: 6 }}>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            maxHeight: 'min(28vh, 200px)',
+            overflowY: 'auto',
+            overscrollBehavior: 'contain',
+            marginBottom: 6,
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
           {tasks.length === 0 ? (
             <div style={{ fontSize: 11, color: highContrast ? '#64748b' : '#94a3b8', padding: '4px 0' }}>항목 없음</div>
           ) : (
@@ -102,13 +113,13 @@ export function TodoBoard({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
-                  padding: '8px 0',
+                  padding: '6px 0',
                   borderBottom: idx < tasks.length - 1 ? (highContrast ? '1px solid #333' : '1px solid #f1f5f9') : 'none',
                   fontSize: 12,
                   color: highContrast ? '#e2e8f0' : '#0f172a',
                 }}
               >
-                <span style={{ flex: 1, minWidth: 0, lineHeight: 1.35 }}>{task.text}</span>
+                <span style={{ flex: 1, minWidth: 0, lineHeight: 1.35, wordBreak: 'break-word' }}>{task.text}</span>
                 <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#16a34a', flexShrink: 0 }} aria-label="완료">
                   <CheckSquare2 size={16} strokeWidth={1.75} aria-hidden />
                 </button>
@@ -119,7 +130,7 @@ export function TodoBoard({
             ))
           )}
         </div>
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 'auto' }}>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 'auto', minWidth: 0 }}>
           <input
             type="text"
             value={draftByKey[key]}
@@ -139,6 +150,7 @@ export function TodoBoard({
               background: highContrast ? '#0c0c0c' : '#f8fafc',
               color: highContrast ? '#fff' : '#0f172a',
               outline: 'none',
+              boxSizing: 'border-box',
             }}
           />
           <button
@@ -163,87 +175,16 @@ export function TodoBoard({
   };
 
   return (
-    <section aria-label="할 일 목록" style={{ marginBottom: 20 }}>
-      <div style={{ marginBottom: 12 }}>
+    <section aria-label="할 일 목록" style={{ marginBottom: 20, width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+      <div style={{ marginBottom: 10 }}>
         <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
           <CheckSquare2 size={18} strokeWidth={1.5} aria-hidden />
-          할 일 (아이젠하워)
+          할 일
         </h3>
-        <p style={{ margin: '6px 0 0', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', lineHeight: 1.4 }}>
-          가로: 긴급 ↔ 여유 · 세로: 중요 ↔ 덜 중요
-        </p>
       </div>
 
-      <div
-        style={{
-          position: 'relative',
-          display: 'grid',
-          gridTemplateColumns: '28px 1fr 1fr',
-          gridTemplateRows: 'auto 1fr 1fr',
-          gap: 6,
-          marginBottom: 12,
-          alignItems: 'stretch',
-        }}
-      >
-        <div />
-        <div
-          style={{
-            textAlign: 'center',
-            fontSize: 10,
-            fontWeight: 700,
-            color: highContrast ? '#94a3b8' : '#64748b',
-            paddingBottom: 2,
-          }}
-        >
-          긴급
-        </div>
-        <div
-          style={{
-            textAlign: 'center',
-            fontSize: 10,
-            fontWeight: 700,
-            color: highContrast ? '#94a3b8' : '#64748b',
-            paddingBottom: 2,
-          }}
-        >
-          여유
-        </div>
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: highContrast ? '#94a3b8' : '#64748b',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            writingMode: 'vertical-rl',
-            textOrientation: 'mixed',
-            letterSpacing: 1,
-            paddingRight: 2,
-          }}
-        >
-          중요
-        </div>
-        {renderQuadrant(MATRIX[0])}
-        {renderQuadrant(MATRIX[1])}
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: highContrast ? '#94a3b8' : '#64748b',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            writingMode: 'vertical-rl',
-            textOrientation: 'mixed',
-            letterSpacing: 1,
-            paddingRight: 2,
-          }}
-        >
-          덜중요
-        </div>
-        {renderQuadrant(MATRIX[2])}
-        {renderQuadrant(MATRIX[3])}
+      <div className="todo-eisenhower-grid" style={{ marginBottom: 12 }}>
+        {MATRIX.map((m) => renderQuadrant(m))}
       </div>
 
       <div style={{ border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 12, padding: 10, background: highContrast ? '#121212' : '#f8fafc' }}>

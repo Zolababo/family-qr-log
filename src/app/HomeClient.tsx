@@ -264,6 +264,20 @@ export default function HomeClient() {
   }, [activeTab]);
 
   useEffect(() => {
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevBodyHeight = document.body.style.height;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.body.style.height = '100%';
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+      document.body.style.height = prevBodyHeight;
+    };
+  }, []);
+
+  useEffect(() => {
     const init = async () => {
       setStatus(null);
 
@@ -990,10 +1004,14 @@ export default function HomeClient() {
     }).length;
   }, [logs]);
 
-  const logsForList =
-    activeTab === 'search' && searchQuery.trim()
-      ? logs.filter((l) => l.action.toLowerCase().includes(searchQuery.trim().toLowerCase()))
-      : logs;
+  const logsForList = useMemo(() => {
+    let list = feedTagFilter === 'all' ? logs : logs.filter((l) => l.place_slug === feedTagFilter);
+    if (activeTab === 'search' && searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((l) => l.action.toLowerCase().includes(q));
+    }
+    return list;
+  }, [logs, feedTagFilter, activeTab, searchQuery]);
   const logsByDate = logsForList.reduce<{ dateKey: string; dateLabel: string; items: Log[] }[]>((acc, log) => {
     const d = new Date(log.created_at);
     const dateKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
@@ -1008,20 +1026,37 @@ export default function HomeClient() {
     return acc;
   }, []);
 
-  const feedTagOptions = useMemo(
-    () => [
+  const feedTagOptions = useMemo(() => {
+    const topicLabels = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리'] as const;
+    const topicRows = TOPIC_SLUGS.map((slug, i) => ({
+      key: slug,
+      label: topicLabels[i] ?? slug,
+    }));
+    return [
       { key: 'all' as const, label: '전체' },
       { key: LOG_SLUG.general, label: '다같이' },
-      { key: TOPIC_SLUGS[0], label: '밤톨대디' },
-      { key: TOPIC_SLUGS[1], label: '밤톨맘' },
-      { key: TOPIC_SLUGS[2], label: '밤톨이' },
-      { key: TOPIC_SLUGS[3], label: '엄니아부지' },
-      { key: TOPIC_SLUGS[4], label: '마더리빠더리' },
+      ...topicRows,
       { key: LOG_SLUG.fridge, label: '단이네' },
       { key: LOG_SLUG.table, label: '우차차' },
       { key: LOG_SLUG.toilet, label: '똘모닝' },
-    ],
-    []
+    ];
+  }, []);
+
+  const allowedFeedSlugSet = useMemo(() => {
+    const s = new Set<string>(['all', LOG_SLUG.general, LOG_SLUG.fridge, LOG_SLUG.table, LOG_SLUG.toilet]);
+    TOPIC_SLUGS.forEach((slug) => s.add(slug));
+    return s;
+  }, []);
+
+  const onFeedTagSelect = useCallback(
+    (raw: string) => {
+      if (raw === 'all') {
+        setFeedTagFilter('all');
+        return;
+      }
+      if (allowedFeedSlugSet.has(raw)) setFeedTagFilter(raw as LogSlug);
+    },
+    [allowedFeedSlugSet]
   );
 
   const logsForCalendar = logs;
@@ -1274,6 +1309,9 @@ export default function HomeClient() {
         <div
           ref={homeScrollRef}
           className="home-scroll-region"
+          onWheel={(e) => {
+            e.stopPropagation();
+          }}
           style={{
             flex: 1,
             minHeight: 0,
@@ -1467,7 +1505,7 @@ export default function HomeClient() {
                   <div style={{ paddingLeft: 2, paddingRight: 2, paddingBottom: 8 }}>
                     <PlaceFilterRow
                       filter={feedTagFilter}
-                      setFilter={(v) => setFeedTagFilter(v as 'all' | LogSlug)}
+                      setFilter={onFeedTagSelect}
                       options={feedTagOptions}
                       t={t}
                       highContrast={highContrast}
