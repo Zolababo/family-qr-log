@@ -226,14 +226,11 @@ export default function HomeClient() {
   const [memoSaving, setMemoSaving] = useState(false);
   const [showMemoPanel, setShowMemoPanel] = useState(false);
   const [todoTasks, setTodoTasks] = useState<TodoTask[]>([]);
-  const [todoInput, setTodoInput] = useState('');
-  const [todoKey, setTodoKey] = useState<TodoPriorityKey>('urgentImportant');
   const [todoCompletedPeriod, setTodoCompletedPeriod] = useState<TodoPeriod>('day');
   const [calendarYearMonth, setCalendarYearMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   });
-  const [calendarTagFilter, setCalendarTagFilter] = useState<'all' | LogSlug>('all');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [commentsByLogId, setCommentsByLogId] = useState<Record<string, LogComment[]>>({});
   const [replyingTo, setReplyingTo] = useState<{ logId: string; commentId: string } | null>(null);
@@ -248,6 +245,7 @@ export default function HomeClient() {
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const memoSwipeStartRef = useRef<number | null>(null);
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
+  const homeScrollRef = useRef<HTMLDivElement | null>(null);
   const sharedMemoTypingUntilRef = useRef(0);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
@@ -259,6 +257,11 @@ export default function HomeClient() {
     const typing = Date.now() < sharedMemoTypingUntilRef.current;
     return !typing && !familyNotesEditing && !showMemoPanel;
   }, [familyNotesEditing, showMemoPanel]);
+
+  useEffect(() => {
+    const el = homeScrollRef.current;
+    if (el) el.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [activeTab]);
 
   useEffect(() => {
     const init = async () => {
@@ -1005,7 +1008,7 @@ export default function HomeClient() {
     return acc;
   }, []);
 
-  const calendarTagOptions = useMemo(
+  const feedTagOptions = useMemo(
     () => [
       { key: 'all' as const, label: '전체' },
       { key: LOG_SLUG.general, label: '다같이' },
@@ -1020,12 +1023,8 @@ export default function HomeClient() {
     ],
     []
   );
-  const feedTagOptions = useMemo(() => calendarTagOptions, [calendarTagOptions]);
 
-  const logsForCalendar =
-    calendarTagFilter === 'all'
-      ? logs
-      : logs.filter((l) => l.place_slug === calendarTagFilter);
+  const logsForCalendar = logs;
   const [calYear, calMonth] = calendarYearMonth.split('-').map(Number);
   const calendarFirstDay = new Date(calYear, calMonth - 1, 1);
   const calendarLastDay = new Date(calYear, calMonth, 0);
@@ -1127,15 +1126,14 @@ export default function HomeClient() {
     setMemoPanelAnimated(false);
     setTimeout(() => setShowMemoPanel(false), 620);
   };
-  const addTodoTask = useCallback(() => {
-    const text = todoInput.trim();
-    if (!text) return;
+  const addTodoTask = useCallback((key: TodoPriorityKey, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
     setTodoTasks((prev) => [
-      { id: Date.now(), text, key: todoKey, done: false, createdAt: new Date().toISOString(), completedAt: null },
+      { id: Date.now(), text: trimmed, key, done: false, createdAt: new Date().toISOString(), completedAt: null },
       ...prev,
     ]);
-    setTodoInput('');
-  }, [todoInput, todoKey]);
+  }, []);
 
   const toggleTodoTaskDone = useCallback((id: number) => {
     setTodoTasks((prev) =>
@@ -1204,10 +1202,13 @@ export default function HomeClient() {
     <main
         style={{
           minHeight: '100vh',
+          height: '100dvh',
+          maxHeight: '100dvh',
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'stretch',
-          padding: '0 0 56px',
+          padding: 0,
           background: theme.bg,
           color: theme.text,
           fontFamily: 'var(--font-geist-sans), system-ui, sans-serif',
@@ -1262,12 +1263,29 @@ export default function HomeClient() {
           maxWidth: 480,
           margin: '0 auto',
           flex: 1,
-          padding: '6px 12px 8px',
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
           background: 'transparent',
           color: theme.text,
           ...(highContrast && { background: '#0f0f0f', border: '2px solid #ffc107' }),
         }}
       >
+        <div
+          ref={homeScrollRef}
+          className="home-scroll-region"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            overscrollBehaviorY: 'contain',
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-y',
+            padding: '6px 12px 8px',
+            paddingBottom: 'max(88px, calc(56px + env(safe-area-inset-bottom, 0px)))',
+            background: 'transparent',
+          }}
+        >
         <input
           ref={profileAvatarInputRef}
           type="file"
@@ -1522,10 +1540,6 @@ export default function HomeClient() {
             {activeTab === 'todo' && (
               <TodoBoard
                 highContrast={highContrast}
-                todoInput={todoInput}
-                setTodoInput={setTodoInput}
-                todoKey={todoKey}
-                setTodoKey={setTodoKey}
                 todoCompletedPeriod={todoCompletedPeriod}
                 setTodoCompletedPeriod={setTodoCompletedPeriod}
                 todoActiveByGroup={todoActiveByGroup}
@@ -1583,34 +1597,6 @@ export default function HomeClient() {
                     <ChevronRight size={20} strokeWidth={1.5} aria-hidden />
                   </button>
                 </div>
-                <div className="horizontal-scroll-hide" style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', gap: 6, marginBottom: 6, paddingBottom: 2 }}>
-                  {calendarTagOptions.map(({ key, label }) => {
-                    const active = calendarTagFilter === key;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setCalendarTagFilter(key)}
-                        style={{
-                          flexShrink: 0,
-                          padding: '6px 12px',
-                          borderRadius: 999,
-                          border: active ? '1px solid var(--accent)' : '1px solid #e2e8f0',
-                          background: active ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
-                          color: active ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
-                          fontSize: 12,
-                          fontWeight: active ? 600 : 400,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p style={{ margin: '0 0 10px', fontSize: 11, color: highContrast ? '#94a3b8' : '#64748b' }}>
-                  태그 기준 필터 (해당 태그 기록 수)
-                </p>
                 <div
                   style={{
                     display: 'grid',
@@ -1932,6 +1918,7 @@ export default function HomeClient() {
             )}
           </>
         )}
+        </div>
       </div>
 
       {user && householdId && commentTarget && (activeTab === 'home' || activeTab === 'search') && (

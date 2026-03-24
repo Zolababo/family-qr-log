@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { CheckSquare2, Plus, RotateCcw, Trash2 } from 'lucide-react';
 
 export type TodoPriorityKey = 'urgentImportant' | 'notUrgentImportant' | 'urgentNotImportant' | 'notUrgentNotImportant';
@@ -14,34 +15,35 @@ export type TodoTask = {
 export type TodoPeriod = 'day' | 'week' | 'month';
 
 const TODO_PERIOD_OPTIONS: TodoPeriod[] = ['day', 'week', 'month'];
-const TODO_GROUPS: { key: TodoPriorityKey; label: string }[] = [
-  { key: 'urgentImportant', label: '⚡ 중요하고 긴급' },
-  { key: 'notUrgentImportant', label: '💡 중요하지만 여유' },
-  { key: 'urgentNotImportant', label: '🔔 덜 중요하나 긴급' },
-  { key: 'notUrgentNotImportant', label: '💤 덜 중요하고 여유' },
+
+/** 아이젠하워: 위줄=중요, 아랫줄=덜 중요 / 왼열=긴급, 오른열=여유 */
+const MATRIX: { key: TodoPriorityKey; title: string; hint: string; accent: string }[] = [
+  { key: 'urgentImportant', title: '긴급 · 중요', hint: '바로 처리', accent: 'rgba(220, 38, 38, 0.12)' },
+  { key: 'notUrgentImportant', title: '중요 · 여유', hint: '계획·습관', accent: 'rgba(22, 163, 74, 0.14)' },
+  { key: 'urgentNotImportant', title: '긴급 · 덜중요', hint: '짧게·위임', accent: 'rgba(234, 179, 8, 0.16)' },
+  { key: 'notUrgentNotImportant', title: '여유 · 덜중요', hint: '보류·정리', accent: 'rgba(100, 116, 139, 0.14)' },
 ];
 
 type TodoBoardProps = {
   highContrast: boolean;
-  todoInput: string;
-  setTodoInput: (v: string) => void;
-  todoKey: TodoPriorityKey;
-  setTodoKey: (v: TodoPriorityKey) => void;
   todoCompletedPeriod: TodoPeriod;
   setTodoCompletedPeriod: (v: TodoPeriod) => void;
   todoActiveByGroup: Record<TodoPriorityKey, TodoTask[]>;
   todoCompletedGroups: Array<[string, TodoTask[]]>;
-  addTodoTask: () => void;
+  addTodoTask: (key: TodoPriorityKey, text: string) => void;
   toggleTodoTaskDone: (id: number) => void;
   removeTodoTask: (id: number) => void;
 };
 
+const emptyDrafts = (): Record<TodoPriorityKey, string> => ({
+  urgentImportant: '',
+  notUrgentImportant: '',
+  urgentNotImportant: '',
+  notUrgentNotImportant: '',
+});
+
 export function TodoBoard({
   highContrast,
-  todoInput,
-  setTodoInput,
-  todoKey,
-  setTodoKey,
   todoCompletedPeriod,
   setTodoCompletedPeriod,
   todoActiveByGroup,
@@ -50,145 +52,200 @@ export function TodoBoard({
   toggleTodoTaskDone,
   removeTodoTask,
 }: TodoBoardProps) {
+  const [draftByKey, setDraftByKey] = useState<Record<TodoPriorityKey, string>>(emptyDrafts);
+  const draftRef = useRef(draftByKey);
+  useEffect(() => {
+    draftRef.current = draftByKey;
+  }, [draftByKey]);
+
+  const commitDraft = useCallback(
+    (key: TodoPriorityKey) => {
+      const raw = draftRef.current[key]?.trim();
+      if (!raw) return;
+      addTodoTask(key, raw);
+      setDraftByKey((prev) => ({ ...prev, [key]: '' }));
+    },
+    [addTodoTask]
+  );
+
   return (
     <section aria-label="할 일 목록" style={{ marginBottom: 20 }}>
-      <div style={{ marginBottom: 10 }}>
+      <div style={{ marginBottom: 12 }}>
         <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
           <CheckSquare2 size={18} strokeWidth={1.5} aria-hidden />
-          할 일 목록
+          할 일 (아이젠하워)
         </h3>
-        <p style={{ margin: '6px 0 0', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>
-          중요도/긴급도 기준으로 관리
+        <p style={{ margin: '6px 0 0', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', lineHeight: 1.4 }}>
+          가로: 긴급 ↔ 여유 · 세로: 중요 ↔ 덜 중요
         </p>
       </div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        <input
-          type="text"
-          value={todoInput}
-          onChange={(e) => setTodoInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') addTodoTask();
-          }}
-          placeholder="할 일을 입력하세요"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            borderRadius: 10,
-            border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-            padding: '10px 12px',
-            fontSize: 13,
-            background: highContrast ? '#0f0f0f' : '#f8fafc',
-            color: highContrast ? '#fff' : '#0f172a',
-            outline: 'none',
-          }}
-        />
-        <button
-          type="button"
-          onClick={addTodoTask}
-          style={{
-            border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-            borderRadius: 10,
-            background: highContrast ? '#1e1e1e' : '#fff',
-            color: highContrast ? '#fff' : '#334155',
-            padding: '0 10px',
-            fontSize: 16,
-            cursor: 'pointer',
-          }}
-          aria-label="추가"
-        >
-          <Plus size={18} strokeWidth={1.75} aria-hidden />
-        </button>
-      </div>
-      <select
-        value={todoKey}
-        onChange={(e) => setTodoKey(e.target.value as TodoPriorityKey)}
+
+      <div
         style={{
-          width: '100%',
-          marginBottom: 10,
-          borderRadius: 10,
-          border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-          padding: '8px 10px',
-          fontSize: 12,
-          background: highContrast ? '#0f0f0f' : '#f8fafc',
-          color: highContrast ? '#fff' : '#0f172a',
+          position: 'relative',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gridTemplateRows: 'auto 1fr 1fr',
+          gap: 6,
+          marginBottom: 12,
         }}
       >
-        {TODO_GROUPS.map((g) => (
-          <option key={g.key} value={g.key}>
-            {g.label}
-          </option>
-        ))}
-      </select>
-      <div style={{ display: 'grid', gap: 8 }}>
-        {TODO_GROUPS.map((group) => (
-          <div key={group.key} style={{ border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 10, padding: 8, background: highContrast ? '#121212' : '#f8fafc' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: highContrast ? '#fff' : '#334155' }}>{group.label}</div>
-            <div style={{ display: 'grid', gap: 4 }}>
-              {todoActiveByGroup[group.key].length === 0 ? (
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>비어 있음</div>
-              ) : (
-                todoActiveByGroup[group.key].map((task) => (
-                  <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: highContrast ? '#1a1a1a' : '#fff', border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
-                    <span style={{ flex: 1, fontSize: 12, color: highContrast ? '#fff' : '#0f172a' }}>{task.text}</span>
-                    <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#16a34a' }} aria-label="완료">
-                      <CheckSquare2 size={16} strokeWidth={1.75} aria-hidden />
-                    </button>
-                    <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444' }} aria-label="삭제">
-                      <Trash2 size={16} strokeWidth={1.75} aria-hidden />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        ))}
-        <div style={{ border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 10, padding: 8, background: highContrast ? '#121212' : '#f8fafc' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#fff' : '#334155' }}>✅ 완료된 항목</div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {TODO_PERIOD_OPTIONS.map((period) => (
-                <button
-                  key={period}
-                  type="button"
-                  onClick={() => setTodoCompletedPeriod(period)}
-                  style={{
-                    fontSize: 11,
-                    padding: '3px 8px',
-                    borderRadius: 999,
-                    border: todoCompletedPeriod === period ? '1px solid var(--accent)' : '1px solid #e2e8f0',
-                    background: todoCompletedPeriod === period ? 'var(--accent-light)' : '#fff',
-                    color: todoCompletedPeriod === period ? 'var(--accent)' : '#64748b',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {period === 'day' ? '일별' : period === 'week' ? '주별' : '월별'}
-                </button>
-              ))}
-            </div>
-          </div>
-          {todoCompletedGroups.length === 0 ? (
-            <div style={{ fontSize: 11, color: '#94a3b8' }}>완료 항목 없음</div>
-          ) : (
-            <div style={{ display: 'grid', gap: 6 }}>
-              {todoCompletedGroups.map(([label, tasks]) => (
-                <div key={label}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: highContrast ? '#e5e7eb' : '#475569', marginBottom: 3 }}>{label}</div>
-                  {tasks.map((task) => (
-                    <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0' }}>
-                      <span style={{ flex: 1, fontSize: 12, color: highContrast ? '#d1d5db' : '#475569' }}>{task.text}</span>
-                      <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#0ea5e9' }} aria-label="복원">
-                        <RotateCcw size={15} strokeWidth={1.75} aria-hidden />
+        <div
+          style={{
+            gridColumn: '1 / -1',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 6,
+            padding: '0 2px 4px',
+            fontSize: 10,
+            fontWeight: 700,
+            color: highContrast ? '#94a3b8' : '#64748b',
+          }}
+        >
+          <span style={{ textAlign: 'center' }}>긴급</span>
+          <span style={{ textAlign: 'center' }}>여유</span>
+        </div>
+        {MATRIX.map(({ key, title, hint, accent }) => {
+          const tasks = todoActiveByGroup[key];
+          const border = highContrast ? '1px solid #444' : '1px solid #e2e8f0';
+          return (
+            <div
+              key={key}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 168,
+                maxHeight: 320,
+                borderRadius: 12,
+                border,
+                background: highContrast ? `linear-gradient(180deg, ${accent}, #121212 40%)` : `linear-gradient(180deg, ${accent}, #fff 35%)`,
+                padding: '8px 8px 6px',
+                boxSizing: 'border-box',
+              }}
+            >
+              <div style={{ marginBottom: 6, flexShrink: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', lineHeight: 1.25 }}>{title}</div>
+                <div style={{ fontSize: 10, color: highContrast ? '#94a3b8' : '#64748b', marginTop: 2 }}>{hint}</div>
+              </div>
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', marginBottom: 6 }}>
+                {tasks.length === 0 ? (
+                  <div style={{ fontSize: 11, color: highContrast ? '#64748b' : '#94a3b8', padding: '4px 0' }}>항목 없음</div>
+                ) : (
+                  tasks.map((task, idx) => (
+                    <div
+                      key={task.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '8px 0',
+                        borderBottom:
+                          idx < tasks.length - 1 ? (highContrast ? '1px solid #333' : '1px solid #f1f5f9') : 'none',
+                        fontSize: 12,
+                        color: highContrast ? '#e2e8f0' : '#0f172a',
+                      }}
+                    >
+                      <span style={{ flex: 1, minWidth: 0, lineHeight: 1.35 }}>{task.text}</span>
+                      <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#16a34a', flexShrink: 0 }} aria-label="완료">
+                        <CheckSquare2 size={16} strokeWidth={1.75} aria-hidden />
                       </button>
-                      <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444' }} aria-label="삭제">
-                        <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+                      <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444', flexShrink: 0 }} aria-label="삭제">
+                        <Trash2 size={16} strokeWidth={1.75} aria-hidden />
                       </button>
                     </div>
-                  ))}
-                </div>
-              ))}
+                  ))
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 'auto' }}>
+                <input
+                  type="text"
+                  value={draftByKey[key]}
+                  onChange={(e) => setDraftByKey((prev) => ({ ...prev, [key]: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitDraft(key);
+                  }}
+                  placeholder="추가…"
+                  aria-label={`${title} 할 일 입력`}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    borderRadius: 8,
+                    border: highContrast ? '1px solid #555' : '1px solid #e2e8f0',
+                    padding: '8px 10px',
+                    fontSize: 12,
+                    background: highContrast ? '#0c0c0c' : '#f8fafc',
+                    color: highContrast ? '#fff' : '#0f172a',
+                    outline: 'none',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => commitDraft(key)}
+                  style={{
+                    border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                    borderRadius: 8,
+                    background: highContrast ? '#1e1e1e' : '#fff',
+                    color: highContrast ? '#fff' : '#334155',
+                    padding: '0 10px',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                  aria-label={`${title}에 추가`}
+                >
+                  <Plus size={18} strokeWidth={1.75} aria-hidden />
+                </button>
+              </div>
             </div>
-          )}
+          );
+        })}
+      </div>
+
+      <div style={{ border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 12, padding: 10, background: highContrast ? '#121212' : '#f8fafc' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#fff' : '#334155' }}>완료된 항목</div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {TODO_PERIOD_OPTIONS.map((period) => (
+              <button
+                key={period}
+                type="button"
+                onClick={() => setTodoCompletedPeriod(period)}
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  border: todoCompletedPeriod === period ? '1px solid var(--accent)' : '1px solid #e2e8f0',
+                  background: todoCompletedPeriod === period ? 'var(--accent-light)' : '#fff',
+                  color: todoCompletedPeriod === period ? 'var(--accent)' : '#64748b',
+                  cursor: 'pointer',
+                }}
+              >
+                {period === 'day' ? '일별' : period === 'week' ? '주별' : '월별'}
+              </button>
+            ))}
+          </div>
         </div>
+        {todoCompletedGroups.length === 0 ? (
+          <div style={{ fontSize: 11, color: '#94a3b8' }}>완료 항목 없음</div>
+        ) : (
+          <div style={{ display: 'grid', gap: 6 }}>
+            {todoCompletedGroups.map(([label, tasks]) => (
+              <div key={label}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: highContrast ? '#e5e7eb' : '#475569', marginBottom: 3 }}>{label}</div>
+                {tasks.map((task) => (
+                  <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0' }}>
+                    <span style={{ flex: 1, fontSize: 12, color: highContrast ? '#d1d5db' : '#475569' }}>{task.text}</span>
+                    <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#0ea5e9' }} aria-label="복원">
+                      <RotateCcw size={15} strokeWidth={1.75} aria-hidden />
+                    </button>
+                    <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444' }} aria-label="삭제">
+                      <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
