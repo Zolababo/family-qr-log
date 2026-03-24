@@ -68,6 +68,100 @@ export function TodoBoard({
     [addTodoTask]
   );
 
+  const renderQuadrant = (meta: (typeof MATRIX)[number]) => {
+    const { key, title, hint, accent } = meta;
+    const tasks = todoActiveByGroup[key];
+    const border = highContrast ? '1px solid #444' : '1px solid #e2e8f0';
+    return (
+      <div
+        key={key}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 168,
+          maxHeight: 320,
+          borderRadius: 12,
+          border,
+          background: highContrast ? `linear-gradient(180deg, ${accent}, #121212 40%)` : `linear-gradient(180deg, ${accent}, #fff 35%)`,
+          padding: '8px 8px 6px',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div style={{ marginBottom: 6, flexShrink: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', lineHeight: 1.25 }}>{title}</div>
+          <div style={{ fontSize: 10, color: highContrast ? '#94a3b8' : '#64748b', marginTop: 2 }}>{hint}</div>
+        </div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', marginBottom: 6 }}>
+          {tasks.length === 0 ? (
+            <div style={{ fontSize: 11, color: highContrast ? '#64748b' : '#94a3b8', padding: '4px 0' }}>항목 없음</div>
+          ) : (
+            tasks.map((task, idx) => (
+              <div
+                key={task.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 0',
+                  borderBottom: idx < tasks.length - 1 ? (highContrast ? '1px solid #333' : '1px solid #f1f5f9') : 'none',
+                  fontSize: 12,
+                  color: highContrast ? '#e2e8f0' : '#0f172a',
+                }}
+              >
+                <span style={{ flex: 1, minWidth: 0, lineHeight: 1.35 }}>{task.text}</span>
+                <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#16a34a', flexShrink: 0 }} aria-label="완료">
+                  <CheckSquare2 size={16} strokeWidth={1.75} aria-hidden />
+                </button>
+                <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444', flexShrink: 0 }} aria-label="삭제">
+                  <Trash2 size={16} strokeWidth={1.75} aria-hidden />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 'auto' }}>
+          <input
+            type="text"
+            value={draftByKey[key]}
+            onChange={(e) => setDraftByKey((prev) => ({ ...prev, [key]: e.target.value }))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitDraft(key);
+            }}
+            placeholder="추가…"
+            aria-label={`${title} 할 일 입력`}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              borderRadius: 8,
+              border: highContrast ? '1px solid #555' : '1px solid #e2e8f0',
+              padding: '8px 10px',
+              fontSize: 12,
+              background: highContrast ? '#0c0c0c' : '#f8fafc',
+              color: highContrast ? '#fff' : '#0f172a',
+              outline: 'none',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => commitDraft(key)}
+            style={{
+              border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+              borderRadius: 8,
+              background: highContrast ? '#1e1e1e' : '#fff',
+              color: highContrast ? '#fff' : '#334155',
+              padding: '0 10px',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+            aria-label={`${title}에 추가`}
+          >
+            <Plus size={18} strokeWidth={1.75} aria-hidden />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section aria-label="할 일 목록" style={{ marginBottom: 20 }}>
       <div style={{ marginBottom: 12 }}>
@@ -84,120 +178,72 @@ export function TodoBoard({
         style={{
           position: 'relative',
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: '28px 1fr 1fr',
           gridTemplateRows: 'auto 1fr 1fr',
           gap: 6,
           marginBottom: 12,
+          alignItems: 'stretch',
         }}
       >
+        <div />
         <div
           style={{
-            gridColumn: '1 / -1',
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 6,
-            padding: '0 2px 4px',
+            textAlign: 'center',
             fontSize: 10,
             fontWeight: 700,
             color: highContrast ? '#94a3b8' : '#64748b',
+            paddingBottom: 2,
           }}
         >
-          <span style={{ textAlign: 'center' }}>긴급</span>
-          <span style={{ textAlign: 'center' }}>여유</span>
+          긴급
         </div>
-        {MATRIX.map(({ key, title, hint, accent }) => {
-          const tasks = todoActiveByGroup[key];
-          const border = highContrast ? '1px solid #444' : '1px solid #e2e8f0';
-          return (
-            <div
-              key={key}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: 168,
-                maxHeight: 320,
-                borderRadius: 12,
-                border,
-                background: highContrast ? `linear-gradient(180deg, ${accent}, #121212 40%)` : `linear-gradient(180deg, ${accent}, #fff 35%)`,
-                padding: '8px 8px 6px',
-                boxSizing: 'border-box',
-              }}
-            >
-              <div style={{ marginBottom: 6, flexShrink: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', lineHeight: 1.25 }}>{title}</div>
-                <div style={{ fontSize: 10, color: highContrast ? '#94a3b8' : '#64748b', marginTop: 2 }}>{hint}</div>
-              </div>
-              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', marginBottom: 6 }}>
-                {tasks.length === 0 ? (
-                  <div style={{ fontSize: 11, color: highContrast ? '#64748b' : '#94a3b8', padding: '4px 0' }}>항목 없음</div>
-                ) : (
-                  tasks.map((task, idx) => (
-                    <div
-                      key={task.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        padding: '8px 0',
-                        borderBottom:
-                          idx < tasks.length - 1 ? (highContrast ? '1px solid #333' : '1px solid #f1f5f9') : 'none',
-                        fontSize: 12,
-                        color: highContrast ? '#e2e8f0' : '#0f172a',
-                      }}
-                    >
-                      <span style={{ flex: 1, minWidth: 0, lineHeight: 1.35 }}>{task.text}</span>
-                      <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#16a34a', flexShrink: 0 }} aria-label="완료">
-                        <CheckSquare2 size={16} strokeWidth={1.75} aria-hidden />
-                      </button>
-                      <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444', flexShrink: 0 }} aria-label="삭제">
-                        <Trash2 size={16} strokeWidth={1.75} aria-hidden />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 'auto' }}>
-                <input
-                  type="text"
-                  value={draftByKey[key]}
-                  onChange={(e) => setDraftByKey((prev) => ({ ...prev, [key]: e.target.value }))}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitDraft(key);
-                  }}
-                  placeholder="추가…"
-                  aria-label={`${title} 할 일 입력`}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    borderRadius: 8,
-                    border: highContrast ? '1px solid #555' : '1px solid #e2e8f0',
-                    padding: '8px 10px',
-                    fontSize: 12,
-                    background: highContrast ? '#0c0c0c' : '#f8fafc',
-                    color: highContrast ? '#fff' : '#0f172a',
-                    outline: 'none',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => commitDraft(key)}
-                  style={{
-                    border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                    borderRadius: 8,
-                    background: highContrast ? '#1e1e1e' : '#fff',
-                    color: highContrast ? '#fff' : '#334155',
-                    padding: '0 10px',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                  }}
-                  aria-label={`${title}에 추가`}
-                >
-                  <Plus size={18} strokeWidth={1.75} aria-hidden />
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        <div
+          style={{
+            textAlign: 'center',
+            fontSize: 10,
+            fontWeight: 700,
+            color: highContrast ? '#94a3b8' : '#64748b',
+            paddingBottom: 2,
+          }}
+        >
+          여유
+        </div>
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: highContrast ? '#94a3b8' : '#64748b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed',
+            letterSpacing: 1,
+            paddingRight: 2,
+          }}
+        >
+          중요
+        </div>
+        {renderQuadrant(MATRIX[0])}
+        {renderQuadrant(MATRIX[1])}
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: highContrast ? '#94a3b8' : '#64748b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed',
+            letterSpacing: 1,
+            paddingRight: 2,
+          }}
+        >
+          덜중요
+        </div>
+        {renderQuadrant(MATRIX[2])}
+        {renderQuadrant(MATRIX[3])}
       </div>
 
       <div style={{ border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 12, padding: 10, background: highContrast ? '#121212' : '#f8fafc' }}>
