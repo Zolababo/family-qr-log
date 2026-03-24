@@ -252,6 +252,7 @@ export default function HomeClient() {
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
   const memoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadLogsReqSeqRef = useRef(0);
 
   const fontScale = FONT_STEPS[fontScaleStep];
   const canApplyIncomingSharedMemo = useCallback(() => {
@@ -643,6 +644,7 @@ export default function HomeClient() {
 
   const loadLogs = useCallback(
     async (hid: string, slug: string | undefined, actorUserId?: string) => {
+      const reqSeq = ++loadLogsReqSeqRef.current;
       let query = supabase
         .from('logs')
         .select('*')
@@ -659,6 +661,7 @@ export default function HomeClient() {
       }
 
       const { data, error } = await query;
+      if (reqSeq !== loadLogsReqSeqRef.current) return;
 
       if (error) {
         setStatus(`logs 조회 실패: ${error.message}`);
@@ -1274,7 +1277,7 @@ export default function HomeClient() {
           aria-hidden
         />
         {user && householdId ? (
-          <div className="home-top-bleed" style={{ marginBottom: 8, position: 'sticky', top: 0, zIndex: 24, background: theme.bg }}>
+          <div className="home-top-bleed" style={{ marginBottom: 8 }}>
             <AppHeader
               theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
               highContrast={highContrast}
@@ -1457,7 +1460,7 @@ export default function HomeClient() {
             )}
           </div>
         ) : (
-          <div className="home-top-bleed" style={{ marginBottom: 8, position: 'sticky', top: 0, zIndex: 24, background: theme.bg }}>
+          <div className="home-top-bleed" style={{ marginBottom: 8 }}>
             <AppHeader
               theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
               highContrast={highContrast}
@@ -1890,41 +1893,43 @@ export default function HomeClient() {
               </section>
             )}
 
-            <LogFeed
-              activeTab={activeTab === 'todo' ? 'home' : activeTab}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              t={t}
-              theme={theme}
-              highContrast={highContrast}
-              logs={logs}
-              logsByDate={logsByDate}
-              user={user}
-              editingLogId={editingLogId}
-              setEditingLogId={setEditingLogId}
-              editingAction={editingAction}
-              setEditingAction={setEditingAction}
-              onUpdateLog={handleUpdateLog}
-              getMemberName={getMemberName}
-              getLogMedia={getLogMedia}
-              formatDateTime={formatDateTime}
-              getPlaceLabelKey={getPlaceLabelKey}
-              commentsByLogId={commentsByLogId}
-              replyingTo={replyingTo}
-              setReplyingTo={setReplyingTo}
-              commentDraft={commentDraft}
-              setCommentDraft={setCommentDraft}
-              commentSending={commentSending}
-              addComment={addComment}
-              commentTarget={commentTarget}
-              setCommentTarget={setCommentTarget}
-              longPressTimerRef={longPressTimerRef}
-              setActionPopupLogId={setActionPopupLogId}
-              onPickSticker={(logId) => openStickerPicker(logId)}
-              onStickerRemove={(logId) => {
-                void applyStickerToLog(logId, null);
-              }}
-            />
+            {(activeTab === 'home' || activeTab === 'search') && (
+              <LogFeed
+                activeTab={activeTab}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                t={t}
+                theme={theme}
+                highContrast={highContrast}
+                logs={logs}
+                logsByDate={logsByDate}
+                user={user}
+                editingLogId={editingLogId}
+                setEditingLogId={setEditingLogId}
+                editingAction={editingAction}
+                setEditingAction={setEditingAction}
+                onUpdateLog={handleUpdateLog}
+                getMemberName={getMemberName}
+                getLogMedia={getLogMedia}
+                formatDateTime={formatDateTime}
+                getPlaceLabelKey={getPlaceLabelKey}
+                commentsByLogId={commentsByLogId}
+                replyingTo={replyingTo}
+                setReplyingTo={setReplyingTo}
+                commentDraft={commentDraft}
+                setCommentDraft={setCommentDraft}
+                commentSending={commentSending}
+                addComment={addComment}
+                commentTarget={commentTarget}
+                setCommentTarget={setCommentTarget}
+                longPressTimerRef={longPressTimerRef}
+                setActionPopupLogId={setActionPopupLogId}
+                onPickSticker={(logId) => openStickerPicker(logId)}
+                onStickerRemove={(logId) => {
+                  void applyStickerToLog(logId, null);
+                }}
+              />
+            )}
           </>
         )}
       </div>
