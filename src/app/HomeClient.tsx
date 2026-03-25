@@ -6,7 +6,7 @@ import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
-import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus, MoreVertical } from 'lucide-react';
+import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus } from 'lucide-react';
 import { LOG_SLUG, TOPIC_SLUGS, type LogSlug } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { AppHeader } from '../components/layout/AppHeader';
@@ -236,6 +236,7 @@ export default function HomeClient() {
     const d = new Date();
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   });
+  const [calendarTagFilter, setCalendarTagFilter] = useState<'all' | LogSlug>('all');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [commentsByLogId, setCommentsByLogId] = useState<Record<string, LogComment[]>>({});
   const [replyingTo, setReplyingTo] = useState<{ logId: string; commentId: string } | null>(null);
@@ -267,20 +268,6 @@ export default function HomeClient() {
     const el = homeScrollRef.current;
     if (el) el.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activeTab]);
-
-  useEffect(() => {
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevBodyHeight = document.body.style.height;
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
-    document.body.style.height = '100%';
-    return () => {
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      document.body.style.overflow = prevBodyOverflow;
-      document.body.style.height = prevBodyHeight;
-    };
-  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -811,12 +798,12 @@ export default function HomeClient() {
         return;
       }
 
-      const placeSlugFilter = feedTagFilter === 'all' ? undefined : feedTagFilter;
-      await loadLogs(householdId, placeSlugFilter, undefined);
+      // 서버는 “전체 로그”를 다시 받아오고, 필터링은 클라이언트에서 처리합니다.
+      await loadLogs(householdId, undefined, undefined);
       setStickerPickerOpen(false);
       setStickerPickerLogId(null);
     },
-    [user, householdId, logs, feedTagFilter, loadLogs]
+    [user, householdId, logs, loadLogs]
   );
 
   const pickSticker = (sticker: string | null) => {
@@ -826,22 +813,14 @@ export default function HomeClient() {
 
   useEffect(() => {
     if (!householdId || !user) return;
-
-    const placeSlugFilter = feedTagFilter === 'all' ? undefined : feedTagFilter;
-    loadLogs(householdId, placeSlugFilter, undefined);
-  }, [householdId, feedTagFilter, user, loadLogs]);
-
-  useEffect(() => {
-    // 검색 탭은 “전체 로그”를 대상으로 인스타처럼 랜덤 그리드를 보여주기 위해
-    // 서버 필터가 걸리지 않게 feedTagFilter를 'all'로 고정합니다.
-    if (activeTab === 'search') setFeedTagFilter('all');
-  }, [activeTab]);
+    // 서버 필터를 걸지 않고 전체를 로드합니다.
+    void loadLogs(householdId, undefined, undefined);
+  }, [householdId, user, loadLogs]);
 
   const refreshLogs = useCallback(() => {
     if (!householdId || !user) return;
-    const placeSlugFilter = feedTagFilter === 'all' ? undefined : feedTagFilter;
-    loadLogs(householdId, placeSlugFilter, undefined);
-  }, [householdId, feedTagFilter, user, loadLogs]);
+    void loadLogs(householdId, undefined, undefined);
+  }, [householdId, user, loadLogs]);
 
   const handleUpdateLog = async (logId: string, newAction: string) => {
     if (!user || !householdId) return;
@@ -1095,7 +1074,7 @@ export default function HomeClient() {
     [allowedFeedSlugSet]
   );
 
-  const logsForCalendar = logs;
+  const logsForCalendar = calendarTagFilter === 'all' ? logs : logs.filter((l) => l.place_slug === calendarTagFilter);
   const [calYear, calMonth] = calendarYearMonth.split('-').map(Number);
   const calendarFirstDay = new Date(calYear, calMonth - 1, 1);
   const calendarLastDay = new Date(calYear, calMonth, 0);
@@ -1273,9 +1252,6 @@ export default function HomeClient() {
     <main
         style={{
           minHeight: '100vh',
-          height: '100dvh',
-          maxHeight: '100dvh',
-          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'stretch',
@@ -1344,10 +1320,7 @@ export default function HomeClient() {
       >
         <div
           ref={homeScrollRef}
-          className={`home-scroll-region ${activeTab === 'home' || activeTab === 'calendar' ? 'enable-snap' : ''}`}
-          onWheel={(e) => {
-            e.stopPropagation();
-          }}
+          className="home-scroll-region"
           style={{
             flex: 1,
             minHeight: 0,
@@ -1390,86 +1363,80 @@ export default function HomeClient() {
               onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
             />
             {activeTab === 'search' && (
-              <div
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="검색"
                 style={{
-                  position: 'relative',
+                  width: '100%',
                   marginBottom: 10,
+                  borderRadius: 12,
+                  border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
                   padding: '10px 12px',
-                  borderRadius: theme.radiusLg,
-                  border: theme.border,
-                  background: theme.card,
-                  boxShadow: theme.cardShadow,
+                  fontSize: 13,
+                  background: highContrast ? '#1e1e1e' : '#fff',
+                  color: theme.text,
+                  outline: 'none',
+                  boxSizing: 'border-box',
                 }}
-              >
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="검색"
-                  style={{
-                    width: '100%',
-                    borderRadius: 12,
-                    border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                    padding: '10px 12px',
-                    fontSize: 13,
-                    background: highContrast ? '#1e1e1e' : '#fff',
-                    color: theme.text,
-                    outline: 'none',
-                  }}
-                  aria-label="검색"
-                />
-              </div>
+                aria-label="검색"
+              />
             )}
             {activeTab === 'home' && (
               <>
-                <div
+                <details
+                  className="feed-filter-disclosure"
+                  open={familyNotesEditing}
+                  onToggle={(e) => setFamilyNotesEditing(e.currentTarget.open)}
                   style={{
-                    position: 'relative',
                     marginBottom: 10,
-                    padding: '10px 12px',
-                    paddingRight: 44,
                     borderRadius: theme.radiusLg,
                     border: theme.border,
                     background: theme.card,
                     boxShadow: theme.cardShadow,
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setFamilyNotesEditing((v) => !v)}
-                    aria-label={familyNotesEditing ? t('doneEditing') : t('editFamilyNotes')}
-                    aria-expanded={familyNotesEditing}
-                    style={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      width: 36,
-                      height: 36,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: 10,
-                      border: '1px solid #e2e8f0',
-                      background: highContrast ? '#1e1e1e' : '#f8fafc',
-                      color: highContrast ? '#ffc107' : '#64748b',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <MoreVertical size={20} strokeWidth={1.75} aria-hidden />
-                  </button>
-                  {!familyNotesEditing ? (
-                    <div style={{ fontSize: 13, lineHeight: 1.65, color: theme.text }}>
-                      <div>
-                        <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('familyNotice')}</span>
-                        <span style={{ whiteSpace: 'pre-wrap' }}>{familyNotice.trim() ? familyNotice : t('emptyMemo')}</span>
-                      </div>
-                      <div style={{ marginTop: 8 }}>
-                        <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('shoppingListTitle')}</span>
-                        <span style={{ whiteSpace: 'pre-wrap' }}>{shoppingList.trim() ? shoppingList : t('emptyMemo')}</span>
-                      </div>
+                  <summary className="feed-filter-summary">
+                    <div style={{ flex: 1, fontSize: 13, lineHeight: 1.65, color: theme.text }}>
+                      {familyNotesEditing ? (
+                        <>
+                          <div>
+                            <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('familyNotice')}</span>
+                            <span style={{ whiteSpace: 'pre-wrap' }}>{familyNotice.trim() ? familyNotice : t('emptyMemo')}</span>
+                          </div>
+                          <div style={{ marginTop: 8 }}>
+                            <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('shoppingListTitle')}</span>
+                            <span style={{ whiteSpace: 'pre-wrap' }}>{shoppingList.trim() ? shoppingList : t('emptyMemo')}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('familyNotice')}</span>
+                            <span style={{ whiteSpace: 'pre-wrap' }}>{familyNotice.trim() ? familyNotice : t('emptyMemo')}</span>
+                          </div>
+                          <div style={{ marginTop: 8 }}>
+                            <span style={{ color: theme.textSecondary, fontSize: 11, display: 'block' }}>{t('shoppingListTitle')}</span>
+                            <span style={{ whiteSpace: 'pre-wrap' }}>{shoppingList.trim() ? shoppingList : t('emptyMemo')}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
-                  ) : (
-                    <div style={{ display: 'grid', gap: 10 }}>
+                    <ChevronDown
+                      size={18}
+                      strokeWidth={2}
+                      aria-hidden
+                      style={{
+                        color: theme.textSecondary,
+                        transform: familyNotesEditing ? 'rotate(180deg)' : undefined,
+                        transition: 'transform 0.2s ease',
+                        flexShrink: 0,
+                      }}
+                    />
+                  </summary>
+                  <div style={{ paddingLeft: 2, paddingRight: 2, paddingBottom: 8 }}>
+                    <div style={{ display: 'grid', gap: 10, paddingTop: 2 }}>
                       <div>
                         <label htmlFor="family-notice-input" style={{ fontSize: 11, color: theme.textSecondary, display: 'block', marginBottom: 4 }}>
                           {t('familyNotice')}
@@ -1549,8 +1516,8 @@ export default function HomeClient() {
                         </button>
                       </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                </details>
                 <details
                   className="feed-filter-disclosure"
                   open={feedFilterOpen}
@@ -1701,6 +1668,42 @@ export default function HomeClient() {
                   >
                     <ChevronRight size={20} strokeWidth={1.5} aria-hidden />
                   </button>
+                </div>
+                <div
+                  className="horizontal-scroll-hide"
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'nowrap',
+                    overflowX: 'auto',
+                    WebkitOverflowScrolling: 'touch',
+                    gap: 6,
+                    marginBottom: 6,
+                    paddingBottom: 2,
+                  }}
+                >
+                  {feedTagOptions.map(({ key, label }) => {
+                    const active = calendarTagFilter === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setCalendarTagFilter(key as 'all' | LogSlug)}
+                        style={{
+                          flexShrink: 0,
+                          padding: '6px 12px',
+                          borderRadius: 999,
+                          border: active ? '1px solid var(--accent)' : '1px solid #e2e8f0',
+                          background: active ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
+                          color: active ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
+                          fontSize: 12,
+                          fontWeight: active ? 600 : 400,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
                 <div
                   style={{
@@ -2158,8 +2161,32 @@ export default function HomeClient() {
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 12,
+                    position: 'relative',
                   }}
                 >
+                  <button
+                    type="button"
+                    onClick={() => setSearchViewer(null)}
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      transform: 'translate(12px, 12px)',
+                      border: '1px solid rgba(255,193,7,0.8)',
+                      background: 'rgba(0,0,0,0.15)',
+                      color: '#ffc107',
+                      borderRadius: 999,
+                      width: 36,
+                      height: 36,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                    aria-label="닫기"
+                  >
+                    <ChevronLeft size={18} strokeWidth={2} aria-hidden />
+                  </button>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                     <div style={{ fontSize: 12, color: '#e5e7eb' }}>
                       {searchViewer.type === 'image' ? `이미지 ${searchViewer.index + 1}/${searchViewer.urls.length}` : '동영상'}

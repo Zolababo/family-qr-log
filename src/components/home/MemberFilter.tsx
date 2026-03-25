@@ -182,7 +182,19 @@ const avatarInnerWrap = {
             )}
           </span>
         </span>
-        <span style={{ fontSize: 12, lineHeight: 1.1, marginTop: 2, color: isSelected('me') ? 'var(--accent)' : 'var(--text-secondary)' }}>
+        <span
+          style={{
+            fontSize: 12,
+            lineHeight: 1.1,
+            minHeight: 16,
+            display: 'block',
+            textAlign: 'center',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            color: isSelected('me') ? 'var(--accent)' : 'var(--text-secondary)',
+          }}
+        >
           {meDisplayName}
         </span>
       </button>
@@ -240,7 +252,19 @@ const avatarInnerWrap = {
                   )}
                 </span>
               </span>
-              <span style={{ fontSize: 12, lineHeight: 1.1, marginTop: 2, color: active ? 'var(--accent)' : 'var(--text-secondary)' }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  lineHeight: 1.1,
+                  minHeight: 16,
+                  display: 'block',
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  color: active ? 'var(--accent)' : 'var(--text-secondary)',
+                }}
+              >
                 {name}
               </span>
             </button>

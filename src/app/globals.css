@@ -286,15 +286,6 @@ body {
   grid-auto-rows: auto;
 }
 
-/* 홈 본문 스크롤: 상단 블록(헤더~목록 필터) 경계에서 자연스럽게 스냅 */
-.home-scroll-region.enable-snap {
-  scroll-snap-type: y proximity;
-}
-.home-top-bleed {
-  scroll-snap-align: start;
-  scroll-snap-stop: normal;
-}
-
 /* ========== 장소 선택 카드 (3열 그리드) ========== */
 .place-grid {
   display: grid;
