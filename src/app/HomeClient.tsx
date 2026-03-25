@@ -659,7 +659,7 @@ export default function HomeClient() {
         .select('*')
         .eq('household_id', hid)
         .order('created_at', { ascending: false })
-        .limit(1000);
+        .limit(5000);
       // 서버에서 place_slug로 한 번 더 거르면,
       // 태그 값이 한 번이라도 달라진 시점부터 “기존 로그가 통째로 사라지는” 문제가 생길 수 있어
       // 여기서는 항상 전체 로그를 가져오고, 필터는 클라이언트에서 처리합니다.
@@ -678,9 +678,21 @@ export default function HomeClient() {
 
       const next = (data ?? []).filter((l) => {
         const action = String(l.action ?? '').trim();
-        // 스냅샷은 place_slug까지 같이 확인해서 “일반 로그가 접두어에 걸려 통째로 제외되는” 리스크를 줄입니다.
-        if (l.place_slug === LOG_SLUG.general && action.startsWith(SHARED_MEMO_LOG_PREFIX)) return false;
-        if (l.place_slug === LOG_SLUG.todo && action.startsWith(TODO_SNAPSHOT_PREFIX)) return false;
+        // 스냅샷 제외는 “접두어 + 정상 파싱 결과”가 확인될 때만 제거합니다.
+        // (잘못된 접두어/형식 때문에 일반 로그가 통째로 사라지는 현상을 막기 위함)
+        if (l.place_slug === LOG_SLUG.general && action.startsWith(SHARED_MEMO_LOG_PREFIX)) {
+          const parsed = parseSharedMemoSnapshot(action);
+          const isValidSnapshot =
+            parsed != null &&
+            (typeof parsed.content === 'string' ||
+              typeof parsed.family_notice === 'string' ||
+              typeof parsed.shopping_list === 'string');
+          if (isValidSnapshot) return false;
+        }
+        if (l.place_slug === LOG_SLUG.todo && action.startsWith(TODO_SNAPSHOT_PREFIX)) {
+          const parsed = parseTodoSnapshot(action);
+          if (parsed != null) return false;
+        }
         return true;
       });
       setLogs(next);
