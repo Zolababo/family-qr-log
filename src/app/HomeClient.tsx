@@ -676,7 +676,8 @@ export default function HomeClient() {
         return;
       }
 
-      const next = (data ?? []).filter((l) => {
+      const rows = data ?? [];
+      const next = rows.filter((l) => {
         const action = String(l.action ?? '').trim();
         // 스냅샷 제외는 “접두어 + 정상 파싱 결과”가 확인될 때만 제거합니다.
         // (잘못된 접두어/형식 때문에 일반 로그가 통째로 사라지는 현상을 막기 위함)
@@ -695,7 +696,9 @@ export default function HomeClient() {
         }
         return true;
       });
-      setLogs(next);
+      // 필터 로직이 예기치 않게 “전부 제외”하는 경우, 화면이 완전히 빈 상태가 되지 않도록
+      // 원본 데이터를 우선 복구해서 표시합니다.
+      setLogs(next.length === 0 && rows.length > 0 ? rows : next);
     },
     []
   );
