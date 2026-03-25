@@ -683,23 +683,11 @@ export default function HomeClient() {
         return;
       }
 
-      // 스냅샷 로그(가족공지/할일)는 홈의 “실제 로그” 피드에 섞이면 사용자 입장에서
-      // “내가 안 쓴 로그가 뜬다 / 사진·영상 로그가 안 보인다”처럼 보이므로 제외합니다.
       const rows = data ?? [];
-      const next = rows.filter((l) => {
-        const action = String(l.action ?? '').trim();
-        // “스냅샷 prefix”라도, 실제로 스냅샷 포맷(JSON)이 맞을 때만 제외합니다.
-        // prefix만 우연히 겹친 로그까지 날아가는 걸 방지합니다.
-        if (l.place_slug === LOG_SLUG.general && action.startsWith(SHARED_MEMO_LOG_PREFIX)) {
-          return parseSharedMemoSnapshot(action) == null;
-        }
-        if (l.place_slug === LOG_SLUG.todo && action.startsWith(TODO_SNAPSHOT_PREFIX)) {
-          return parseTodoSnapshot(action) == null;
-        }
-        return true;
-      });
-      // 예외적으로 전부 제외돼 빈 화면이 되는 사고를 막습니다.
-      setLogs((next.length === 0 && rows.length > 0 ? rows : next) as Log[]);
+      // [안정성 격리] 홈에서 과거 로그/미디어가 갑자기 줄어드는 현상이 있어,
+      // 우선 “스냅샷 제외” 로직을 꺼서 서버 rows가 실제로 온 것인지 확인합니다.
+      // (이 상태에서 과거 로그가 보이면, 다음 단계에서 제외 기준만 안전하게 재설계할게요.)
+      setLogs(rows as Log[]);
     },
     []
   );
