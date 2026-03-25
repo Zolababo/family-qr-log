@@ -7,7 +7,7 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
 import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus } from 'lucide-react';
-import { LOG_SLUG, TOPIC_SLUGS, type LogSlug } from '../lib/logTags';
+import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug, type LogSlug } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { AppHeader } from '../components/layout/AppHeader';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
@@ -703,7 +703,10 @@ export default function HomeClient() {
         return;
       }
 
-      const rows = data ?? [];
+      const rows = (data ?? []).map((row) => ({
+        ...(row as Log),
+        place_slug: normalizeLogSlug((row as Log).place_slug),
+      }));
       // [안정성 격리] 홈에서 과거 로그/미디어가 갑자기 줄어드는 현상이 있어,
       // 우선 “스냅샷 제외” 로직을 꺼서 서버 rows가 실제로 온 것인지 확인합니다.
       // (이 상태에서 과거 로그가 보이면, 다음 단계에서 제외 기준만 안전하게 재설계할게요.)
@@ -996,21 +999,21 @@ export default function HomeClient() {
   const meDisplayName =
     profileName || (user?.email ? user.email.split('@')[0] : t('me'));
   const getPlaceLabelKey = (slug: string) => {
+    const normalized = normalizeLogSlug(slug);
     const map: Record<string, string> = {
       [LOG_SLUG.general]: 'logGeneral',
       [LOG_SLUG.notice]: 'logNotice',
-      fridge: 'fridge',
-      table: 'table',
-      toilet: 'toilet',
-      health: 'topicHealth',
-      diet: 'topicDiet',
-      kid: 'topicKid',
-      pet: 'topicPet',
+      [LOG_SLUG.daddy]: 'tagDaddy',
+      [LOG_SLUG.mommy]: 'tagMommy',
+      [LOG_SLUG.bamtoli]: 'tagBamtoli',
+      [LOG_SLUG.eomniAbuji]: 'tagEomniAbuji',
+      [LOG_SLUG.motheriPpadeori]: 'tagMotheriPpadeori',
+      [LOG_SLUG.danine]: 'tagDanine',
+      [LOG_SLUG.uchacha]: 'tagUchacha',
+      [LOG_SLUG.ttolMorning]: 'tagTtolMorning',
       todo: 'topicTodo',
-      outing: 'topicOuting',
-      parking: 'topicParking',
     };
-    return map[slug] ?? 'logGeneral';
+    return map[normalized] ?? 'logGeneral';
   };
 
   const todayLogCount = useMemo(() => {
@@ -1085,15 +1088,15 @@ export default function HomeClient() {
       { key: 'all' as const, label: '전체' },
       { key: LOG_SLUG.general, label: '다같이' },
       ...topicRows,
-      { key: LOG_SLUG.fridge, label: '단이네' },
-      { key: LOG_SLUG.table, label: '우차차' },
-      { key: LOG_SLUG.toilet, label: '똘모닝' },
+      { key: LOG_SLUG.danine, label: '단이네' },
+      { key: LOG_SLUG.uchacha, label: '우차차' },
+      { key: LOG_SLUG.ttolMorning, label: '똘모닝' },
       { key: LOG_SLUG.notice, label: '공지사항' },
     ];
   }, []);
 
   const allowedFeedSlugSet = useMemo(() => {
-    const s = new Set<string>(['all', LOG_SLUG.general, LOG_SLUG.notice, LOG_SLUG.fridge, LOG_SLUG.table, LOG_SLUG.toilet]);
+    const s = new Set<string>(['all', LOG_SLUG.general, LOG_SLUG.notice, LOG_SLUG.danine, LOG_SLUG.uchacha, LOG_SLUG.ttolMorning]);
     TOPIC_SLUGS.forEach((slug) => s.add(slug));
     return s;
   }, []);

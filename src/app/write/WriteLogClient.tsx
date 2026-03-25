@@ -7,7 +7,7 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from '../api/supabaseClient';
 import { getT, type Lang } from '../translations';
 import { Camera, Image as ImageIcon, X, ChevronLeft, MapPin, Mic } from 'lucide-react';
-import { LOG_SLUG, TOPIC_SLUGS } from '../../lib/logTags';
+import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug } from '../../lib/logTags';
 import { composeActionWithMeta, parseLogMeta, type LogMeta } from '../../lib/logActionMeta';
 import { compressImageFile, VIDEO_MAX_MB } from '../../lib/imageCompress';
 
@@ -62,9 +62,9 @@ const MEMBER_LIKE_TAGS: { value: string | null; label: string }[] = [
   { value: TOPIC_SLUGS[2], label: '밤톨이' },
   { value: TOPIC_SLUGS[3], label: '엄니아부지' },
   { value: TOPIC_SLUGS[4], label: '마더리빠더리' },
-  { value: LOG_SLUG.fridge, label: '단이네' },
-  { value: LOG_SLUG.table, label: '우차차' },
-  { value: LOG_SLUG.toilet, label: '똘모닝' },
+  { value: LOG_SLUG.danine, label: '단이네' },
+  { value: LOG_SLUG.uchacha, label: '우차차' },
+  { value: LOG_SLUG.ttolMorning, label: '똘모닝' },
   { value: LOG_SLUG.notice, label: '공지사항' },
 ];
 
@@ -213,7 +213,7 @@ export default function WriteLogClient() {
       setAction(parsed.text ?? '');
       setLogLocationName(parsed.meta.locationName ?? '');
       setLogLocationUrl(parsed.meta.locationUrl ?? '');
-      setSelectedLogTag(data.place_slug ?? LOG_SLUG.general);
+      setSelectedLogTag(normalizeLogSlug(data.place_slug));
       const imageUrls: string[] = [];
       if (data.image_urls) {
         try {
