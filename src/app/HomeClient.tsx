@@ -264,6 +264,10 @@ export default function HomeClient() {
   const swipeStartRef = useRef<number | null>(null);
   const memoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadLogsReqSeqRef = useRef(0);
+  const todoSnapshotHydratedRef = useRef(false);
+  const lastLoadedTodoSnapshotActionRef = useRef('');
+  const lastSavedTodoSnapshotActionRef = useRef('');
+  const lastSavedSharedMemoSnapshotActionRef = useRef('');
 
   const fontScale = FONT_STEPS[fontScaleStep];
   const canApplyIncomingSharedMemo = useCallback(() => {
@@ -384,8 +388,14 @@ export default function HomeClient() {
         .order('created_at', { ascending: false })
         .limit(1);
       if (cancelled) return;
-      const parsed = parseTodoSnapshot(data?.[0]?.action);
-      if (parsed) setTodoTasks(parsed);
+      const latestAction = typeof data?.[0]?.action === 'string' ? data[0].action : '';
+      todoSnapshotHydratedRef.current = true;
+      if (!latestAction || latestAction === lastLoadedTodoSnapshotActionRef.current) return;
+      const parsed = parseTodoSnapshot(latestAction);
+      if (!parsed) return;
+      lastLoadedTodoSnapshotActionRef.current = latestAction;
+      lastSavedTodoSnapshotActionRef.current = latestAction;
+      setTodoTasks(parsed);
     };
     void loadTodo();
     const timer = window.setInterval(() => {
@@ -399,14 +409,17 @@ export default function HomeClient() {
 
   useEffect(() => {
     if (!householdId || !user) return;
+    if (!todoSnapshotHydratedRef.current) return;
+    const action = composeTodoSnapshot(todoTasks);
+    if (action === lastSavedTodoSnapshotActionRef.current) return;
     const timer = window.setTimeout(async () => {
-      const action = composeTodoSnapshot(todoTasks);
       await supabase.from('logs').insert({
         household_id: householdId,
         place_slug: LOG_SLUG.todo,
         action,
         actor_user_id: user.id,
       });
+      lastSavedTodoSnapshotActionRef.current = action;
     }, 600);
     return () => window.clearTimeout(timer);
   }, [todoTasks, householdId, user]);
@@ -509,6 +522,9 @@ export default function HomeClient() {
       const latest = data?.[0];
       const parsed = parseSharedMemoSnapshot(latest?.action);
       if (!parsed || !canApplyIncomingSharedMemo()) return;
+      if (typeof latest?.action === 'string') {
+        lastSavedSharedMemoSnapshotActionRef.current = latest.action;
+      }
       if (typeof parsed.content === 'string') setMemoContent(parsed.content);
       if (typeof parsed.family_notice === 'string') setFamilyNotice(parsed.family_notice);
       if (typeof parsed.shopping_list === 'string') setShoppingList(parsed.shopping_list);
@@ -568,6 +584,7 @@ export default function HomeClient() {
           family_notice: familyNotice,
           shopping_list: shoppingList,
         });
+        if (snapshotAction === lastSavedSharedMemoSnapshotActionRef.current) return;
         const res = await supabase.from('logs').insert({
           household_id: householdId,
           place_slug: LOG_SLUG.general,
@@ -575,6 +592,7 @@ export default function HomeClient() {
           actor_user_id: user.id,
         });
         error = res.error;
+        if (!error) lastSavedSharedMemoSnapshotActionRef.current = snapshotAction;
       }
       if (error) {
         setStatus(`메모 저장 실패: ${error.message}`);
@@ -665,6 +683,8 @@ export default function HomeClient() {
         .from('logs')
         .select('*')
         .eq('household_id', hid)
+        .not('action', 'like', `${TODO_SNAPSHOT_PREFIX}%`)
+        .not('action', 'like', `${SHARED_MEMO_LOG_PREFIX}%`)
         .order('created_at', { ascending: false })
         .limit(5000);
       // 서버에서 place_slug로 한 번 더 거르면,
@@ -1236,6 +1256,11 @@ export default function HomeClient() {
         family_notice: familyNotice,
         shopping_list: shoppingList,
       });
+      if (snapshotAction === lastSavedSharedMemoSnapshotActionRef.current) {
+        setMemoSaving(false);
+        setStatus('가족 메모가 저장되었습니다.');
+        return;
+      }
       const res = await supabase.from('logs').insert({
         household_id: householdId,
         place_slug: LOG_SLUG.general,
@@ -1243,6 +1268,7 @@ export default function HomeClient() {
         actor_user_id: user.id,
       });
       error = res.error;
+      if (!error) lastSavedSharedMemoSnapshotActionRef.current = snapshotAction;
     }
     setMemoSaving(false);
     if (error) {
