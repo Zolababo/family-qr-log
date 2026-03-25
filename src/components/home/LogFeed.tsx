@@ -12,7 +12,7 @@ export type Log = {
   actor_user_id: string;
   created_at: string;
   image_url?: string | null;
-  image_urls?: string | null;
+  image_urls?: string | string[] | null;
   video_url?: string | null;
 };
 

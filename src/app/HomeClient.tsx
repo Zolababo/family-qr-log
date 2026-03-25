@@ -24,15 +24,18 @@ type Log = {
   actor_user_id: string;
   created_at: string;
   image_url?: string | null;
-  image_urls?: string | null;
+  image_urls?: string | string[] | null;
   video_url?: string | null;
 };
 
 function getLogMedia(log: Log): { imageUrls: string[]; videoUrl: string | null } {
   let imageUrls: string[] = [];
-  if (log.image_urls) {
+  const raw = log.image_urls;
+  if (Array.isArray(raw)) {
+    imageUrls = raw.filter((u): u is string => typeof u === 'string');
+  } else if (typeof raw === 'string' && raw.trim()) {
     try {
-      const parsed = JSON.parse(log.image_urls);
+      const parsed = JSON.parse(raw);
       imageUrls = Array.isArray(parsed) ? parsed.filter((u): u is string => typeof u === 'string') : [];
     } catch {}
   }
@@ -676,10 +679,19 @@ export default function HomeClient() {
         return;
       }
 
-      // 안정성 우선: 필터 로직이 “전부 제거”되는 케이스를 막기 위해,
-      // 우선은 쿼리 결과를 그대로 화면에 표시합니다.
-      // (스냅샷 제외는 다음 단계에서 “안전하게” 다시 조정할게요.)
-      setLogs((data ?? []) as Log[]);
+      // 스냅샷 로그(가족공지/할일)는 홈의 “실제 로그” 피드에 섞이면 사용자 입장에서
+      // “내가 안 쓴 로그가 뜬다 / 사진·영상 로그가 안 보인다”처럼 보이므로 제외합니다.
+      const next = (data ?? []).filter((l) => {
+        const action = String(l.action ?? '').trim();
+        if (action.startsWith(SHARED_MEMO_LOG_PREFIX)) {
+          return parseSharedMemoSnapshot(action) == null;
+        }
+        if (action.startsWith(TODO_SNAPSHOT_PREFIX)) {
+          return parseTodoSnapshot(action) == null;
+        }
+        return true;
+      });
+      setLogs(next as Log[]);
     },
     []
   );
