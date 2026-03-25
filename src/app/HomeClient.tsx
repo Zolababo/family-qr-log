@@ -1254,6 +1254,9 @@ export default function HomeClient() {
     <main
         style={{
           minHeight: '100vh',
+          height: '100dvh',
+          maxHeight: '100dvh',
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'stretch',
