@@ -37,7 +37,11 @@ function getLogMedia(log: Log): { imageUrls: string[]; videoUrl: string | null }
     try {
       const parsed = JSON.parse(raw);
       imageUrls = Array.isArray(parsed) ? parsed.filter((u): u is string => typeof u === 'string') : [];
-    } catch {}
+    } catch {
+      // JSON이 깨진 문자열이어도, URL만 추출해서 최소한 미디어는 보이게 합니다.
+      const matches = raw.match(/https?:\/\/[^\s",)]+/g);
+      if (matches) imageUrls = matches;
+    }
   }
   if (imageUrls.length === 0 && log.image_url) imageUrls = [log.image_url];
   const videoUrl = log.video_url && log.video_url.trim() ? log.video_url : null;
@@ -681,17 +685,16 @@ export default function HomeClient() {
 
       // 스냅샷 로그(가족공지/할일)는 홈의 “실제 로그” 피드에 섞이면 사용자 입장에서
       // “내가 안 쓴 로그가 뜬다 / 사진·영상 로그가 안 보인다”처럼 보이므로 제외합니다.
-      const next = (data ?? []).filter((l) => {
+      const rows = data ?? [];
+      const next = rows.filter((l) => {
         const action = String(l.action ?? '').trim();
-        if (action.startsWith(SHARED_MEMO_LOG_PREFIX)) {
-          return parseSharedMemoSnapshot(action) == null;
-        }
-        if (action.startsWith(TODO_SNAPSHOT_PREFIX)) {
-          return parseTodoSnapshot(action) == null;
-        }
+        // “스냅샷 prefix” + “스냅샷 전용 place_slug”일 때만 확실히 제외합니다.
+        if (l.place_slug === LOG_SLUG.general && action.startsWith(SHARED_MEMO_LOG_PREFIX)) return false;
+        if (l.place_slug === LOG_SLUG.todo && action.startsWith(TODO_SNAPSHOT_PREFIX)) return false;
         return true;
       });
-      setLogs(next as Log[]);
+      // 예외적으로 전부 제외돼 빈 화면이 되는 사고를 막습니다.
+      setLogs((next.length === 0 && rows.length > 0 ? rows : next) as Log[]);
     },
     []
   );
