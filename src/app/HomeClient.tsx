@@ -688,9 +688,14 @@ export default function HomeClient() {
       const rows = data ?? [];
       const next = rows.filter((l) => {
         const action = String(l.action ?? '').trim();
-        // “스냅샷 prefix” + “스냅샷 전용 place_slug”일 때만 확실히 제외합니다.
-        if (l.place_slug === LOG_SLUG.general && action.startsWith(SHARED_MEMO_LOG_PREFIX)) return false;
-        if (l.place_slug === LOG_SLUG.todo && action.startsWith(TODO_SNAPSHOT_PREFIX)) return false;
+        // “스냅샷 prefix”라도, 실제로 스냅샷 포맷(JSON)이 맞을 때만 제외합니다.
+        // prefix만 우연히 겹친 로그까지 날아가는 걸 방지합니다.
+        if (l.place_slug === LOG_SLUG.general && action.startsWith(SHARED_MEMO_LOG_PREFIX)) {
+          return parseSharedMemoSnapshot(action) == null;
+        }
+        if (l.place_slug === LOG_SLUG.todo && action.startsWith(TODO_SNAPSHOT_PREFIX)) {
+          return parseTodoSnapshot(action) == null;
+        }
         return true;
       });
       // 예외적으로 전부 제외돼 빈 화면이 되는 사고를 막습니다.
