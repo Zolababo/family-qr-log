@@ -1002,11 +1002,16 @@ export default function HomeClient() {
     const y = now.getFullYear();
     const m = now.getMonth();
     const d = now.getDate();
-    return logs.filter((l) => {
+    let list = feedTagFilter === 'all' ? logs : logs.filter((l) => l.place_slug === feedTagFilter);
+    if (activeTab === 'search' && searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((l) => l.action.toLowerCase().includes(q));
+    }
+    return list.filter((l) => {
       const dt = new Date(l.created_at);
       return dt.getFullYear() === y && dt.getMonth() === m && dt.getDate() === d;
     }).length;
-  }, [logs]);
+  }, [logs, feedTagFilter, activeTab, searchQuery]);
 
   const logsForList = useMemo(() => {
     let list = feedTagFilter === 'all' ? logs : logs.filter((l) => l.place_slug === feedTagFilter);
