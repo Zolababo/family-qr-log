@@ -22,6 +22,8 @@ export const TOPIC_SLUGS: LogSlug[] = ['daddy', 'mommy', 'bamtoli', 'eomni_abuji
 /**
  * 예전 배포에서 저장된 레거시 place_slug를
  * 현재 멤버 태그 체계로 정규화합니다.
+ *
+ * DB 일괄 정리: `scripts/migrate-logs-place-slug-canonical.sql` (매핑은 여기와 동일하게 유지)
  */
 export function normalizeLogSlug(slug: string | null | undefined): LogSlug {
   switch (slug) {
