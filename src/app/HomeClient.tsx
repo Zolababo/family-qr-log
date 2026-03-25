@@ -676,29 +676,10 @@ export default function HomeClient() {
         return;
       }
 
-      const rows = data ?? [];
-      const next = rows.filter((l) => {
-        const action = String(l.action ?? '').trim();
-        // 스냅샷 제외는 “접두어 + 정상 파싱 결과”가 확인될 때만 제거합니다.
-        // (잘못된 접두어/형식 때문에 일반 로그가 통째로 사라지는 현상을 막기 위함)
-        if (l.place_slug === LOG_SLUG.general && action.startsWith(SHARED_MEMO_LOG_PREFIX)) {
-          const parsed = parseSharedMemoSnapshot(action);
-          const isValidSnapshot =
-            parsed != null &&
-            (typeof parsed.content === 'string' ||
-              typeof parsed.family_notice === 'string' ||
-              typeof parsed.shopping_list === 'string');
-          if (isValidSnapshot) return false;
-        }
-        if (l.place_slug === LOG_SLUG.todo && action.startsWith(TODO_SNAPSHOT_PREFIX)) {
-          const parsed = parseTodoSnapshot(action);
-          if (parsed != null) return false;
-        }
-        return true;
-      });
-      // 필터 로직이 예기치 않게 “전부 제외”하는 경우, 화면이 완전히 빈 상태가 되지 않도록
-      // 원본 데이터를 우선 복구해서 표시합니다.
-      setLogs(next.length === 0 && rows.length > 0 ? rows : next);
+      // 안정성 우선: 필터 로직이 “전부 제거”되는 케이스를 막기 위해,
+      // 우선은 쿼리 결과를 그대로 화면에 표시합니다.
+      // (스냅샷 제외는 다음 단계에서 “안전하게” 다시 조정할게요.)
+      setLogs((data ?? []) as Log[]);
     },
     []
   );
@@ -832,6 +813,11 @@ export default function HomeClient() {
     // 서버 필터를 걸지 않고 전체를 로드합니다.
     void loadLogs(householdId, undefined, undefined);
   }, [householdId, user, loadLogs]);
+
+  useEffect(() => {
+    // 홈에서는 “전체”만 보여주도록 강제합니다.
+    if (activeTab === 'home') setFeedTagFilter('all');
+  }, [activeTab]);
 
   const refreshLogs = useCallback(() => {
     if (!householdId || !user) return;
