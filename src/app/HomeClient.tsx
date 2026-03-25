@@ -222,6 +222,11 @@ export default function HomeClient() {
   const [actionPopupLogId, setActionPopupLogId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchViewer, setSearchViewer] = useState<
+    | null
+    | { type: 'image'; urls: string[]; index: number }
+    | { type: 'video'; url: string }
+  >(null);
   const [memoContent, setMemoContent] = useState('');
   const [memoSaving, setMemoSaving] = useState(false);
   const [showMemoPanel, setShowMemoPanel] = useState(false);
@@ -668,10 +673,9 @@ export default function HomeClient() {
         .eq('household_id', hid)
         .order('created_at', { ascending: false })
         .limit(500);
-
-      if (slug) {
-        query = query.eq('place_slug', slug);
-      }
+      // 서버에서 place_slug로 한 번 더 거르면,
+      // 태그 값이 한 번이라도 달라진 시점부터 “기존 로그가 통째로 사라지는” 문제가 생길 수 있어
+      // 여기서는 항상 전체 로그를 가져오고, 필터는 클라이언트에서 처리합니다.
 
       if (actorUserId) {
         query = query.eq('actor_user_id', actorUserId);
@@ -1045,6 +1049,17 @@ export default function HomeClient() {
     arr.sort((a, b) => hashStr(a.id) - hashStr(b.id));
     return arr;
   }, [logsForList]);
+
+  const { searchMediaLogs, searchTextOnlyLogs } = useMemo(() => {
+    const media: Log[] = [];
+    const textOnly: Log[] = [];
+    for (const log of shuffledSearchLogs) {
+      const { imageUrls, videoUrl } = getLogMedia(log);
+      if (imageUrls.length > 0 || !!videoUrl) media.push(log);
+      else textOnly.push(log);
+    }
+    return { searchMediaLogs: media, searchTextOnlyLogs: textOnly };
+  }, [shuffledSearchLogs]);
 
   const feedTagOptions = useMemo(() => {
     const topicLabels = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리'] as const;
@@ -2008,52 +2023,239 @@ export default function HomeClient() {
             )}
             {activeTab === 'search' && (
               <section aria-label="검색" style={{ marginBottom: 20 }}>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    gap: 8,
-                  }}
-                >
-                  {shuffledSearchLogs.slice(0, 120).map((log) => {
-                    const { imageUrls, videoUrl } = getLogMedia(log);
-                    const thumb = imageUrls[0] ?? videoUrl ?? '';
-                    return (
-                      <div
-                        key={`search-${log.id}`}
-                        style={{
-                          borderRadius: 12,
-                          overflow: 'hidden',
-                          border: highContrast ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--divider)',
-                          background: highContrast ? '#0f0f0f' : '#fff',
-                        }}
-                      >
-                        {thumb && imageUrls.length > 0 ? (
-                          <img
-                            src={thumb}
-                            alt=""
-                            style={{
-                              width: '100%',
-                              aspectRatio: '1 / 1',
-                              objectFit: 'cover',
-                              display: 'block',
-                              background: '#f1f5f9',
-                            }}
-                          />
-                        ) : (
+                {searchMediaLogs.length > 0 ? (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: 8,
+                    }}
+                  >
+                    {searchMediaLogs.slice(0, 120).map((log) => {
+                      const { imageUrls, videoUrl } = getLogMedia(log);
+                      const hasImages = imageUrls.length > 0;
+                      const thumb = hasImages ? imageUrls[0] : videoUrl ?? '';
+                      return (
+                        <button
+                          key={`search-media-${log.id}`}
+                          type="button"
+                          onClick={() => {
+                            if (hasImages) setSearchViewer({ type: 'image', urls: imageUrls, index: 0 });
+                            else if (videoUrl) setSearchViewer({ type: 'video', url: videoUrl });
+                          }}
+                          style={{
+                            padding: 0,
+                            border: 'none',
+                            background: 'transparent',
+                          }}
+                          aria-label="미디어 보기"
+                        >
                           <div
                             style={{
-                              width: '100%',
-                              aspectRatio: '1 / 1',
-                              background: highContrast ? '#121212' : 'var(--bg-subtle)',
+                              borderRadius: 12,
+                              overflow: 'hidden',
+                              border: highContrast ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--divider)',
+                              background: highContrast ? '#0f0f0f' : '#fff',
                             }}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                          >
+                            {hasImages ? (
+                              <img
+                                src={thumb}
+                                alt=""
+                                style={{
+                                  width: '100%',
+                                  aspectRatio: '1 / 1',
+                                  objectFit: 'cover',
+                                  display: 'block',
+                                  background: '#f1f5f9',
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: '100%',
+                                  aspectRatio: '1 / 1',
+                                  background: '#000',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: 0,
+                                    height: 0,
+                                    borderTop: '10px solid transparent',
+                                    borderBottom: '10px solid transparent',
+                                    borderLeft: '16px solid #fff',
+                                    marginLeft: 2,
+                                    opacity: 0.9,
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ padding: '0 2px' }}>
+                    {searchTextOnlyLogs.slice(0, 80).map((log) => {
+                      const parsed = parseLogMeta(log.action);
+                      return (
+                        <div
+                          key={`search-text-${log.id}`}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 12,
+                            border: highContrast ? '1px solid #333' : '1px solid var(--divider)',
+                            background: highContrast ? '#1e1e1e' : '#fff',
+                            marginBottom: 10,
+                          }}
+                        >
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+                            <span className={`log-place-tag ${log.place_slug}`}>{t(getPlaceLabelKey(log.place_slug))}</span>
+                            <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : 'var(--text-caption)' }}>
+                              {formatDateTime(log.created_at)}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : 'var(--text-primary)', lineHeight: 1.35 }}>
+                            {parsed.text}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </section>
+            )}
+
+            {searchViewer && (
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="미디어 전체화면"
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.75)',
+                  zIndex: 90,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: 16,
+                }}
+                onClick={() => setSearchViewer(null)}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    width: '100%',
+                    maxWidth: 520,
+                    maxHeight: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                    <div style={{ fontSize: 12, color: '#e5e7eb' }}>
+                      {searchViewer.type === 'image' ? `이미지 ${searchViewer.index + 1}/${searchViewer.urls.length}` : '동영상'}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSearchViewer(null)}
+                      style={{
+                        border: 'none',
+                        background: '#ffffff',
+                        color: '#0f172a',
+                        borderRadius: 10,
+                        padding: '8px 12px',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      닫기
+                    </button>
+                  </div>
+
+                  {searchViewer.type === 'image' ? (
+                    <>
+                      <img
+                        src={searchViewer.urls[searchViewer.index]}
+                        alt=""
+                        style={{
+                          width: '100%',
+                          maxHeight: '70vh',
+                          objectFit: 'contain',
+                          background: '#000',
+                          borderRadius: 12,
+                        }}
+                      />
+                      {searchViewer.urls.length > 1 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSearchViewer((prev) => {
+                                if (!prev || prev.type !== 'image') return prev;
+                                const nextIdx = (prev.index - 1 + prev.urls.length) % prev.urls.length;
+                                return { ...prev, index: nextIdx };
+                              })
+                            }
+                            style={{
+                              border: '1px solid rgba(255,255,255,0.25)',
+                              background: 'transparent',
+                              color: '#fff',
+                              borderRadius: 10,
+                              padding: '10px 12px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            이전
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSearchViewer((prev) => {
+                                if (!prev || prev.type !== 'image') return prev;
+                                const nextIdx = (prev.index + 1) % prev.urls.length;
+                                return { ...prev, index: nextIdx };
+                              })
+                            }
+                            style={{
+                              border: '1px solid rgba(255,255,255,0.25)',
+                              background: 'transparent',
+                              color: '#fff',
+                              borderRadius: 10,
+                              padding: '10px 12px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            다음
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <video
+                      src={searchViewer.url}
+                      controls
+                      autoPlay
+                      playsInline
+                      style={{
+                        width: '100%',
+                        maxHeight: '70vh',
+                        objectFit: 'contain',
+                        background: '#000',
+                        borderRadius: 12,
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
             )}
           </>
         )}

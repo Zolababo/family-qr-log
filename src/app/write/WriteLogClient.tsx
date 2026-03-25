@@ -78,6 +78,7 @@ export default function WriteLogClient() {
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [selectedLogTag, setSelectedLogTag] = useState<string | null>(null);
   const qrPrefillAppliedRef = useRef(false);
+  const hasUserSelectedTagRef = useRef(false);
 
   const [action, setAction] = useState('');
   const [loading, setLoading] = useState(false);
@@ -164,6 +165,7 @@ export default function WriteLogClient() {
 
   useEffect(() => {
     if (!user || qrPrefillAppliedRef.current) return;
+    if (hasUserSelectedTagRef.current) return;
     const p = searchParams.get('place');
     const valid = new Set<string>(Object.values(LOG_SLUG));
     if (p && valid.has(p)) {
@@ -588,7 +590,10 @@ export default function WriteLogClient() {
             <button
               key={tag.label}
               type="button"
-              onClick={() => setSelectedLogTag(tag.value)}
+              onClick={() => {
+                hasUserSelectedTagRef.current = true;
+                setSelectedLogTag(tag.value);
+              }}
               style={{
                 flexShrink: 0,
                 padding: '6px 12px',

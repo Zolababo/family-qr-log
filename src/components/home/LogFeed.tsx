@@ -167,7 +167,7 @@ export function LogFeed({
             padding: 0,
           }}
         >
-          {logs.length === 0 && (
+          {logsByDate.length === 0 && (
             <div
               style={{
                 padding: '18px 16px',
@@ -294,10 +294,10 @@ export function LogFeed({
                             {formatDateTime(log.created_at)}
                           </span>
                         </div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: highContrast ? '#fff' : 'var(--text-primary)', marginBottom: 3 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: highContrast ? '#fff' : 'var(--text-primary)', marginBottom: 6 }}>
                           {getMemberName(log.actor_user_id)}
                         </div>
-                        <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : 'var(--text-primary)', lineHeight: 1.25 }}>
+                        <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : 'var(--text-primary)', lineHeight: 1.25, marginBottom: 8 }}>
                           {parseLogMeta(log.action).text}
                         </div>
                         {(() => {
@@ -331,13 +331,11 @@ export function LogFeed({
                             <div
                               style={{
                                 marginBottom: 8,
+                                marginTop: 2,
                                 position: 'relative',
-                                /* iPhone/Android에서 부모 패딩/랩을 완전히 무시하고 viewport 폭으로 고정 */
-                                width: '100vw',
-                                marginLeft: 'calc(50% - 50vw)',
-                                marginRight: 'calc(50% - 50vw)',
+                                width: '100%',
                                 display: 'block',
-                                maxWidth: '100vw',
+                                maxWidth: '100%',
                               }}
                             >
                               {(() => {
