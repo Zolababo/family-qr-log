@@ -282,17 +282,12 @@ body {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-rows: auto;
-}
-@media (min-width: 520px) {
-  .todo-eisenhower-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
 }
 
 /* 홈 본문 스크롤: 상단 블록(헤더~목록 필터) 경계에서 자연스럽게 스냅 */
-.home-scroll-region {
+.home-scroll-region.enable-snap {
   scroll-snap-type: y proximity;
 }
 .home-top-bleed {

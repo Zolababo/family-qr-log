@@ -65,6 +65,7 @@ const MEMBER_LIKE_TAGS: { value: string | null; label: string }[] = [
   { value: LOG_SLUG.fridge, label: '단이네' },
   { value: LOG_SLUG.table, label: '우차차' },
   { value: LOG_SLUG.toilet, label: '똘모닝' },
+  { value: LOG_SLUG.notice, label: '공지사항' },
 ];
 
 export default function WriteLogClient() {

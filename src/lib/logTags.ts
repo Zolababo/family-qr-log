@@ -1,6 +1,7 @@
 /** DB `logs.place_slug` + UI 필터용 슬러그 (v2) */
 export const LOG_SLUG = {
   general: 'general',
+  notice: 'notice',
   fridge: 'fridge',
   table: 'table',
   toilet: 'toilet',

@@ -827,6 +827,12 @@ export default function HomeClient() {
     loadLogs(householdId, placeSlugFilter, undefined);
   }, [householdId, feedTagFilter, user, loadLogs]);
 
+  useEffect(() => {
+    // 검색 탭은 “전체 로그”를 대상으로 인스타처럼 랜덤 그리드를 보여주기 위해
+    // 서버 필터가 걸리지 않게 feedTagFilter를 'all'로 고정합니다.
+    if (activeTab === 'search') setFeedTagFilter('all');
+  }, [activeTab]);
+
   const refreshLogs = useCallback(() => {
     if (!householdId || !user) return;
     const placeSlugFilter = feedTagFilter === 'all' ? undefined : feedTagFilter;
@@ -979,6 +985,7 @@ export default function HomeClient() {
   const getPlaceLabelKey = (slug: string) => {
     const map: Record<string, string> = {
       [LOG_SLUG.general]: 'logGeneral',
+      [LOG_SLUG.notice]: 'logNotice',
       fridge: 'fridge',
       table: 'table',
       toilet: 'toilet',
@@ -1026,6 +1033,19 @@ export default function HomeClient() {
     return acc;
   }, []);
 
+  const hashStr = (s: string) => {
+    let h = 0;
+    for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h;
+  };
+
+  const shuffledSearchLogs = useMemo(() => {
+    // 인스타처럼 “무작위” 느낌을 주되, 동일 세션/데이터에서는 순서가 자주 흔들리지 않게 id 기반으로 고정 정렬
+    const arr = [...logsForList];
+    arr.sort((a, b) => hashStr(a.id) - hashStr(b.id));
+    return arr;
+  }, [logsForList]);
+
   const feedTagOptions = useMemo(() => {
     const topicLabels = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리'] as const;
     const topicRows = TOPIC_SLUGS.map((slug, i) => ({
@@ -1039,11 +1059,12 @@ export default function HomeClient() {
       { key: LOG_SLUG.fridge, label: '단이네' },
       { key: LOG_SLUG.table, label: '우차차' },
       { key: LOG_SLUG.toilet, label: '똘모닝' },
+      { key: LOG_SLUG.notice, label: '공지사항' },
     ];
   }, []);
 
   const allowedFeedSlugSet = useMemo(() => {
-    const s = new Set<string>(['all', LOG_SLUG.general, LOG_SLUG.fridge, LOG_SLUG.table, LOG_SLUG.toilet]);
+    const s = new Set<string>(['all', LOG_SLUG.general, LOG_SLUG.notice, LOG_SLUG.fridge, LOG_SLUG.table, LOG_SLUG.toilet]);
     TOPIC_SLUGS.forEach((slug) => s.add(slug));
     return s;
   }, []);
@@ -1308,7 +1329,7 @@ export default function HomeClient() {
       >
         <div
           ref={homeScrollRef}
-          className="home-scroll-region"
+          className={`home-scroll-region ${activeTab === 'home' || activeTab === 'calendar' ? 'enable-snap' : ''}`}
           onWheel={(e) => {
             e.stopPropagation();
           }}
@@ -1353,7 +1374,38 @@ export default function HomeClient() {
               onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
               onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
             />
-            {(activeTab === 'home' || activeTab === 'search') && (
+            {activeTab === 'search' && (
+              <div
+                style={{
+                  position: 'relative',
+                  marginBottom: 10,
+                  padding: '10px 12px',
+                  borderRadius: theme.radiusLg,
+                  border: theme.border,
+                  background: theme.card,
+                  boxShadow: theme.cardShadow,
+                }}
+              >
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="검색"
+                  style={{
+                    width: '100%',
+                    borderRadius: 12,
+                    border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                    padding: '10px 12px',
+                    fontSize: 13,
+                    background: highContrast ? '#1e1e1e' : '#fff',
+                    color: theme.text,
+                    outline: 'none',
+                  }}
+                  aria-label="검색"
+                />
+              </div>
+            )}
+            {activeTab === 'home' && (
               <>
                 <div
                   style={{
@@ -1917,7 +1969,7 @@ export default function HomeClient() {
               </section>
             )}
 
-            {(activeTab === 'home' || activeTab === 'search') && (
+            {activeTab === 'home' && (
               <LogFeed
                 activeTab={activeTab}
                 searchQuery={searchQuery}
@@ -1953,6 +2005,55 @@ export default function HomeClient() {
                   void applyStickerToLog(logId, null);
                 }}
               />
+            )}
+            {activeTab === 'search' && (
+              <section aria-label="검색" style={{ marginBottom: 20 }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: 8,
+                  }}
+                >
+                  {shuffledSearchLogs.slice(0, 120).map((log) => {
+                    const { imageUrls, videoUrl } = getLogMedia(log);
+                    const thumb = imageUrls[0] ?? videoUrl ?? '';
+                    return (
+                      <div
+                        key={`search-${log.id}`}
+                        style={{
+                          borderRadius: 12,
+                          overflow: 'hidden',
+                          border: highContrast ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--divider)',
+                          background: highContrast ? '#0f0f0f' : '#fff',
+                        }}
+                      >
+                        {thumb && imageUrls.length > 0 ? (
+                          <img
+                            src={thumb}
+                            alt=""
+                            style={{
+                              width: '100%',
+                              aspectRatio: '1 / 1',
+                              objectFit: 'cover',
+                              display: 'block',
+                              background: '#f1f5f9',
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: '100%',
+                              aspectRatio: '1 / 1',
+                              background: highContrast ? '#121212' : 'var(--bg-subtle)',
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
             )}
           </>
         )}
@@ -2346,6 +2447,7 @@ export default function HomeClient() {
           language={language}
           setLanguage={setLanguage}
           langLabels={langLabels}
+          writePlaceSlug={activeTab === 'home' && feedTagFilter !== 'all' ? feedTagFilter : null}
           onNameEdit={() => setShowNameEditModal(true)}
           onProfilePhotoChange={() => profileAvatarInputRef.current?.click()}
           onInviteFamily={() => router.push('/invite')}

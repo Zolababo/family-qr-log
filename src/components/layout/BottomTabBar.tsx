@@ -21,6 +21,8 @@ type BottomTabBarProps = {
   onInviteFamily: () => void;
   onAccessibility: () => void;
   profileAvatarUploading?: boolean;
+  /** 홈에서 태그 선택 후 새 글 작성 시, 선택한 태그(place_slug)를 미리 채우기 */
+  writePlaceSlug?: string | null;
 };
 
 const ICON_SIZE = 18;
@@ -39,6 +41,7 @@ export function BottomTabBar({
   onInviteFamily,
   onAccessibility,
   profileAvatarUploading = false,
+  writePlaceSlug = null,
 }: BottomTabBarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const pathname = usePathname();
@@ -75,6 +78,9 @@ export function BottomTabBar({
   const secondaryColor = highContrast ? '#94a3b8' : '#64748b';
   const rowHover = highContrast ? '#333' : 'var(--bg-subtle)';
 
+  const writeHref =
+    writePlaceSlug && writePlaceSlug !== 'all' ? `/write?place=${encodeURIComponent(writePlaceSlug)}` : '/write';
+
   return (
     <>
       <nav
@@ -97,7 +103,7 @@ export function BottomTabBar({
       >
         {showWriteFab && (
           <Link
-            href="/write"
+            href={writeHref}
             aria-label={t('newLogFabAria')}
             style={{
               position: 'absolute',
