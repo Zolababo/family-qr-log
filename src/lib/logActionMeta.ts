@@ -6,16 +6,18 @@ export type LogMeta = {
 };
 
 export function parseLogMeta(actionText: string): { text: string; meta: LogMeta } {
+  const safeText = String(actionText ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
   const marker = '\n@@meta:';
-  const idx = actionText.lastIndexOf(marker);
-  if (idx < 0) return { text: actionText, meta: {} };
-  const text = actionText.slice(0, idx).trim();
-  const raw = actionText.slice(idx + marker.length).trim();
+  const idx = safeText.lastIndexOf(marker);
+  if (idx < 0) return { text: safeText, meta: {} };
+  const text = safeText.slice(0, idx).trim();
+  const raw = safeText.slice(idx + marker.length).trim();
   try {
     const parsed = JSON.parse(raw) as LogMeta;
     return { text, meta: parsed ?? {} };
   } catch {
-    return { text: actionText, meta: {} };
+    // meta 파싱이 깨져도 본문 텍스트는 노출되도록 유지
+    return { text, meta: {} };
   }
 }
 

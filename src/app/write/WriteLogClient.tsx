@@ -56,6 +56,7 @@ function loadAccessibility(): {
 
 const MEMBER_LIKE_TAGS: { value: string | null; label: string }[] = [
   { value: null, label: '전체' },
+  { value: LOG_SLUG.daily, label: '일상' },
   { value: LOG_SLUG.general, label: '다같이' },
   { value: TOPIC_SLUGS[0], label: '밤톨대디' },
   { value: TOPIC_SLUGS[1], label: '밤톨맘' },
@@ -117,7 +118,7 @@ export default function WriteLogClient() {
   const logVideoPreviewUrlRef = useRef<string | null>(null);
 
   const fontScale = FONT_STEPS[fontScaleStep];
-  const effectivePlaceSlug = selectedLogTag ?? LOG_SLUG.general;
+  const effectivePlaceSlug = selectedLogTag ?? LOG_SLUG.daily;
   const editingLogId = searchParams.get('edit');
   const isEditMode = !!editingLogId;
 

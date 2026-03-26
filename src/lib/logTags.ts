@@ -1,5 +1,6 @@
 /** DB `logs.place_slug` + UI 필터용 슬러그 (v2) */
 export const LOG_SLUG = {
+  daily: 'daily',
   general: 'general',
   notice: 'notice',
   daddy: 'daddy',
@@ -27,6 +28,7 @@ export const TOPIC_SLUGS: LogSlug[] = ['daddy', 'mommy', 'bamtoli', 'eomni_abuji
  */
 export function normalizeLogSlug(slug: string | null | undefined): LogSlug {
   switch (slug) {
+    case LOG_SLUG.daily:
     case LOG_SLUG.general:
     case LOG_SLUG.notice:
     case LOG_SLUG.daddy:
@@ -40,6 +42,8 @@ export function normalizeLogSlug(slug: string | null | undefined): LogSlug {
     case LOG_SLUG.todo:
       return slug;
     // legacy member-like topics
+    case 'daily':
+      return LOG_SLUG.daily;
     case 'health':
       return LOG_SLUG.daddy;
     case 'diet':

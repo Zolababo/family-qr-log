@@ -104,16 +104,17 @@ export function LogFeed({
   onStickerRemove,
 }: LogFeedProps) {
   const parseLogMeta = (actionText: string): { text: string; locationName?: string; locationUrl?: string; stickers?: string[]; stickerByUser?: Record<string, string> } => {
+    const safeText = String(actionText ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
     const marker = '\n@@meta:';
-    const idx = actionText.lastIndexOf(marker);
-    if (idx < 0) return { text: actionText };
-    const text = actionText.slice(0, idx).trim();
-    const raw = actionText.slice(idx + marker.length).trim();
+    const idx = safeText.lastIndexOf(marker);
+    if (idx < 0) return { text: safeText };
+    const text = safeText.slice(0, idx).trim();
+    const raw = safeText.slice(idx + marker.length).trim();
     try {
       const parsed = JSON.parse(raw) as { locationName?: string; locationUrl?: string; stickers?: string[]; stickerByUser?: Record<string, string> };
       return { text, locationName: parsed?.locationName, locationUrl: parsed?.locationUrl, stickers: parsed?.stickers, stickerByUser: parsed?.stickerByUser };
     } catch {
-      return { text: actionText };
+      return { text };
     }
   };
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
@@ -289,7 +290,7 @@ export function LogFeed({
                     ) : (
                       <>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                          <span className={`log-place-tag ${log.place_slug}`}>{t(getPlaceLabelKey(log.place_slug))}</span>
+                          <span className={`log-place-tag ${log.place_slug}`}>#{t(getPlaceLabelKey(log.place_slug))}</span>
                           <span style={{ fontSize: 12, color: highContrast ? '#94a3b8' : 'var(--text-caption)' }}>
                             {formatDateTime(log.created_at)}
                           </span>

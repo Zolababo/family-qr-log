@@ -1001,6 +1001,7 @@ export default function HomeClient() {
   const getPlaceLabelKey = (slug: string) => {
     const normalized = normalizeLogSlug(slug);
     const map: Record<string, string> = {
+      [LOG_SLUG.daily]: 'logDaily',
       [LOG_SLUG.general]: 'logGeneral',
       [LOG_SLUG.notice]: 'logNotice',
       [LOG_SLUG.daddy]: 'tagDaddy',
@@ -1086,6 +1087,7 @@ export default function HomeClient() {
     }));
     return [
       { key: 'all' as const, label: '전체' },
+      { key: LOG_SLUG.daily, label: '일상' },
       { key: LOG_SLUG.general, label: '다같이' },
       ...topicRows,
       { key: LOG_SLUG.danine, label: '단이네' },
@@ -1096,7 +1098,7 @@ export default function HomeClient() {
   }, []);
 
   const allowedFeedSlugSet = useMemo(() => {
-    const s = new Set<string>(['all', LOG_SLUG.general, LOG_SLUG.notice, LOG_SLUG.danine, LOG_SLUG.uchacha, LOG_SLUG.ttolMorning]);
+    const s = new Set<string>(['all', LOG_SLUG.daily, LOG_SLUG.general, LOG_SLUG.notice, LOG_SLUG.danine, LOG_SLUG.uchacha, LOG_SLUG.ttolMorning]);
     TOPIC_SLUGS.forEach((slug) => s.add(slug));
     return s;
   }, []);
@@ -1896,7 +1898,7 @@ export default function HomeClient() {
                               className="log-card"
                               style={highContrast ? { border: '1px solid #ffc107', background: '#2a2a2a' } : undefined}
                             >
-                              <span className={`log-place-tag ${log.place_slug}`}>{t(getPlaceLabelKey(log.place_slug))}</span>
+                              <span className={`log-place-tag ${log.place_slug}`}>#{t(getPlaceLabelKey(log.place_slug))}</span>
                               <div className="log-time" style={highContrast ? { color: '#94a3b8' } : undefined}>{formatDateTime(log.created_at)}</div>
                               <div className="log-content" style={highContrast ? { color: '#fff' } : undefined}>
                                 {parseLogMeta(log.action).text}
@@ -2165,7 +2167,7 @@ export default function HomeClient() {
                           }}
                         >
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
-                            <span className={`log-place-tag ${log.place_slug}`}>{t(getPlaceLabelKey(log.place_slug))}</span>
+                            <span className={`log-place-tag ${log.place_slug}`}>#{t(getPlaceLabelKey(log.place_slug))}</span>
                             <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : 'var(--text-caption)' }}>
                               {formatDateTime(log.created_at)}
                             </span>
