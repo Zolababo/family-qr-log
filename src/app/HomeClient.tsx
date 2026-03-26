@@ -771,11 +771,12 @@ export default function HomeClient() {
   const updateComment = useCallback(
     async (commentId: string, logId: string, content: string, commentUserId?: string) => {
       if (!user || !content.trim()) return;
-      if (commentUserId && normalizeUserIdForCompare(commentUserId) !== normalizeUserIdForCompare(user.id)) {
-        setStatus('본인 댓글만 수정할 수 있어요.');
-        return;
-      }
-      const { error } = await supabase.from('log_comments').update({ content: content.trim() }).eq('id', commentId);
+      const { data, error } = await supabase
+        .from('log_comments')
+        .update({ content: content.trim() })
+        .eq('id', commentId)
+        .select('id')
+        .maybeSingle();
       if (error) {
         const hint = /policy|row-level|rls|permission|not allowed|forbidden/i.test(error.message ?? '')
           ? ' (DB RLS 정책 점검 필요: scripts/enable-log-comments-rls-policies.sql 실행)'
@@ -783,26 +784,57 @@ export default function HomeClient() {
         setStatus(`댓글 수정 실패: ${error.message}${hint}`);
         return;
       }
+      if (!data) {
+        setStatus('댓글 수정 실패: 권한 또는 정책 문제로 반영되지 않았습니다. (RLS 정책 확인)');
+        return;
+      }
       await loadComments([logId]);
       setEditingCommentId(null);
       setEditingCommentValue('');
     },
-    [user, loadComments, normalizeUserIdForCompare]
+    [user, loadComments]
   );
 
   const deleteComment = useCallback(
     async (commentId: string, logId: string, commentUserId?: string) => {
       if (!user) return;
-      if (commentUserId && normalizeUserIdForCompare(commentUserId) !== normalizeUserIdForCompare(user.id)) {
-        setStatus('본인 댓글만 삭제할 수 있어요.');
-        return;
-      }
-      const { error } = await supabase.from('log_comments').delete().eq('id', commentId);
+      const { data, error } = await supabase
+        .from('log_comments')
+        .delete()
+        .eq('id', commentId)
+        .select('id')
+        .maybeSingle();
       if (error) {
+        const msg = String(error.message ?? '');
+        const isFkBlocked =
+          error.code === '23503' ||
+          /foreign key|constraint|violates/i.test(msg);
+        // 답글이 달린 댓글은 FK로 물리 삭제가 막힐 수 있어, 소프트 삭제로 안전하게 대체합니다.
+        if (isFkBlocked) {
+          const fallback = await supabase
+            .from('log_comments')
+            .update({ content: '삭제된 댓글입니다.' })
+            .eq('id', commentId)
+            .select('id')
+            .maybeSingle();
+          if (!fallback.error && fallback.data) {
+            await loadComments([logId]);
+            if (editingCommentId === commentId) {
+              setEditingCommentId(null);
+              setEditingCommentValue('');
+            }
+            setStatus('답글이 있어 댓글 내용만 삭제되었습니다.');
+            return;
+          }
+        }
         const hint = /policy|row-level|rls|permission|not allowed|forbidden/i.test(error.message ?? '')
           ? ' (DB RLS 정책 점검 필요: scripts/enable-log-comments-rls-policies.sql 실행)'
           : '';
         setStatus(`댓글 삭제 실패: ${error.message}${hint}`);
+        return;
+      }
+      if (!data) {
+        setStatus('댓글 삭제 실패: 권한 또는 정책 문제로 반영되지 않았습니다. (RLS 정책 확인)');
         return;
       }
       await loadComments([logId]);
@@ -811,7 +843,7 @@ export default function HomeClient() {
         setEditingCommentValue('');
       }
     },
-    [user, loadComments, editingCommentId, normalizeUserIdForCompare]
+    [user, loadComments, editingCommentId]
   );
 
   const stickerOptions = ['✨', '❤️', '⭐', '🎉', '🧸', '🌿', '🌈', '☀️', '🍀', '💫'];

@@ -11,11 +11,22 @@
 
 ALTER TABLE public.log_comments ENABLE ROW LEVEL SECURITY;
 
--- 기존 정책명이 다를 수 있어, 표준 이름 정책은 먼저 정리
-DROP POLICY IF EXISTS "log_comments_select_household" ON public.log_comments;
-DROP POLICY IF EXISTS "log_comments_insert_own" ON public.log_comments;
-DROP POLICY IF EXISTS "log_comments_update_own" ON public.log_comments;
-DROP POLICY IF EXISTS "log_comments_delete_own" ON public.log_comments;
+-- 권한 누락 방지 (RLS와 별개로 table privilege도 필요)
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.log_comments TO authenticated;
+
+-- 기존 정책명이 제각각일 수 있어 전체 정책을 먼저 정리
+DO $$
+DECLARE
+  p record;
+BEGIN
+  FOR p IN
+    SELECT policyname
+    FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'log_comments'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.log_comments', p.policyname);
+  END LOOP;
+END $$;
 
 -- SELECT: 댓글이 달린 로그가 내 household에 속하면 조회 허용
 CREATE POLICY "log_comments_select_household"
