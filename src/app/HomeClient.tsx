@@ -228,6 +228,7 @@ export default function HomeClient() {
   const [editingAction, setEditingAction] = useState('');
   const [actionPopupLogId, setActionPopupLogId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('home');
+  const [searchShuffleSeed, setSearchShuffleSeed] = useState(() => Date.now());
   const [searchQuery, setSearchQuery] = useState('');
   const [memoContent, setMemoContent] = useState('');
   const [memoSaving, setMemoSaving] = useState(false);
@@ -846,6 +847,33 @@ export default function HomeClient() {
     if (activeTab === 'home') setFeedTagFilter('all');
   }, [activeTab]);
 
+  useEffect(() => {
+    const raw = searchParams.get('tab');
+    const fromUrl: TabId | null =
+      raw === 'calendar' || raw === 'search' || raw === 'todo' || raw === 'home'
+        ? raw
+        : null;
+    if (!fromUrl) return;
+    if (fromUrl !== activeTab) setActiveTab(fromUrl);
+  }, [searchParams, activeTab]);
+
+  useEffect(() => {
+    const current = searchParams.get('tab') ?? 'home';
+    const desired = activeTab === 'home' ? 'home' : activeTab;
+    if (current === desired) return;
+    const params = new URLSearchParams(searchParams.toString());
+    if (activeTab === 'home') params.delete('tab');
+    else params.set('tab', activeTab);
+    const next = params.toString();
+    router.replace(next ? `/?${next}` : '/', { scroll: false });
+  }, [activeTab, router, searchParams]);
+
+  useEffect(() => {
+    if (activeTab === 'search') {
+      setSearchShuffleSeed(Date.now());
+    }
+  }, [activeTab]);
+
   const refreshLogs = useCallback(() => {
     if (!householdId || !user) return;
     void loadLogs(householdId, undefined, undefined);
@@ -1058,11 +1086,11 @@ export default function HomeClient() {
   };
 
   const shuffledSearchLogs = useMemo(() => {
-    // 인스타처럼 “무작위” 느낌을 주되, 동일 세션/데이터에서는 순서가 자주 흔들리지 않게 id 기반으로 고정 정렬
+    // 검색 탭 진입 시마다 seed를 바꿔, 매번 다른 배열처럼 보이게 합니다.
     const arr = [...logsForList];
-    arr.sort((a, b) => hashStr(a.id) - hashStr(b.id));
+    arr.sort((a, b) => hashStr(`${a.id}:${searchShuffleSeed}`) - hashStr(`${b.id}:${searchShuffleSeed}`));
     return arr;
-  }, [logsForList]);
+  }, [logsForList, searchShuffleSeed]);
 
   const { searchMediaLogs, searchTextOnlyLogs } = useMemo(() => {
     const media: Log[] = [];
@@ -1986,8 +2014,26 @@ export default function HomeClient() {
                       const { imageUrls, videoUrl } = getLogMedia(log);
                       const thumb = imageUrls[0] || videoUrl || '';
                       const parsed = parseLogMeta(log.action);
+                      const mediaType: 'image' | 'video' = videoUrl ? 'video' : 'image';
+                      const mediaUrl = videoUrl || imageUrls[0] || '';
                       return (
-                        <div key={`growth-${log.id}`} style={{ border: '1px solid var(--divider)', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+                        <button
+                          key={`growth-${log.id}`}
+                          type="button"
+                          onClick={() => {
+                            if (!mediaUrl) return;
+                            router.push(`/media?type=${mediaType}&url=${encodeURIComponent(mediaUrl)}`);
+                          }}
+                          style={{
+                            border: '1px solid var(--divider)',
+                            borderRadius: 12,
+                            overflow: 'hidden',
+                            background: '#fff',
+                            padding: 0,
+                            textAlign: 'left',
+                            cursor: mediaUrl ? 'pointer' : 'default',
+                          }}
+                        >
                           {thumb ? (
                             videoUrl ? (
                               <video src={thumb} muted playsInline preload="metadata" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block', background: '#000' }} />
@@ -2001,7 +2047,7 @@ export default function HomeClient() {
                             <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{formatDateTime(log.created_at).slice(0, 12)}</div>
                             <div style={{ fontSize: 12, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{parsed.text}</div>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -2080,15 +2126,16 @@ export default function HomeClient() {
                   >
                     {searchMediaLogs.slice(0, 120).map((log) => {
                       const { imageUrls, videoUrl } = getLogMedia(log);
-                      const hasImages = imageUrls.length > 0;
-                      const thumb = hasImages ? imageUrls[0] : videoUrl ?? '';
+                      const firstImage = imageUrls.find((u) => typeof u === 'string' && u.trim().length > 0) ?? '';
+                      const hasImages = !!firstImage;
+                      const thumb = hasImages ? firstImage : videoUrl ?? '';
                       return (
                         <button
                           key={`search-media-${log.id}`}
                           type="button"
                           onClick={() => {
                             if (hasImages) {
-                              router.push(`/media?type=image&url=${encodeURIComponent(imageUrls[0])}`);
+                              router.push(`/media?type=image&url=${encodeURIComponent(firstImage)}`);
                             } else if (videoUrl) {
                               router.push(`/media?type=video&url=${encodeURIComponent(videoUrl)}`);
                             }
