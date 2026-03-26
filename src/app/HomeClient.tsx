@@ -229,11 +229,6 @@ export default function HomeClient() {
   const [actionPopupLogId, setActionPopupLogId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchViewer, setSearchViewer] = useState<
-    | null
-    | { type: 'image'; urls: string[]; index: number }
-    | { type: 'video'; url: string }
-  >(null);
   const [memoContent, setMemoContent] = useState('');
   const [memoSaving, setMemoSaving] = useState(false);
   const [showMemoPanel, setShowMemoPanel] = useState(false);
@@ -612,7 +607,8 @@ export default function HomeClient() {
       status.includes('수정되었습니다') ||
       status.includes('삭제되었습니다') ||
       status.includes('이름이 저장되었습니다') ||
-      status.includes('프로필 사진이 변경되었습니다');
+      status.includes('프로필 사진이 변경되었습니다') ||
+      status.includes('가족 메모가 저장되었습니다');
 
     if (!autoHide) return;
 
@@ -1189,15 +1185,14 @@ export default function HomeClient() {
   const growthTimelineLogs = useMemo(() => {
     return logs
       .filter((log) => {
-        const actorName = getMemberName(log.actor_user_id);
-        if (actorName !== '밤톨이') return false;
+        if (normalizeLogSlug(log.place_slug) !== LOG_SLUG.bamtoli) return false;
         const { imageUrls, videoUrl } = getLogMedia(log);
         if (imageUrls.length === 0 && !videoUrl) return false;
         const ts = new Date(log.created_at).getTime();
         return growthCutoffMs === 0 || ts >= growthCutoffMs;
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [logs, growthCutoffMs, getMemberName]);
+  }, [logs, growthCutoffMs]);
   const todayMemoryLogs = useMemo(() => {
     const now = new Date();
     const month = now.getMonth();
@@ -2092,8 +2087,11 @@ export default function HomeClient() {
                           key={`search-media-${log.id}`}
                           type="button"
                           onClick={() => {
-                            if (hasImages) setSearchViewer({ type: 'image', urls: imageUrls, index: 0 });
-                            else if (videoUrl) setSearchViewer({ type: 'video', url: videoUrl });
+                            if (hasImages) {
+                              router.push(`/media?type=image&url=${encodeURIComponent(imageUrls[0])}`);
+                            } else if (videoUrl) {
+                              router.push(`/media?type=video&url=${encodeURIComponent(videoUrl)}`);
+                            }
                           }}
                           style={{
                             padding: 0,
@@ -2183,156 +2181,6 @@ export default function HomeClient() {
               </section>
             )}
 
-            {searchViewer && (
-              <div
-                role="dialog"
-                aria-modal="true"
-                aria-label="미디어 전체화면"
-                style={{
-                  position: 'fixed',
-                  inset: 0,
-                  background: 'rgba(0,0,0,0.75)',
-                  zIndex: 90,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  padding: 16,
-                }}
-                onClick={() => setSearchViewer(null)}
-              >
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    width: '100%',
-                    maxWidth: 520,
-                    maxHeight: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 12,
-                    position: 'relative',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setSearchViewer(null)}
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      transform: 'translate(12px, 12px)',
-                      border: '1px solid rgba(255,193,7,0.8)',
-                      background: 'rgba(0,0,0,0.15)',
-                      color: '#ffc107',
-                      borderRadius: 999,
-                      width: 36,
-                      height: 36,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                    aria-label="닫기"
-                  >
-                    <ChevronLeft size={18} strokeWidth={2} aria-hidden />
-                  </button>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                    <div style={{ fontSize: 12, color: '#e5e7eb' }}>
-                      {searchViewer.type === 'image' ? `이미지 ${searchViewer.index + 1}/${searchViewer.urls.length}` : '동영상'}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSearchViewer(null)}
-                      style={{
-                        border: 'none',
-                        background: '#ffffff',
-                        color: '#0f172a',
-                        borderRadius: 10,
-                        padding: '8px 12px',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      닫기
-                    </button>
-                  </div>
-
-                  {searchViewer.type === 'image' ? (
-                    <>
-                      <img
-                        src={searchViewer.urls[searchViewer.index]}
-                        alt=""
-                        style={{
-                          width: '100%',
-                          maxHeight: '70vh',
-                          objectFit: 'contain',
-                          background: '#000',
-                          borderRadius: 12,
-                        }}
-                      />
-                      {searchViewer.urls.length > 1 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSearchViewer((prev) => {
-                                if (!prev || prev.type !== 'image') return prev;
-                                const nextIdx = (prev.index - 1 + prev.urls.length) % prev.urls.length;
-                                return { ...prev, index: nextIdx };
-                              })
-                            }
-                            style={{
-                              border: '1px solid rgba(255,255,255,0.25)',
-                              background: 'transparent',
-                              color: '#fff',
-                              borderRadius: 10,
-                              padding: '10px 12px',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            이전
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSearchViewer((prev) => {
-                                if (!prev || prev.type !== 'image') return prev;
-                                const nextIdx = (prev.index + 1) % prev.urls.length;
-                                return { ...prev, index: nextIdx };
-                              })
-                            }
-                            style={{
-                              border: '1px solid rgba(255,255,255,0.25)',
-                              background: 'transparent',
-                              color: '#fff',
-                              borderRadius: 10,
-                              padding: '10px 12px',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            다음
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <video
-                      src={searchViewer.url}
-                      controls
-                      autoPlay
-                      playsInline
-                      style={{
-                        width: '100%',
-                        maxHeight: '70vh',
-                        objectFit: 'contain',
-                        background: '#000',
-                        borderRadius: 12,
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
           </>
         )}
         </div>
@@ -2784,11 +2632,30 @@ export default function HomeClient() {
               if (end - start > 50) closeMemoPanel();
             }}
           >
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: 8, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
               <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <FileText size={18} strokeWidth={1.5} aria-hidden />
-              {t('memoTitle')}
-            </h3>
+                <FileText size={18} strokeWidth={1.5} aria-hidden />
+                {t('memoTitle')}
+              </h3>
+              <button
+                type="button"
+                onClick={() => void saveSharedMemos()}
+                disabled={memoSaving}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 10,
+                  border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                  background: highContrast ? '#1e1e1e' : '#fff',
+                  color: highContrast ? '#fff' : '#334155',
+                  fontSize: 12,
+                  cursor: memoSaving ? 'wait' : 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                {memoSaving ? '저장 중...' : t('save')}
+              </button>
+            </div>
+            <div style={{ marginBottom: 8 }}>
               <p style={{ margin: '6px 0 0', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', lineHeight: 1.35 }}>
                 {t('memoSharedHint')}
               </p>
@@ -2817,24 +2684,6 @@ export default function HomeClient() {
               }}
               onWheel={(e) => e.stopPropagation()}
             />
-            <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => void saveSharedMemos()}
-                disabled={memoSaving}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 10,
-                  border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                  background: highContrast ? '#1e1e1e' : '#fff',
-                  color: highContrast ? '#fff' : '#334155',
-                  fontSize: 12,
-                  cursor: memoSaving ? 'wait' : 'pointer',
-                }}
-              >
-                {memoSaving ? '저장 중...' : t('save')}
-              </button>
-            </div>
           </div>
         </>
       )}
@@ -2846,7 +2695,7 @@ export default function HomeClient() {
           top: 0,
           right: 0,
           bottom: 0,
-          width: 28,
+          width: 96,
           zIndex: 35,
           touchAction: 'pan-y',
         }}
@@ -2857,7 +2706,7 @@ export default function HomeClient() {
           const start = swipeStartRef.current;
           const end = t.clientX;
           swipeStartRef.current = null;
-          if (start > window.innerWidth - 80 && start - end > 50) setShowMemoPanel(true);
+          if (start > window.innerWidth - 140 && start - end > 36) setShowMemoPanel(true);
         }}
       />
 
