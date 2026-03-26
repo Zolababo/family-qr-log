@@ -119,6 +119,37 @@ export function LogFeed({
   };
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const [pausedVideoId, setPausedVideoId] = useState<string | null>(null);
+  const [mediaViewer, setMediaViewer] = useState<null | { type: 'image' | 'video'; url: string }>(null);
+
+  const downloadMedia = (url: string) => {
+    if (typeof window === 'undefined') return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const shareMedia = async (url: string) => {
+    if (typeof navigator === 'undefined') return;
+    if (navigator.share) {
+      try {
+        await navigator.share({ url });
+        return;
+      } catch {
+        // 사용자가 공유를 취소한 경우 포함: 조용히 종료
+      }
+    }
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        // clipboard 권한이 없는 환경이면 무시
+      }
+    }
+  };
 
   const toggleVideo = async (logId: string) => {
     const el = videoRefs.current[logId];
@@ -378,15 +409,18 @@ export function LogFeed({
                                 );
                               })()}
                               {imageUrls.map((url, i) => (
-                                <a
+                                <button
                                   key={i}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                  type="button"
+                                  onClick={() => setMediaViewer({ type: 'image', url })}
                                   style={{
                                     display: 'block',
                                     width: '100%',
                                     overflow: 'hidden',
+                                    border: 'none',
+                                    background: 'transparent',
+                                    padding: 0,
+                                    cursor: 'pointer',
                                   }}
                                 >
                                   <img
@@ -400,7 +434,7 @@ export function LogFeed({
                                       background: 'var(--bg-subtle)',
                                     }}
                                   />
-                                </a>
+                                </button>
                               ))}
                               {videoUrl && (
                                 <div
@@ -507,6 +541,88 @@ export function LogFeed({
             </div>
           ))}
         </div>
+
+        {mediaViewer && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setMediaViewer(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.9)',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 12,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+              }}
+            >
+              {mediaViewer.type === 'image' ? (
+                <img src={mediaViewer.url} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              ) : (
+                <video
+                  src={mediaViewer.url}
+                  controls
+                  autoPlay
+                  playsInline
+                  style={{ maxWidth: '100%', maxHeight: '100%', background: '#000' }}
+                />
+              )}
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  bottom: 12,
+                  display: 'flex',
+                  gap: 8,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => void shareMedia(mediaViewer.url)}
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.35)',
+                    background: 'rgba(0,0,0,0.35)',
+                    color: '#fff',
+                    borderRadius: 999,
+                    padding: '8px 12px',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  공유
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadMedia(mediaViewer.url)}
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.35)',
+                    background: 'rgba(0,0,0,0.35)',
+                    color: '#fff',
+                    borderRadius: 999,
+                    padding: '8px 12px',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  다운로드
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     )
   );
