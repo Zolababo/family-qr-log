@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { Calendar, MessageCircle, Play, MapPin, ExternalLink, Sparkles } from 'lucide-react';
+import { Calendar, MessageCircle, Play, MapPin, ExternalLink, Sparkles, Share2, Download } from 'lucide-react';
 
 export type Log = {
   id: string;
@@ -555,14 +555,13 @@ export function LogFeed({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: 12,
             }}
           >
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
-                width: '100%',
-                height: '100%',
+                width: '100vw',
+                height: '100vh',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -570,14 +569,14 @@ export function LogFeed({
               }}
             >
               {mediaViewer.type === 'image' ? (
-                <img src={mediaViewer.url} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                <img src={mediaViewer.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               ) : (
                 <video
                   src={mediaViewer.url}
                   controls
                   autoPlay
                   playsInline
-                  style={{ maxWidth: '100%', maxHeight: '100%', background: '#000' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }}
                 />
               )}
               <div
@@ -592,32 +591,42 @@ export function LogFeed({
                 <button
                   type="button"
                   onClick={() => void shareMedia(mediaViewer.url)}
+                  aria-label="공유"
+                  title="공유"
                   style={{
                     border: '1px solid rgba(255,255,255,0.35)',
                     background: 'rgba(0,0,0,0.35)',
                     color: '#fff',
                     borderRadius: 999,
-                    padding: '8px 12px',
-                    fontSize: 12,
+                    width: 40,
+                    height: 40,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     cursor: 'pointer',
                   }}
                 >
-                  공유
+                  <Share2 size={18} strokeWidth={2} aria-hidden />
                 </button>
                 <button
                   type="button"
                   onClick={() => downloadMedia(mediaViewer.url)}
+                  aria-label="다운로드"
+                  title="다운로드"
                   style={{
                     border: '1px solid rgba(255,255,255,0.35)',
                     background: 'rgba(0,0,0,0.35)',
                     color: '#fff',
                     borderRadius: 999,
-                    padding: '8px 12px',
-                    fontSize: 12,
+                    width: 40,
+                    height: 40,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     cursor: 'pointer',
                   }}
                 >
-                  다운로드
+                  <Download size={18} strokeWidth={2} aria-hidden />
                 </button>
               </div>
             </div>
