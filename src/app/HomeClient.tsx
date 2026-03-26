@@ -40,7 +40,9 @@ function getLogMedia(log: Log): { imageUrls: string[]; videoUrl: string | null }
     } catch {
       // JSON이 깨진 문자열이어도, URL만 추출해서 최소한 미디어는 보이게 합니다.
       const matches = raw.match(/https?:\/\/[^\s",)]+/g);
-      if (matches) imageUrls = matches;
+      const escapedMatches = raw.match(/https?:\\\/\\\/[^\s",)]+/g)?.map((u) => u.replace(/\\\//g, '/'));
+      const merged = [...(matches ?? []), ...(escapedMatches ?? [])];
+      if (merged.length > 0) imageUrls = merged;
     }
   }
   if (imageUrls.length === 0 && log.image_url) imageUrls = [log.image_url];
@@ -762,7 +764,7 @@ export default function HomeClient() {
   const updateComment = useCallback(
     async (commentId: string, logId: string, content: string) => {
       if (!user || !content.trim()) return;
-      const { error } = await supabase.from('log_comments').update({ content: content.trim() }).eq('id', commentId).eq('user_id', user.id);
+      const { error } = await supabase.from('log_comments').update({ content: content.trim() }).eq('id', commentId);
       if (error) {
         setStatus(`댓글 수정 실패: ${error.message}`);
         return;
@@ -777,7 +779,7 @@ export default function HomeClient() {
   const deleteComment = useCallback(
     async (commentId: string, logId: string) => {
       if (!user) return;
-      const { error } = await supabase.from('log_comments').delete().eq('id', commentId).eq('user_id', user.id);
+      const { error } = await supabase.from('log_comments').delete().eq('id', commentId);
       if (error) {
         setStatus(`댓글 삭제 실패: ${error.message}`);
         return;
@@ -1013,6 +1015,11 @@ export default function HomeClient() {
     if (user && user.id === userId && user.email) return user.email.split('@')[0];
     return `${userId.slice(0, 8)}...`;
   };
+  const isSameUserId = useCallback((a: string | null | undefined, b: string | null | undefined) => {
+    const aa = String(a ?? '').trim().toLowerCase();
+    const bb = String(b ?? '').trim().toLowerCase();
+    return aa.length > 0 && aa === bb;
+  }, []);
 
   const meDisplayName =
     profileName || (user?.email ? user.email.split('@')[0] : t('me'));
@@ -1081,8 +1088,15 @@ export default function HomeClient() {
 
   const normalizeMediaUrl = useCallback((url: string | null | undefined) => {
     if (!url) return '';
-    const trimmed = String(url).trim().replace(/[)\]}",]+$/g, '');
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/')) return trimmed;
+    const trimmed = String(url)
+      .trim()
+      .replace(/^["'\[\(]+/, '')
+      .replace(/[)\]}",'`]+$/g, '');
+    const unescaped = trimmed.replace(/\\\//g, '/');
+    if (unescaped.startsWith('//')) return `https:${unescaped}`;
+    if (unescaped.startsWith('http://') || unescaped.startsWith('https://') || unescaped.startsWith('/')) return unescaped;
+    const extracted = unescaped.match(/https?:\/\/[^\s"'<>]+/i)?.[0] ?? '';
+    if (extracted) return extracted.replace(/\\\//g, '/');
     return '';
   }, []);
 
@@ -2354,7 +2368,7 @@ export default function HomeClient() {
                       ) : (
                         <div style={{ marginTop: 4, fontSize: 13, color: 'var(--text-secondary)' }}>{c.content}</div>
                       )}
-                      {user && c.user_id === user.id && editingCommentId !== c.id && (
+                      {user && isSameUserId(c.user_id, user.id) && editingCommentId !== c.id && (
                         <div style={{ marginTop: 6, display: 'flex', gap: 10 }}>
                           <button
                             type="button"
