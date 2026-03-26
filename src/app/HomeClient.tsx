@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
@@ -145,6 +145,7 @@ const formatDateTime = (iso: string) => {
 
 const ACCESSIBILITY_KEY = 'family_qr_log_accessibility';
 const MEMO_KEY = 'family_qr_log_memo';
+const ACTIVE_TAB_KEY = 'family_qr_log_active_tab';
 const FONT_STEPS = [0.875, 1, 1.125, 1.25, 1.375, 1.5, 1.75, 2] as const;
 type FontScaleStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -191,7 +192,6 @@ function loadAccessibility(): {
 export default function HomeClient() {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
@@ -848,25 +848,19 @@ export default function HomeClient() {
   }, [activeTab]);
 
   useEffect(() => {
-    const raw = searchParams.get('tab');
-    const fromUrl: TabId | null =
-      raw === 'calendar' || raw === 'search' || raw === 'todo' || raw === 'home'
-        ? raw
-        : null;
-    if (!fromUrl) return;
-    if (fromUrl !== activeTab) setActiveTab(fromUrl);
-  }, [searchParams, activeTab]);
+    try {
+      const raw = sessionStorage.getItem(ACTIVE_TAB_KEY);
+      if (raw === 'home' || raw === 'calendar' || raw === 'search' || raw === 'todo') {
+        setActiveTab(raw);
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
-    const current = searchParams.get('tab') ?? 'home';
-    const desired = activeTab === 'home' ? 'home' : activeTab;
-    if (current === desired) return;
-    const params = new URLSearchParams(searchParams.toString());
-    if (activeTab === 'home') params.delete('tab');
-    else params.set('tab', activeTab);
-    const next = params.toString();
-    router.replace(next ? `/?${next}` : '/', { scroll: false });
-  }, [activeTab, router, searchParams]);
+    try {
+      sessionStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+    } catch {}
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === 'search') {
@@ -1084,6 +1078,22 @@ export default function HomeClient() {
     for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
     return h;
   };
+
+  const normalizeMediaUrl = useCallback((url: string | null | undefined) => {
+    if (!url) return '';
+    const trimmed = String(url).trim().replace(/[)\]}",]+$/g, '');
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/')) return trimmed;
+    return '';
+  }, []);
+
+  const getPrimaryMedia = useCallback((log: Log): { type: 'image' | 'video'; url: string } | null => {
+    const { imageUrls, videoUrl } = getLogMedia(log);
+    const image = imageUrls.map((u) => normalizeMediaUrl(u)).find((u) => u.length > 0) ?? '';
+    if (image) return { type: 'image', url: image };
+    const video = normalizeMediaUrl(videoUrl);
+    if (video) return { type: 'video', url: video };
+    return null;
+  }, [normalizeMediaUrl]);
 
   const shuffledSearchLogs = useMemo(() => {
     // 검색 탭 진입 시마다 seed를 바꿔, 매번 다른 배열처럼 보이게 합니다.
@@ -2011,18 +2021,16 @@ export default function HomeClient() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
                     {growthTimelineLogs.slice(0, 12).map((log) => {
-                      const { imageUrls, videoUrl } = getLogMedia(log);
-                      const thumb = imageUrls[0] || videoUrl || '';
+                      const media = getPrimaryMedia(log);
+                      const thumb = media?.url ?? '';
                       const parsed = parseLogMeta(log.action);
-                      const mediaType: 'image' | 'video' = videoUrl ? 'video' : 'image';
-                      const mediaUrl = videoUrl || imageUrls[0] || '';
                       return (
                         <button
                           key={`growth-${log.id}`}
                           type="button"
                           onClick={() => {
-                            if (!mediaUrl) return;
-                            router.push(`/media?type=${mediaType}&url=${encodeURIComponent(mediaUrl)}`);
+                            if (!media) return;
+                            router.push(`/media?type=${media.type}&url=${encodeURIComponent(media.url)}`);
                           }}
                           style={{
                             border: '1px solid var(--divider)',
@@ -2031,12 +2039,33 @@ export default function HomeClient() {
                             background: '#fff',
                             padding: 0,
                             textAlign: 'left',
-                            cursor: mediaUrl ? 'pointer' : 'default',
+                            cursor: media ? 'pointer' : 'default',
                           }}
                         >
                           {thumb ? (
-                            videoUrl ? (
-                              <video src={thumb} muted playsInline preload="metadata" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block', background: '#000' }} />
+                            media?.type === 'video' ? (
+                              <div
+                                style={{
+                                  width: '100%',
+                                  height: 120,
+                                  background: '#000',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: 0,
+                                    height: 0,
+                                    borderTop: '10px solid transparent',
+                                    borderBottom: '10px solid transparent',
+                                    borderLeft: '16px solid #fff',
+                                    marginLeft: 2,
+                                    opacity: 0.9,
+                                  }}
+                                />
+                              </div>
                             ) : (
                               <img src={thumb} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />
                             )
@@ -2125,19 +2154,16 @@ export default function HomeClient() {
                     }}
                   >
                     {searchMediaLogs.slice(0, 120).map((log) => {
-                      const { imageUrls, videoUrl } = getLogMedia(log);
-                      const firstImage = imageUrls.find((u) => typeof u === 'string' && u.trim().length > 0) ?? '';
-                      const hasImages = !!firstImage;
-                      const thumb = hasImages ? firstImage : videoUrl ?? '';
+                      const media = getPrimaryMedia(log);
+                      const hasImages = media?.type === 'image';
+                      const thumb = media?.url ?? '';
                       return (
                         <button
                           key={`search-media-${log.id}`}
                           type="button"
                           onClick={() => {
-                            if (hasImages) {
-                              router.push(`/media?type=image&url=${encodeURIComponent(firstImage)}`);
-                            } else if (videoUrl) {
-                              router.push(`/media?type=video&url=${encodeURIComponent(videoUrl)}`);
+                            if (media) {
+                              router.push(`/media?type=${media.type}&url=${encodeURIComponent(media.url)}`);
                             }
                           }}
                           style={{
