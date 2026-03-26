@@ -777,7 +777,10 @@ export default function HomeClient() {
       }
       const { error } = await supabase.from('log_comments').update({ content: content.trim() }).eq('id', commentId);
       if (error) {
-        setStatus(`댓글 수정 실패: ${error.message}`);
+        const hint = /policy|row-level|rls|permission|not allowed|forbidden/i.test(error.message ?? '')
+          ? ' (DB RLS 정책 점검 필요: scripts/enable-log-comments-rls-policies.sql 실행)'
+          : '';
+        setStatus(`댓글 수정 실패: ${error.message}${hint}`);
         return;
       }
       await loadComments([logId]);
@@ -796,7 +799,10 @@ export default function HomeClient() {
       }
       const { error } = await supabase.from('log_comments').delete().eq('id', commentId);
       if (error) {
-        setStatus(`댓글 삭제 실패: ${error.message}`);
+        const hint = /policy|row-level|rls|permission|not allowed|forbidden/i.test(error.message ?? '')
+          ? ' (DB RLS 정책 점검 필요: scripts/enable-log-comments-rls-policies.sql 실행)'
+          : '';
+        setStatus(`댓글 삭제 실패: ${error.message}${hint}`);
         return;
       }
       await loadComments([logId]);
