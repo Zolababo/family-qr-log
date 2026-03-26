@@ -761,9 +761,20 @@ export default function HomeClient() {
     [user, commentSending, loadComments]
   );
 
+  const normalizeUserIdForCompare = useCallback((v: string | null | undefined) => {
+    return String(v ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+  }, []);
+
   const updateComment = useCallback(
-    async (commentId: string, logId: string, content: string) => {
+    async (commentId: string, logId: string, content: string, commentUserId?: string) => {
       if (!user || !content.trim()) return;
+      if (commentUserId && normalizeUserIdForCompare(commentUserId) !== normalizeUserIdForCompare(user.id)) {
+        setStatus('본인 댓글만 수정할 수 있어요.');
+        return;
+      }
       const { error } = await supabase.from('log_comments').update({ content: content.trim() }).eq('id', commentId);
       if (error) {
         setStatus(`댓글 수정 실패: ${error.message}`);
@@ -773,12 +784,16 @@ export default function HomeClient() {
       setEditingCommentId(null);
       setEditingCommentValue('');
     },
-    [user, loadComments]
+    [user, loadComments, normalizeUserIdForCompare]
   );
 
   const deleteComment = useCallback(
-    async (commentId: string, logId: string) => {
+    async (commentId: string, logId: string, commentUserId?: string) => {
       if (!user) return;
+      if (commentUserId && normalizeUserIdForCompare(commentUserId) !== normalizeUserIdForCompare(user.id)) {
+        setStatus('본인 댓글만 삭제할 수 있어요.');
+        return;
+      }
       const { error } = await supabase.from('log_comments').delete().eq('id', commentId);
       if (error) {
         setStatus(`댓글 삭제 실패: ${error.message}`);
@@ -790,7 +805,7 @@ export default function HomeClient() {
         setEditingCommentValue('');
       }
     },
-    [user, loadComments, editingCommentId]
+    [user, loadComments, editingCommentId, normalizeUserIdForCompare]
   );
 
   const stickerOptions = ['✨', '❤️', '⭐', '🎉', '🧸', '🌿', '🌈', '☀️', '🍀', '💫'];
@@ -1016,10 +1031,10 @@ export default function HomeClient() {
     return `${userId.slice(0, 8)}...`;
   };
   const isSameUserId = useCallback((a: string | null | undefined, b: string | null | undefined) => {
-    const aa = String(a ?? '').trim().toLowerCase();
-    const bb = String(b ?? '').trim().toLowerCase();
+    const aa = normalizeUserIdForCompare(a);
+    const bb = normalizeUserIdForCompare(b);
     return aa.length > 0 && aa === bb;
-  }, []);
+  }, [normalizeUserIdForCompare]);
 
   const meDisplayName =
     profileName || (user?.email ? user.email.split('@')[0] : t('me'));
@@ -1120,12 +1135,12 @@ export default function HomeClient() {
     const media: Log[] = [];
     const textOnly: Log[] = [];
     for (const log of shuffledSearchLogs) {
-      const { imageUrls, videoUrl } = getLogMedia(log);
-      if (imageUrls.length > 0 || !!videoUrl) media.push(log);
+      const primary = getPrimaryMedia(log);
+      if (primary) media.push(log);
       else textOnly.push(log);
     }
     return { searchMediaLogs: media, searchTextOnlyLogs: textOnly };
-  }, [shuffledSearchLogs]);
+  }, [shuffledSearchLogs, getPrimaryMedia]);
 
   const feedTagOptions = useMemo(() => {
     const topicLabels = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리'] as const;
@@ -2184,6 +2199,8 @@ export default function HomeClient() {
                             padding: 0,
                             border: 'none',
                             background: 'transparent',
+                            width: '100%',
+                            touchAction: 'pan-y',
                           }}
                           aria-label="미디어 보기"
                         >
@@ -2199,6 +2216,8 @@ export default function HomeClient() {
                               <img
                                 src={thumb}
                                 alt=""
+                                loading="lazy"
+                                decoding="async"
                                 style={{
                                   width: '100%',
                                   aspectRatio: '1 / 1',
@@ -2348,7 +2367,7 @@ export default function HomeClient() {
                           />
                           <button
                             type="button"
-                            onClick={() => updateComment(c.id, commentTarget.logId, editingCommentValue)}
+                            onClick={() => updateComment(c.id, commentTarget.logId, editingCommentValue, c.user_id)}
                             disabled={!editingCommentValue.trim()}
                             style={{ border: 'none', borderRadius: 10, padding: '8px 10px', background: 'var(--accent)', color: '#fff', fontSize: 12, cursor: 'pointer' }}
                           >
@@ -2382,7 +2401,7 @@ export default function HomeClient() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => deleteComment(c.id, commentTarget.logId)}
+                            onClick={() => deleteComment(c.id, commentTarget.logId, c.user_id)}
                             style={{ border: 'none', background: 'transparent', padding: 0, fontSize: 12, color: '#ef4444', cursor: 'pointer' }}
                           >
                             삭제
