@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { Calendar, MessageCircle, Play, MapPin, ExternalLink, Sparkles, Share2, Download } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Calendar, MessageCircle, Play, MapPin, ExternalLink, Sparkles } from 'lucide-react';
 
 export type Log = {
   id: string;
@@ -103,6 +104,7 @@ export function LogFeed({
   onPickSticker,
   onStickerRemove,
 }: LogFeedProps) {
+  const router = useRouter();
   const parseLogMeta = (actionText: string): { text: string; locationName?: string; locationUrl?: string; stickers?: string[]; stickerByUser?: Record<string, string> } => {
     const safeText = String(actionText ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
     const marker = '\n@@meta:';
@@ -119,76 +121,9 @@ export function LogFeed({
   };
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const [pausedVideoId, setPausedVideoId] = useState<string | null>(null);
-  const [mediaViewer, setMediaViewer] = useState<null | { type: 'image' | 'video'; url: string }>(null);
-  const mediaViewerHistoryPushedRef = useRef(false);
-  const mediaViewerClosingByHistoryRef = useRef(false);
-
-  const downloadMedia = (url: string) => {
-    if (typeof window === 'undefined') return;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = '';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+  const openMediaPage = (type: 'image' | 'video', url: string) => {
+    router.push(`/media?type=${type}&url=${encodeURIComponent(url)}`);
   };
-
-  const shareMedia = async (url: string) => {
-    if (typeof navigator === 'undefined') return;
-    if (navigator.share) {
-      try {
-        await navigator.share({ url });
-        return;
-      } catch {
-        // 사용자가 공유를 취소한 경우 포함: 조용히 종료
-      }
-    }
-    if (navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {
-        // clipboard 권한이 없는 환경이면 무시
-      }
-    }
-  };
-
-  const openMediaViewer = (viewer: { type: 'image' | 'video'; url: string }) => {
-    setMediaViewer(viewer);
-  };
-
-  const closeMediaViewer = () => {
-    if (!mediaViewer) return;
-    if (typeof window !== 'undefined' && mediaViewerHistoryPushedRef.current) {
-      mediaViewerClosingByHistoryRef.current = true;
-      window.history.back();
-      return;
-    }
-    setMediaViewer(null);
-  };
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!mediaViewer) return;
-    if (!mediaViewerHistoryPushedRef.current) {
-      window.history.pushState({ mediaViewer: true }, '');
-      mediaViewerHistoryPushedRef.current = true;
-    }
-  }, [mediaViewer]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const onPopState = () => {
-      if (!mediaViewerHistoryPushedRef.current) return;
-      mediaViewerHistoryPushedRef.current = false;
-      if (mediaViewerClosingByHistoryRef.current) {
-        mediaViewerClosingByHistoryRef.current = false;
-      }
-      setMediaViewer(null);
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
 
   const toggleVideo = async (logId: string) => {
     const el = videoRefs.current[logId];
@@ -451,7 +386,7 @@ export function LogFeed({
                                 <button
                                   key={i}
                                   type="button"
-                                  onClick={() => openMediaViewer({ type: 'image', url })}
+                                  onClick={() => openMediaPage('image', url)}
                                   style={{
                                     display: 'block',
                                     width: '100%',
@@ -581,97 +516,6 @@ export function LogFeed({
           ))}
         </div>
 
-        {mediaViewer && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            onClick={closeMediaViewer}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: '#000',
-              zIndex: 2147483647,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                width: '100vw',
-                height: '100vh',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-              }}
-            >
-              {mediaViewer.type === 'image' ? (
-                <img src={mediaViewer.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              ) : (
-                <video
-                  src={mediaViewer.url}
-                  controls
-                  autoPlay
-                  playsInline
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }}
-                />
-              )}
-              <div
-                style={{
-                  position: 'absolute',
-                  right: 12,
-                  bottom: 12,
-                  display: 'flex',
-                  gap: 8,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => void shareMedia(mediaViewer.url)}
-                  aria-label="공유"
-                  title="공유"
-                  style={{
-                    border: '1px solid rgba(255,255,255,0.35)',
-                    background: 'rgba(0,0,0,0.35)',
-                    color: '#fff',
-                    borderRadius: 999,
-                    width: 40,
-                    height: 40,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Share2 size={18} strokeWidth={2} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadMedia(mediaViewer.url)}
-                  aria-label="다운로드"
-                  title="다운로드"
-                  style={{
-                    border: '1px solid rgba(255,255,255,0.35)',
-                    background: 'rgba(0,0,0,0.35)',
-                    color: '#fff',
-                    borderRadius: 999,
-                    width: 40,
-                    height: 40,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Download size={18} strokeWidth={2} aria-hidden />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </section>
     )
   );
