@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { Calendar, MessageCircle, Play, MapPin, ExternalLink, Sparkles, Share2, Download } from 'lucide-react';
 
@@ -120,6 +120,8 @@ export function LogFeed({
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const [pausedVideoId, setPausedVideoId] = useState<string | null>(null);
   const [mediaViewer, setMediaViewer] = useState<null | { type: 'image' | 'video'; url: string }>(null);
+  const mediaViewerHistoryPushedRef = useRef(false);
+  const mediaViewerClosingByHistoryRef = useRef(false);
 
   const downloadMedia = (url: string) => {
     if (typeof window === 'undefined') return;
@@ -150,6 +152,43 @@ export function LogFeed({
       }
     }
   };
+
+  const openMediaViewer = (viewer: { type: 'image' | 'video'; url: string }) => {
+    setMediaViewer(viewer);
+  };
+
+  const closeMediaViewer = () => {
+    if (!mediaViewer) return;
+    if (typeof window !== 'undefined' && mediaViewerHistoryPushedRef.current) {
+      mediaViewerClosingByHistoryRef.current = true;
+      window.history.back();
+      return;
+    }
+    setMediaViewer(null);
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!mediaViewer) return;
+    if (!mediaViewerHistoryPushedRef.current) {
+      window.history.pushState({ mediaViewer: true }, '');
+      mediaViewerHistoryPushedRef.current = true;
+    }
+  }, [mediaViewer]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onPopState = () => {
+      if (!mediaViewerHistoryPushedRef.current) return;
+      mediaViewerHistoryPushedRef.current = false;
+      if (mediaViewerClosingByHistoryRef.current) {
+        mediaViewerClosingByHistoryRef.current = false;
+      }
+      setMediaViewer(null);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   const toggleVideo = async (logId: string) => {
     const el = videoRefs.current[logId];
@@ -412,7 +451,7 @@ export function LogFeed({
                                 <button
                                   key={i}
                                   type="button"
-                                  onClick={() => setMediaViewer({ type: 'image', url })}
+                                  onClick={() => openMediaViewer({ type: 'image', url })}
                                   style={{
                                     display: 'block',
                                     width: '100%',
@@ -546,15 +585,16 @@ export function LogFeed({
           <div
             role="dialog"
             aria-modal="true"
-            onClick={() => setMediaViewer(null)}
+            onClick={closeMediaViewer}
             style={{
               position: 'fixed',
               inset: 0,
-              background: 'rgba(0,0,0,0.9)',
-              zIndex: 1000,
+              background: '#000',
+              zIndex: 2147483647,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              overflow: 'hidden',
             }}
           >
             <div
