@@ -1216,6 +1216,13 @@ export default function HomeClient() {
     [allowedFeedSlugSet]
   );
 
+  const applyTagFromLogCard = useCallback((rawSlug: string) => {
+    const slug = normalizeLogSlug(rawSlug);
+    onFeedTagSelect(slug);
+    setActiveTab('home');
+    setFeedFilterOpen(true);
+  }, [onFeedTagSelect]);
+
   const logsForCalendar = calendarTagFilter === 'all' ? logs : logs.filter((l) => l.place_slug === calendarTagFilter);
   const [calYear, calMonth] = calendarYearMonth.split('-').map(Number);
   const calendarFirstDay = new Date(calYear, calMonth - 1, 1);
@@ -1999,7 +2006,14 @@ export default function HomeClient() {
                               className="log-card"
                               style={highContrast ? { border: '1px solid #ffc107', background: '#2a2a2a' } : undefined}
                             >
-                              <span className={`log-place-tag ${log.place_slug}`}>#{t(getPlaceLabelKey(log.place_slug))}</span>
+                              <button
+                                type="button"
+                                onClick={() => applyTagFromLogCard(log.place_slug)}
+                                className={`log-place-tag ${log.place_slug}`}
+                                style={{ border: 'none', cursor: 'pointer' }}
+                              >
+                                #{t(getPlaceLabelKey(log.place_slug))}
+                              </button>
                               <div className="log-time" style={highContrast ? { color: '#94a3b8' } : undefined}>{formatDateTime(log.created_at)}</div>
                               <div className="log-content" style={highContrast ? { color: '#fff' } : undefined}>
                                 {parseLogMeta(log.action).text}
@@ -2209,6 +2223,7 @@ export default function HomeClient() {
                 onStickerRemove={(logId) => {
                   void applyStickerToLog(logId, null);
                 }}
+                onTagClick={applyTagFromLogCard}
               />
             )}
             {activeTab === 'search' && (
@@ -2310,7 +2325,14 @@ export default function HomeClient() {
                           }}
                         >
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
-                            <span className={`log-place-tag ${log.place_slug}`}>#{t(getPlaceLabelKey(log.place_slug))}</span>
+                            <button
+                              type="button"
+                              onClick={() => applyTagFromLogCard(log.place_slug)}
+                              className={`log-place-tag ${log.place_slug}`}
+                              style={{ border: 'none', cursor: 'pointer' }}
+                            >
+                              #{t(getPlaceLabelKey(log.place_slug))}
+                            </button>
                             <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : 'var(--text-caption)' }}>
                               {formatDateTime(log.created_at)}
                             </span>

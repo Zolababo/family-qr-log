@@ -69,6 +69,7 @@ type LogFeedProps = {
   onPickSticker?: (logId: string) => void;
   /** 스티커 오버레이를 다시 누르면 제거 */
   onStickerRemove?: (logId: string) => void;
+  onTagClick?: (slug: string) => void;
 };
 
 export function LogFeed({
@@ -103,6 +104,7 @@ export function LogFeed({
   setActionPopupLogId,
   onPickSticker,
   onStickerRemove,
+  onTagClick,
 }: LogFeedProps) {
   const router = useRouter();
   const parseLogMeta = (actionText: string): { text: string; locationName?: string; locationUrl?: string; stickers?: string[]; stickerByUser?: Record<string, string> } => {
@@ -295,7 +297,18 @@ export function LogFeed({
                     ) : (
                       <>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                          <span className={`log-place-tag ${log.place_slug}`}>#{t(getPlaceLabelKey(log.place_slug))}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onTagClick?.(log.place_slug);
+                            }}
+                            className={`log-place-tag ${log.place_slug}`}
+                            style={{ border: 'none', cursor: 'pointer' }}
+                            aria-label={`태그 ${t(getPlaceLabelKey(log.place_slug))} 필터`}
+                          >
+                            #{t(getPlaceLabelKey(log.place_slug))}
+                          </button>
                           <span style={{ fontSize: 12, color: highContrast ? '#94a3b8' : 'var(--text-caption)' }}>
                             {formatDateTime(log.created_at)}
                           </span>
