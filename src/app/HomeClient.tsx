@@ -2989,9 +2989,10 @@ export default function HomeClient() {
           top: 0,
           right: 0,
           bottom: 0,
-          width: 96,
+          width: activeTab === 'todo' ? 0 : 96,
           zIndex: 35,
           touchAction: 'pan-y',
+          pointerEvents: activeTab === 'todo' ? 'none' : 'auto',
         }}
         onTouchStart={(e) => { const t = e.changedTouches?.[0]; if (t) swipeStartRef.current = t.clientX; }}
         onTouchEnd={(e) => {
