@@ -88,12 +88,45 @@ function composeSharedMemoSnapshot(snapshot: SharedMemoSnapshot): string {
   return `${SHARED_MEMO_LOG_PREFIX}${JSON.stringify(snapshot)}`;
 }
 
+function normalizeTodoPriorityKey(raw: unknown): TodoPriorityKey {
+  const v = String(raw ?? '').trim();
+  switch (v) {
+    case 'urgentImportant':
+      return 'urgentImportant';
+    case 'notUrgentImportant':
+    case 'importantNotUrgent':
+      return 'notUrgentImportant';
+    case 'urgentNotImportant':
+    case 'notImportantUrgent':
+      return 'urgentNotImportant';
+    case 'notUrgentNotImportant':
+    case 'notImportantNotUrgent':
+      return 'notUrgentNotImportant';
+    default:
+      return 'urgentImportant';
+  }
+}
+
 function parseTodoSnapshot(action: string | null | undefined): TodoTask[] | null {
   if (!action || !action.startsWith(TODO_SNAPSHOT_PREFIX)) return null;
   const raw = action.slice(TODO_SNAPSHOT_PREFIX.length);
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as TodoTask[]) : null;
+    if (!Array.isArray(parsed)) return null;
+    return parsed
+      .map((task, idx) => {
+        if (!task || typeof task !== 'object') return null;
+        const t = task as Partial<TodoTask> & Record<string, unknown>;
+        return {
+          id: typeof t.id === 'number' && Number.isFinite(t.id) ? t.id : Date.now() + idx,
+          text: typeof t.text === 'string' ? t.text : '',
+          key: normalizeTodoPriorityKey(t.key),
+          done: Boolean(t.done),
+          createdAt: typeof t.createdAt === 'string' && t.createdAt ? t.createdAt : new Date().toISOString(),
+          completedAt: typeof t.completedAt === 'string' ? t.completedAt : null,
+        } as TodoTask;
+      })
+      .filter((t): t is TodoTask => Boolean(t && t.text.trim().length > 0));
   } catch {
     return null;
   }
@@ -1271,7 +1304,8 @@ export default function HomeClient() {
     todoTasks
       .filter((task) => !task.done)
       .forEach((task) => {
-        map[task.key].push(task);
+        const key = normalizeTodoPriorityKey(task.key);
+        map[key].push({ ...task, key });
       });
     return map;
   }, [todoTasks]);
@@ -3232,3 +3266,4 @@ export default function HomeClient() {
     </main>
   );
 }
+

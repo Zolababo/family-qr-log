@@ -86,7 +86,8 @@ export function TodoBoard({
           borderRadius: 12,
           border,
           background: highContrast ? `linear-gradient(180deg, ${accent}, #121212 40%)` : `linear-gradient(180deg, ${accent}, #fff 35%)`,
-          padding: '7px 8px 6px',
+          padding: '9px 10px 8px',
+          height: '100%',
         }}
       >
         <div style={{ marginBottom: 6, flexShrink: 0 }}>
@@ -96,7 +97,7 @@ export function TodoBoard({
           style={{
             flex: 1,
             minHeight: 0,
-            maxHeight: 'min(28vh, 200px)',
+            maxHeight: 'none',
             overflowY: 'auto',
             overscrollBehavior: 'contain',
             marginBottom: 6,
@@ -183,7 +184,7 @@ export function TodoBoard({
         </h3>
       </div>
 
-      <div className="todo-eisenhower-grid" style={{ marginBottom: 12 }}>
+      <div className="todo-eisenhower-grid" style={{ marginBottom: 12, height: 'min(78vh, 860px)' }}>
         {MATRIX.map((m) => renderQuadrant(m))}
       </div>
 
