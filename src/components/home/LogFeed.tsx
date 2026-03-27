@@ -123,8 +123,17 @@ export function LogFeed({
   };
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const [pausedVideoId, setPausedVideoId] = useState<string | null>(null);
-  const openMediaPage = (type: 'image' | 'video', url: string) => {
-    router.push(`/media?type=${type}&url=${encodeURIComponent(url)}`);
+  const openMediaPage = (type: 'image' | 'video', url: string, imageUrls?: string[], imageIndex = 0) => {
+    const params = new URLSearchParams();
+    params.set('type', type);
+    if (type === 'image' && imageUrls && imageUrls.length > 0) {
+      params.set('urls', JSON.stringify(imageUrls));
+      params.set('index', String(Math.max(0, Math.min(imageIndex, imageUrls.length - 1))));
+      params.set('url', imageUrls[Math.max(0, Math.min(imageIndex, imageUrls.length - 1))] ?? url);
+    } else {
+      params.set('url', url);
+    }
+    router.push(`/media?${params.toString()}`);
   };
 
   const toggleVideo = async (logId: string) => {
@@ -399,7 +408,7 @@ export function LogFeed({
                                 <button
                                   key={i}
                                   type="button"
-                                  onClick={() => openMediaPage('image', url)}
+                                  onClick={() => openMediaPage('image', url, imageUrls, i)}
                                   style={{
                                     display: 'block',
                                     width: '100%',

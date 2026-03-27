@@ -2103,6 +2103,9 @@ export default function HomeClient() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
                     {growthTimelineLogs.slice(0, 12).map((log) => {
+                      const { imageUrls, videoUrl } = getLogMedia(log);
+                      const cleanImages = imageUrls.map((u) => normalizeMediaUrl(u)).filter((u) => u.length > 0);
+                      const cleanVideo = normalizeMediaUrl(videoUrl);
                       const media = getPrimaryMedia(log);
                       const thumb = media?.url ?? '';
                       const parsed = parseLogMeta(log.action);
@@ -2112,7 +2115,18 @@ export default function HomeClient() {
                           type="button"
                           onClick={() => {
                             if (!media) return;
-                            router.push(`/media?type=${media.type}&url=${encodeURIComponent(media.url)}`);
+                            if (cleanImages.length > 0) {
+                              const params = new URLSearchParams();
+                              params.set('type', 'image');
+                              params.set('urls', JSON.stringify(cleanImages));
+                              params.set('index', '0');
+                              params.set('url', cleanImages[0]);
+                              router.push(`/media?${params.toString()}`);
+                              return;
+                            }
+                            if (cleanVideo) {
+                              router.push(`/media?type=video&url=${encodeURIComponent(cleanVideo)}`);
+                            }
                           }}
                           style={{
                             border: '1px solid var(--divider)',
@@ -2237,6 +2251,9 @@ export default function HomeClient() {
                     }}
                   >
                     {searchMediaLogs.slice(0, 120).map((log) => {
+                      const { imageUrls, videoUrl } = getLogMedia(log);
+                      const cleanImages = imageUrls.map((u) => normalizeMediaUrl(u)).filter((u) => u.length > 0);
+                      const cleanVideo = normalizeMediaUrl(videoUrl);
                       const media = getPrimaryMedia(log);
                       const hasImages = media?.type === 'image';
                       const thumb = media?.url ?? '';
@@ -2245,8 +2262,17 @@ export default function HomeClient() {
                           key={`search-media-${log.id}`}
                           type="button"
                           onClick={() => {
-                            if (media) {
-                              router.push(`/media?type=${media.type}&url=${encodeURIComponent(media.url)}`);
+                            if (cleanImages.length > 0) {
+                              const params = new URLSearchParams();
+                              params.set('type', 'image');
+                              params.set('urls', JSON.stringify(cleanImages));
+                              params.set('index', '0');
+                              params.set('url', cleanImages[0]);
+                              router.push(`/media?${params.toString()}`);
+                              return;
+                            }
+                            if (cleanVideo) {
+                              router.push(`/media?type=video&url=${encodeURIComponent(cleanVideo)}`);
                             }
                           }}
                           style={{
