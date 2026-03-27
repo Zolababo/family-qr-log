@@ -4,6 +4,8 @@ import { useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, MessageCircle, Play, MapPin, ExternalLink, Sparkles } from 'lucide-react';
+import { parseLogMeta } from '../../lib/logActionMeta';
+import { sanitizeExternalUrl } from '../../lib/safeUrl';
 
 export type Log = {
   id: string;
@@ -107,20 +109,6 @@ export function LogFeed({
   onTagClick,
 }: LogFeedProps) {
   const router = useRouter();
-  const parseLogMeta = (actionText: string): { text: string; locationName?: string; locationUrl?: string; stickers?: string[]; stickerByUser?: Record<string, string> } => {
-    const safeText = String(actionText ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
-    const marker = '\n@@meta:';
-    const idx = safeText.lastIndexOf(marker);
-    if (idx < 0) return { text: safeText };
-    const text = safeText.slice(0, idx).trim();
-    const raw = safeText.slice(idx + marker.length).trim();
-    try {
-      const parsed = JSON.parse(raw) as { locationName?: string; locationUrl?: string; stickers?: string[]; stickerByUser?: Record<string, string> };
-      return { text, locationName: parsed?.locationName, locationUrl: parsed?.locationUrl, stickers: parsed?.stickers, stickerByUser: parsed?.stickerByUser };
-    } catch {
-      return { text };
-    }
-  };
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const [pausedVideoId, setPausedVideoId] = useState<string | null>(null);
   const openMediaPage = (type: 'image' | 'video', url: string, imageUrls?: string[], imageIndex = 0) => {
@@ -329,11 +317,12 @@ export function LogFeed({
                           {parseLogMeta(log.action).text}
                         </div>
                         {(() => {
-                          const parsed = parseLogMeta(log.action);
-                          if (!parsed.locationName && !parsed.locationUrl) return null;
+                          const { meta } = parseLogMeta(log.action);
+                          const safeHref = sanitizeExternalUrl(meta.locationUrl ?? '') || '#';
+                          if (!meta.locationName && safeHref === '#') return null;
                           return (
                             <a
-                              href={parsed.locationUrl || '#'}
+                              href={safeHref}
                               target="_blank"
                               rel="noopener noreferrer"
                               style={{
@@ -347,7 +336,7 @@ export function LogFeed({
                               }}
                             >
                               <MapPin size={16} strokeWidth={1.5} aria-hidden />
-                              {parsed.locationName || '지도 보기'}
+                              {meta.locationName || '지도 보기'}
                               <ExternalLink size={16} strokeWidth={1.5} aria-hidden />
                             </a>
                           );
@@ -367,11 +356,11 @@ export function LogFeed({
                               }}
                             >
                               {(() => {
-                                const parsed = parseLogMeta(log.action);
-                                const stickerMap = parsed.stickerByUser ?? {};
+                                const { meta } = parseLogMeta(log.action);
+                                const stickerMap = meta.stickerByUser ?? {};
                                 const ownSticker = user ? stickerMap[user.id] : undefined;
                                 const stickers = Object.values(stickerMap);
-                                const fallback = parsed.stickers ?? [];
+                                const fallback = meta.stickers ?? [];
                                 const display = stickers.length > 0 ? stickers : fallback;
                                 if (display.length === 0) return null;
                                 return (

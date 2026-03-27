@@ -311,6 +311,10 @@ export default function HomeClient() {
   const lastLoadedTodoSnapshotActionRef = useRef('');
   const lastSavedTodoSnapshotActionRef = useRef('');
   const lastSavedSharedMemoSnapshotActionRef = useRef('');
+  /** 로컬 할일 변경 직후 원격 스냅샷이 덮어쓰지 않도록 */
+  const todoDirtyRef = useRef(false);
+  /** household_memos.updated_at 기준으로 원격 덮어쓰기 순서 제어 */
+  const lastAppliedRemoteMemoAtMsRef = useRef(0);
 
   const fontScale = FONT_STEPS[fontScaleStep];
   const canApplyIncomingSharedMemo = useCallback(() => {
@@ -436,6 +440,7 @@ export default function HomeClient() {
       if (!latestAction || latestAction === lastLoadedTodoSnapshotActionRef.current) return;
       const parsed = parseTodoSnapshot(latestAction);
       if (!parsed) return;
+      if (todoDirtyRef.current) return;
       lastLoadedTodoSnapshotActionRef.current = latestAction;
       lastSavedTodoSnapshotActionRef.current = latestAction;
       setTodoTasks(parsed);
@@ -456,13 +461,16 @@ export default function HomeClient() {
     const action = composeTodoSnapshot(todoTasks);
     if (action === lastSavedTodoSnapshotActionRef.current) return;
     const timer = window.setTimeout(async () => {
-      await supabase.from('logs').insert({
+      const { error } = await supabase.from('logs').insert({
         household_id: householdId,
         place_slug: LOG_SLUG.todo,
         action,
         actor_user_id: user.id,
       });
-      lastSavedTodoSnapshotActionRef.current = action;
+      if (!error) {
+        lastSavedTodoSnapshotActionRef.current = action;
+        todoDirtyRef.current = false;
+      }
     }, 600);
     return () => window.clearTimeout(timer);
   }, [todoTasks, householdId, user]);
@@ -488,7 +496,7 @@ export default function HomeClient() {
       };
       const { data, error } = await supabase
         .from('household_memos')
-        .select('content, family_notice, shopping_list')
+        .select('content, family_notice, shopping_list, updated_at')
         .eq('household_id', householdId)
         .maybeSingle();
       if (cancelled) return;
@@ -512,27 +520,46 @@ export default function HomeClient() {
         } catch {}
         return;
       }
-      if (data && typeof data.content === 'string' && canApplyIncomingSharedMemo()) {
-        setMemoContent(data.content);
-        try {
-          localStorage.setItem(MEMO_KEY, data.content);
-        } catch {}
-      }
-      if (data && typeof data.family_notice === 'string' && canApplyIncomingSharedMemo()) {
-        setFamilyNotice(data.family_notice);
-      } else {
-        try {
-          const n = localStorage.getItem('family_qr_log_notice');
-          if (n) setFamilyNotice(n);
-        } catch {}
-      }
-      if (data && typeof data.shopping_list === 'string' && canApplyIncomingSharedMemo()) {
-        setShoppingList(data.shopping_list);
-      } else {
-        try {
-          const s = localStorage.getItem('family_qr_log_shopping');
-          if (s) setShoppingList(s);
-        } catch {}
+      if (data) {
+        const row = data as {
+          content?: string;
+          family_notice?: string;
+          shopping_list?: string;
+          updated_at?: string;
+        };
+        const remoteMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+        if (remoteMs > 0 && remoteMs <= lastAppliedRemoteMemoAtMsRef.current) {
+          return;
+        }
+        if (!canApplyIncomingSharedMemo()) {
+          return;
+        }
+        if (typeof row.content === 'string') {
+          setMemoContent(row.content);
+          try {
+            localStorage.setItem(MEMO_KEY, row.content);
+          } catch {}
+        }
+        if (typeof row.family_notice === 'string') {
+          setFamilyNotice(row.family_notice);
+        } else {
+          try {
+            const n = localStorage.getItem('family_qr_log_notice');
+            if (n) setFamilyNotice(n);
+          } catch {}
+        }
+        if (typeof row.shopping_list === 'string') {
+          setShoppingList(row.shopping_list);
+        } else {
+          try {
+            const s = localStorage.getItem('family_qr_log_shopping');
+            if (s) setShoppingList(s);
+          } catch {}
+        }
+        const appliedMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+        if (appliedMs > 0) {
+          lastAppliedRemoteMemoAtMsRef.current = appliedMs;
+        }
       }
     })();
     return () => {
@@ -545,14 +572,24 @@ export default function HomeClient() {
     const pull = async () => {
       const { data } = await supabase
         .from('household_memos')
-        .select('content, family_notice, shopping_list')
+        .select('content, family_notice, shopping_list, updated_at')
         .eq('household_id', householdId)
         .maybeSingle();
       if (!data) return;
+      const row = data as {
+        content?: string;
+        family_notice?: string;
+        shopping_list?: string;
+        updated_at?: string;
+      };
+      const remoteMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+      if (remoteMs > 0 && remoteMs <= lastAppliedRemoteMemoAtMsRef.current) return;
       if (!canApplyIncomingSharedMemo()) return;
-      if (typeof data.content === 'string') setMemoContent(data.content);
-      if (typeof data.family_notice === 'string') setFamilyNotice(data.family_notice);
-      if (typeof data.shopping_list === 'string') setShoppingList(data.shopping_list);
+      if (typeof row.content === 'string') setMemoContent(row.content);
+      if (typeof row.family_notice === 'string') setFamilyNotice(row.family_notice);
+      if (typeof row.shopping_list === 'string') setShoppingList(row.shopping_list);
+      const appliedMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+      if (appliedMs > 0) lastAppliedRemoteMemoAtMsRef.current = appliedMs;
     };
     const pullFromSharedMemoLog = async () => {
       const { data } = await supabase
@@ -563,6 +600,8 @@ export default function HomeClient() {
         .order('created_at', { ascending: false })
         .limit(1);
       const latest = data?.[0];
+      const logMs = latest?.created_at ? new Date(latest.created_at).getTime() : 0;
+      if (logMs > 0 && logMs <= lastAppliedRemoteMemoAtMsRef.current) return;
       const parsed = parseSharedMemoSnapshot(latest?.action);
       if (!parsed || !canApplyIncomingSharedMemo()) return;
       if (typeof latest?.action === 'string') {
@@ -571,6 +610,7 @@ export default function HomeClient() {
       if (typeof parsed.content === 'string') setMemoContent(parsed.content);
       if (typeof parsed.family_notice === 'string') setFamilyNotice(parsed.family_notice);
       if (typeof parsed.shopping_list === 'string') setShoppingList(parsed.shopping_list);
+      if (logMs > 0) lastAppliedRemoteMemoAtMsRef.current = logMs;
     };
     const channel = supabase
       .channel(`household-memos-${householdId}`)
@@ -578,12 +618,20 @@ export default function HomeClient() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'household_memos', filter: `household_id=eq.${householdId}` },
         (payload) => {
-          const next = payload.new as { content?: string; family_notice?: string; shopping_list?: string } | null;
+          const next = payload.new as {
+            content?: string;
+            family_notice?: string;
+            shopping_list?: string;
+            updated_at?: string;
+          } | null;
           if (!next) return;
+          const nextMs = next.updated_at ? new Date(next.updated_at).getTime() : 0;
+          if (nextMs > 0 && nextMs <= lastAppliedRemoteMemoAtMsRef.current) return;
           if (!canApplyIncomingSharedMemo()) return;
           if (typeof next.content === 'string') setMemoContent(next.content);
           if (typeof next.family_notice === 'string') setFamilyNotice(next.family_notice);
           if (typeof next.shopping_list === 'string') setShoppingList(next.shopping_list);
+          if (nextMs > 0) lastAppliedRemoteMemoAtMsRef.current = nextMs;
         }
       )
       .subscribe();
@@ -614,12 +662,25 @@ export default function HomeClient() {
         family_notice: familyNotice,
         shopping_list: shoppingList,
       };
-      let { error } = await supabase.from('household_memos').upsert(full, { onConflict: 'household_id' });
+      let { data: upsertRow, error } = await supabase
+        .from('household_memos')
+        .upsert(full, { onConflict: 'household_id' })
+        .select('updated_at')
+        .maybeSingle();
       if (error && /family_notice|shopping_list|schema|column/i.test(error.message ?? '')) {
         const res = await supabase
           .from('household_memos')
-          .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' });
+          .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' })
+          .select('updated_at')
+          .maybeSingle();
+        upsertRow = res.data;
         error = res.error;
+      }
+      const savedAt = upsertRow && typeof (upsertRow as { updated_at?: string }).updated_at === 'string'
+        ? new Date((upsertRow as { updated_at: string }).updated_at).getTime()
+        : 0;
+      if (!error && savedAt > 0) {
+        lastAppliedRemoteMemoAtMsRef.current = savedAt;
       }
       if (error && /relation|does not exist|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
         const snapshotAction = composeSharedMemoSnapshot({
@@ -635,7 +696,10 @@ export default function HomeClient() {
           actor_user_id: user.id,
         });
         error = res.error;
-        if (!error) lastSavedSharedMemoSnapshotActionRef.current = snapshotAction;
+        if (!error) {
+          lastSavedSharedMemoSnapshotActionRef.current = snapshotAction;
+          lastAppliedRemoteMemoAtMsRef.current = Date.now();
+        }
       }
       if (error) {
         setStatus(`메모 저장 실패: ${error.message}`);
@@ -1400,6 +1464,7 @@ export default function HomeClient() {
   const addTodoTask = useCallback((key: TodoPriorityKey, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    todoDirtyRef.current = true;
     setTodoTasks((prev) => [
       { id: Date.now(), text: trimmed, key, done: false, createdAt: new Date().toISOString(), completedAt: null },
       ...prev,
@@ -1407,6 +1472,7 @@ export default function HomeClient() {
   }, []);
 
   const toggleTodoTaskDone = useCallback((id: number) => {
+    todoDirtyRef.current = true;
     setTodoTasks((prev) =>
       prev.map((task) =>
         task.id === id
@@ -1417,6 +1483,7 @@ export default function HomeClient() {
   }, []);
 
   const removeTodoTask = useCallback((id: number) => {
+    todoDirtyRef.current = true;
     setTodoTasks((prev) => prev.filter((task) => task.id !== id));
   }, []);
 
@@ -1429,12 +1496,26 @@ export default function HomeClient() {
       family_notice: familyNotice,
       shopping_list: shoppingList,
     };
-    let { error } = await supabase.from('household_memos').upsert(full, { onConflict: 'household_id' });
+    let { data: upsertRow, error } = await supabase
+      .from('household_memos')
+      .upsert(full, { onConflict: 'household_id' })
+      .select('updated_at')
+      .maybeSingle();
     if (error && /family_notice|shopping_list|schema|column/i.test(error.message ?? '')) {
       const res = await supabase
         .from('household_memos')
-        .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' });
+        .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' })
+        .select('updated_at')
+        .maybeSingle();
+      upsertRow = res.data;
       error = res.error;
+    }
+    const savedAt =
+      upsertRow && typeof (upsertRow as { updated_at?: string }).updated_at === 'string'
+        ? new Date((upsertRow as { updated_at: string }).updated_at).getTime()
+        : 0;
+    if (!error && savedAt > 0) {
+      lastAppliedRemoteMemoAtMsRef.current = savedAt;
     }
     if (error && /relation|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
       const snapshotAction = composeSharedMemoSnapshot({
@@ -1454,7 +1535,10 @@ export default function HomeClient() {
         actor_user_id: user.id,
       });
       error = res.error;
-      if (!error) lastSavedSharedMemoSnapshotActionRef.current = snapshotAction;
+      if (!error) {
+        lastSavedSharedMemoSnapshotActionRef.current = snapshotAction;
+        lastAppliedRemoteMemoAtMsRef.current = Date.now();
+      }
     }
     setMemoSaving(false);
     if (error) {

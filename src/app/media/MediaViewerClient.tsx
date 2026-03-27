@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Download, Share2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import { sanitizeMediaUrl } from '@/lib/safeUrl';
 
 export default function MediaViewerClient() {
   const searchParams = useSearchParams();
@@ -10,13 +11,15 @@ export default function MediaViewerClient() {
   const url = searchParams.get('url') ?? '';
   const urlsKey = searchParams.get('urlsKey');
   const urls = useMemo(() => {
+    const cleanList = (arr: string[]) =>
+      arr.map((u) => sanitizeMediaUrl(u)).filter((u): u is string => typeof u === 'string' && u.length > 0);
     if (urlsKey) {
       try {
         const stored = sessionStorage.getItem(urlsKey);
         if (stored) {
           const parsedStored = JSON.parse(stored);
           if (Array.isArray(parsedStored)) {
-            return parsedStored.filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
+            return cleanList(parsedStored.filter((u): u is string => typeof u === 'string' && u.trim().length > 0));
           }
         }
       } catch {
@@ -28,7 +31,7 @@ export default function MediaViewerClient() {
     try {
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [] as string[];
-      return parsed.filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
+      return cleanList(parsed.filter((u): u is string => typeof u === 'string' && u.trim().length > 0));
     } catch {
       return [] as string[];
     }
@@ -38,7 +41,8 @@ export default function MediaViewerClient() {
   const initialIndex = Number.isFinite(indexParam) ? Math.max(0, Math.min(indexParam, Math.max(0, urls.length - 1))) : 0;
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const activeImageUrl = urls.length > 0 ? urls[currentIndex] : url;
+  const safePrimaryUrl = sanitizeMediaUrl(url);
+  const activeImageUrl = urls.length > 0 ? urls[currentIndex] : safePrimaryUrl;
   const canSwipeImages = type === 'image' && urls.length > 1;
 
   useEffect(() => {
@@ -109,8 +113,8 @@ export default function MediaViewerClient() {
           }}
         />
       ) : null}
-      {url && type === 'video' ? (
-        <video src={url} controls autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+      {safePrimaryUrl && type === 'video' ? (
+        <video src={safePrimaryUrl} controls autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
       ) : null}
       {canSwipeImages && (
         <div
@@ -140,7 +144,7 @@ export default function MediaViewerClient() {
       >
         <button
           type="button"
-          onClick={() => void shareMedia(type === 'image' ? activeImageUrl : url)}
+          onClick={() => void shareMedia(type === 'image' ? activeImageUrl : safePrimaryUrl)}
           aria-label="Share"
           title="Share"
           style={{
@@ -160,7 +164,7 @@ export default function MediaViewerClient() {
         </button>
         <button
           type="button"
-          onClick={() => downloadMedia(type === 'image' ? activeImageUrl : url)}
+          onClick={() => downloadMedia(type === 'image' ? activeImageUrl : safePrimaryUrl)}
           aria-label="Download"
           title="Download"
           style={{

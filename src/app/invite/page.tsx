@@ -42,34 +42,53 @@ export default function InvitePage() {
   const [user, setUser] = useState<User | null>(null);
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState('');
+  const [mintError, setMintError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUser(user);
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser();
+      if (!u) return;
+      setUser(u);
 
-      const { data: members } = await supabase
-        .from('members')
-        .select('household_id')
-        .eq('user_id', user.id)
-        .limit(1);
+      const { data: members } = await supabase.from('members').select('household_id').eq('user_id', u.id).limit(1);
 
       const hid = members?.[0]?.household_id;
-      if (hid) {
-        setHouseholdId(hid);
-        if (typeof window !== 'undefined') {
-          setInviteUrl(`${window.location.origin}/join?household=${hid}`);
-        }
+      if (!hid) return;
+      setHouseholdId(hid);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        setMintError('세션이 없어 초대 링크를 만들 수 없습니다.');
+        return;
       }
+
+      const res = await fetch('/api/invite/mint', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const j = (await res.json()) as { inviteUrl?: string; error?: string };
+      if (!res.ok) {
+        setMintError(j.error ?? `초대 링크 생성 실패 (${res.status})`);
+        if (typeof window !== 'undefined' && res.status === 503) {
+          setMintError(
+            (j.error ?? '') +
+              ' Vercel/서버에 INVITE_SIGNING_SECRET(16자 이상)을 설정해 주세요.'
+          );
+        }
+        return;
+      }
+      if (j.inviteUrl) setInviteUrl(j.inviteUrl);
     };
-    init();
+    void init();
   }, []);
 
   const copyLink = () => {
     if (!inviteUrl) return;
-    navigator.clipboard.writeText(inviteUrl);
+    void navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -80,7 +99,9 @@ export default function InvitePage() {
         <div style={styles.card}>
           <h1 style={{ fontSize: 22, marginBottom: 16 }}>가족 초대</h1>
           <p style={{ color: '#94a3b8', marginBottom: 20 }}>로그인이 필요합니다.</p>
-          <Link href="/login" style={styles.link}>로그인하기 →</Link>
+          <Link href="/login" style={styles.link}>
+            로그인하기 →
+          </Link>
         </div>
       </main>
     );
@@ -102,8 +123,12 @@ export default function InvitePage() {
       <div style={styles.card}>
         <h1 style={{ fontSize: 22, marginBottom: 8 }}>가족 초대</h1>
         <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>
-          아래 링크를 카카오톡·문자로 보내면 가족이 참여할 수 있습니다.
+          아래 링크를 카카오톡·문자로 보내면 가족이 참여할 수 있습니다. 링크는 일정 기간 후 만료됩니다.
         </p>
+
+        {mintError && (
+          <p style={{ fontSize: 12, color: '#f87171', marginBottom: 12, lineHeight: 1.45 }}>{mintError}</p>
+        )}
 
         <div
           style={{
@@ -117,15 +142,17 @@ export default function InvitePage() {
             marginBottom: 12,
           }}
         >
-          {inviteUrl || '로딩 중...'}
+          {inviteUrl || (mintError ? '—' : '로딩 중...')}
         </div>
 
-        <button onClick={copyLink} style={{ ...styles.btn, width: '100%' }}>
+        <button onClick={copyLink} disabled={!inviteUrl} style={{ ...styles.btn, width: '100%', opacity: inviteUrl ? 1 : 0.6 }}>
           {copied ? '복사됨!' : '링크 복사'}
         </button>
 
         <p style={{ marginTop: 24, fontSize: 12, color: '#64748b' }}>
-          <Link href="/" style={styles.link}>← 홈으로</Link>
+          <Link href="/" style={styles.link}>
+            ← 홈으로
+          </Link>
         </p>
       </div>
     </main>

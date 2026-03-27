@@ -53,8 +53,12 @@ const styles = {
 export default function JoinClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const householdId = searchParams.get('household');
+  const token = searchParams.get('token');
+  const legacyHousehold = searchParams.get('household');
 
+  const [resolvedHouseholdId, setResolvedHouseholdId] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(Boolean(token));
+  const [legacyMode, setLegacyMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -62,12 +66,38 @@ export default function JoinClient() {
   const [isSignUp, setIsSignUp] = useState(false);
 
   useEffect(() => {
-    if (!householdId) setError('초대 링크가 올바르지 않습니다.');
-  }, [householdId]);
+    if (token) {
+      setVerifying(true);
+      setError(null);
+      void fetch('/api/invite/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      })
+        .then(async (res) => {
+          const j = (await res.json()) as { householdId?: string; error?: string };
+          if (!res.ok) throw new Error(j.error ?? '초대를 확인할 수 없습니다.');
+          if (!j.householdId) throw new Error('유효하지 않은 초대입니다.');
+          setResolvedHouseholdId(j.householdId);
+        })
+        .catch((e: unknown) => {
+          setError((e as Error).message ?? '초대 토큰이 유효하지 않거나 만료되었습니다.');
+        })
+        .finally(() => setVerifying(false));
+      return;
+    }
+    if (legacyHousehold?.trim()) {
+      setResolvedHouseholdId(legacyHousehold.trim());
+      setLegacyMode(true);
+      return;
+    }
+    setError('초대 링크가 올바르지 않습니다.');
+  }, [token, legacyHousehold]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!householdId) return;
+    const householdId = resolvedHouseholdId;
+    if (!householdId || verifying) return;
     setLoading(true);
     setError(null);
 
@@ -116,7 +146,35 @@ export default function JoinClient() {
     }
   };
 
-  if (!householdId) {
+  if (verifying) {
+    return (
+      <main style={styles.main}>
+        <div style={styles.card}>
+          <h1 style={{ fontSize: 22, marginBottom: 16 }}>초대 확인 중</h1>
+          <p style={{ color: '#94a3b8' }}>잠시만 기다려 주세요.</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!resolvedHouseholdId && error) {
+    return (
+      <main style={styles.main}>
+        <div style={styles.card}>
+          <h1 style={{ fontSize: 22, marginBottom: 16 }}>초대 링크 오류</h1>
+          <p style={{ color: '#94a3b8', marginBottom: 12 }}>{error}</p>
+          <p style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>
+            가족에게 최신 초대 링크를 다시 요청해 주세요.
+          </p>
+          <Link href="/" style={styles.link}>
+            ← 홈으로
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (!resolvedHouseholdId) {
     return (
       <main style={styles.main}>
         <div style={styles.card}>
@@ -137,6 +195,21 @@ export default function JoinClient() {
         <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>
           로그인 또는 회원가입 후 가족 그룹에 참여합니다.
         </p>
+        {legacyMode && (
+          <p
+            style={{
+              fontSize: 12,
+              color: '#fbbf24',
+              marginBottom: 16,
+              padding: 10,
+              borderRadius: 8,
+              background: 'rgba(251,191,36,0.1)',
+              border: '1px solid rgba(251,191,36,0.35)',
+            }}
+          >
+            이 링크 형식은 이전 방식입니다. 보안을 위해 설정에서 발급하는 <strong>토큰 초대 링크</strong>로 교체하는 것을 권장합니다.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit}>
           <input
@@ -211,4 +284,3 @@ export default function JoinClient() {
     </main>
   );
 }
-
