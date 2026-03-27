@@ -184,7 +184,7 @@ export function TodoBoard({
         </h3>
       </div>
 
-      <div className="todo-eisenhower-grid" style={{ marginBottom: 12, height: 'min(78vh, 860px)' }}>
+      <div className="todo-eisenhower-grid" style={{ marginBottom: 12, height: 'min(52vh, 580px)' }}>
         {MATRIX.map((m) => renderQuadrant(m))}
       </div>
 

@@ -95,12 +95,24 @@ function normalizeTodoPriorityKey(raw: unknown): TodoPriorityKey {
       return 'urgentImportant';
     case 'notUrgentImportant':
     case 'importantNotUrgent':
+    case 'not_urgent_important':
+    case 'important_not_urgent':
+    case 'q2':
+    case '2':
       return 'notUrgentImportant';
     case 'urgentNotImportant':
     case 'notImportantUrgent':
+    case 'urgent_not_important':
+    case 'not_important_urgent':
+    case 'q3':
+    case '3':
       return 'urgentNotImportant';
     case 'notUrgentNotImportant':
     case 'notImportantNotUrgent':
+    case 'not_urgent_not_important':
+    case 'not_important_not_urgent':
+    case 'q4':
+    case '4':
       return 'notUrgentNotImportant';
     default:
       return 'urgentImportant';
@@ -120,7 +132,7 @@ function parseTodoSnapshot(action: string | null | undefined): TodoTask[] | null
         return {
           id: typeof t.id === 'number' && Number.isFinite(t.id) ? t.id : Date.now() + idx,
           text: typeof t.text === 'string' ? t.text : '',
-          key: normalizeTodoPriorityKey(t.key),
+          key: normalizeTodoPriorityKey(t.key ?? t.priority ?? t.quadrant ?? t.type),
           done: Boolean(t.done),
           createdAt: typeof t.createdAt === 'string' && t.createdAt ? t.createdAt : new Date().toISOString(),
           completedAt: typeof t.completedAt === 'string' ? t.completedAt : null,

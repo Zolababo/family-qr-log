@@ -278,7 +278,7 @@ body {
 /* 할 일 아이젠하워: 모바일 1열, 넓은 화면 2×2 (가로 넘침 방지) */
 .todo-eisenhower-grid {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
