@@ -798,6 +798,7 @@ export default function HomeClient() {
   const deleteComment = useCallback(
     async (commentId: string, logId: string, commentUserId?: string) => {
       if (!user) return;
+      if (typeof window !== 'undefined' && !window.confirm('댓글을 삭제할까요?')) return;
       const { data, error } = await supabase
         .from('log_comments')
         .delete()
