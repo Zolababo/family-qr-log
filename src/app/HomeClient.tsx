@@ -1180,6 +1180,19 @@ export default function HomeClient() {
     }
     return { searchMediaLogs: media, searchTextOnlyLogs: textOnly };
   }, [shuffledSearchLogs, getPrimaryMedia]);
+  const searchMediaView = useMemo(() => {
+    const visible = searchMediaLogs.slice(0, 120);
+    const swipeImageUrls: string[] = [];
+    const imageIndexByLogId: Record<string, number> = {};
+    visible.forEach((log) => {
+      const media = getPrimaryMedia(log);
+      if (media?.type === 'image') {
+        imageIndexByLogId[log.id] = swipeImageUrls.length;
+        swipeImageUrls.push(media.url);
+      }
+    });
+    return { visible, swipeImageUrls, imageIndexByLogId };
+  }, [searchMediaLogs, getPrimaryMedia]);
 
   const feedTagOptions = useMemo(() => {
     const topicLabels = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리'] as const;
@@ -1306,6 +1319,20 @@ export default function HomeClient() {
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [logs, growthCutoffMs]);
+  const growthTimelineView = useMemo(() => {
+    const visible = growthTimelineLogs.slice(0, 12);
+    const swipeImageUrls: string[] = [];
+    const imageIndexByLogId: Record<string, number> = {};
+    visible.forEach((log) => {
+      const media = getPrimaryMedia(log);
+      if (media?.type === 'image') {
+        imageIndexByLogId[log.id] = swipeImageUrls.length;
+        swipeImageUrls.push(media.url);
+      }
+    });
+    return { visible, swipeImageUrls, imageIndexByLogId };
+  }, [growthTimelineLogs, getPrimaryMedia]);
+
   const todayMemoryLogs = useMemo(() => {
     const now = new Date();
     const month = now.getMonth();
@@ -2102,7 +2129,7 @@ export default function HomeClient() {
                     ))}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
-                    {growthTimelineLogs.slice(0, 12).map((log) => {
+                    {growthTimelineView.visible.map((log) => {
                       const { imageUrls, videoUrl } = getLogMedia(log);
                       const cleanImages = imageUrls.map((u) => normalizeMediaUrl(u)).filter((u) => u.length > 0);
                       const cleanVideo = normalizeMediaUrl(videoUrl);
@@ -2118,9 +2145,23 @@ export default function HomeClient() {
                             if (cleanImages.length > 0) {
                               const params = new URLSearchParams();
                               params.set('type', 'image');
-                              params.set('urls', JSON.stringify(cleanImages));
-                              params.set('index', '0');
-                              params.set('url', cleanImages[0]);
+                              // 타임라인 카드 간 스와이프: 현재 카드 위치 기준으로 전체 이미지 목록 전달
+                              if (growthTimelineView.swipeImageUrls.length > 1) {
+                                const idx = growthTimelineView.imageIndexByLogId[log.id] ?? 0;
+                                params.set('index', String(idx));
+                                params.set('url', growthTimelineView.swipeImageUrls[idx] ?? cleanImages[0]);
+                                try {
+                                  const key = `media_urls_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+                                  sessionStorage.setItem(key, JSON.stringify(growthTimelineView.swipeImageUrls));
+                                  params.set('urlsKey', key);
+                                } catch {
+                                  params.set('urls', JSON.stringify(growthTimelineView.swipeImageUrls));
+                                }
+                              } else {
+                                params.set('urls', JSON.stringify(cleanImages));
+                                params.set('index', '0');
+                                params.set('url', cleanImages[0]);
+                              }
                               router.push(`/media?${params.toString()}`);
                               return;
                             }
@@ -2250,7 +2291,7 @@ export default function HomeClient() {
                       gap: 8,
                     }}
                   >
-                    {searchMediaLogs.slice(0, 120).map((log) => {
+                    {searchMediaView.visible.map((log) => {
                       const { imageUrls, videoUrl } = getLogMedia(log);
                       const cleanImages = imageUrls.map((u) => normalizeMediaUrl(u)).filter((u) => u.length > 0);
                       const cleanVideo = normalizeMediaUrl(videoUrl);
@@ -2265,9 +2306,23 @@ export default function HomeClient() {
                             if (cleanImages.length > 0) {
                               const params = new URLSearchParams();
                               params.set('type', 'image');
-                              params.set('urls', JSON.stringify(cleanImages));
-                              params.set('index', '0');
-                              params.set('url', cleanImages[0]);
+                              // 검색 카드 간 스와이프: 현재 카드 위치 기준으로 전체 이미지 목록 전달
+                              if (searchMediaView.swipeImageUrls.length > 1) {
+                                const idx = searchMediaView.imageIndexByLogId[log.id] ?? 0;
+                                params.set('index', String(idx));
+                                params.set('url', searchMediaView.swipeImageUrls[idx] ?? cleanImages[0]);
+                                try {
+                                  const key = `media_urls_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+                                  sessionStorage.setItem(key, JSON.stringify(searchMediaView.swipeImageUrls));
+                                  params.set('urlsKey', key);
+                                } catch {
+                                  params.set('urls', JSON.stringify(searchMediaView.swipeImageUrls));
+                                }
+                              } else {
+                                params.set('urls', JSON.stringify(cleanImages));
+                                params.set('index', '0');
+                                params.set('url', cleanImages[0]);
+                              }
                               router.push(`/media?${params.toString()}`);
                               return;
                             }
