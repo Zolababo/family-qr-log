@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { CheckSquare2, Plus, RotateCcw, Trash2 } from 'lucide-react';
 
 export type TodoPriorityKey = 'urgentImportant' | 'notUrgentImportant' | 'urgentNotImportant' | 'notUrgentNotImportant';
@@ -53,19 +53,15 @@ export function TodoBoard({
   removeTodoTask,
 }: TodoBoardProps) {
   const [draftByKey, setDraftByKey] = useState<Record<TodoPriorityKey, string>>(emptyDrafts);
-  const draftRef = useRef(draftByKey);
-  useEffect(() => {
-    draftRef.current = draftByKey;
-  }, [draftByKey]);
 
   const commitDraft = useCallback(
     (key: TodoPriorityKey) => {
-      const raw = draftRef.current[key]?.trim();
+      const raw = (draftByKey[key] ?? '').trim();
       if (!raw) return;
       addTodoTask(key, raw);
       setDraftByKey((prev) => ({ ...prev, [key]: '' }));
     },
-    [addTodoTask]
+    [addTodoTask, draftByKey]
   );
 
   const renderQuadrant = (meta: (typeof MATRIX)[number]) => {
@@ -131,14 +127,17 @@ export function TodoBoard({
             ))
           )}
         </div>
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 'auto', minWidth: 0 }}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            commitDraft(key);
+          }}
+          style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 'auto', minWidth: 0 }}
+        >
           <input
             type="text"
             value={draftByKey[key]}
             onChange={(e) => setDraftByKey((prev) => ({ ...prev, [key]: e.target.value }))}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commitDraft(key);
-            }}
             placeholder="추가…"
             aria-label={`${title} 할 일 입력`}
             style={{
@@ -155,8 +154,7 @@ export function TodoBoard({
             }}
           />
           <button
-            type="button"
-            onClick={() => commitDraft(key)}
+            type="submit"
             style={{
               border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
               borderRadius: 8,
@@ -170,7 +168,7 @@ export function TodoBoard({
           >
             <Plus size={18} strokeWidth={1.75} aria-hidden />
           </button>
-        </div>
+        </form>
       </div>
     );
   };
@@ -184,7 +182,7 @@ export function TodoBoard({
         </h3>
       </div>
 
-      <div className="todo-eisenhower-grid" style={{ marginBottom: 12, height: 'min(52vh, 580px)' }}>
+      <div className="todo-eisenhower-grid" style={{ marginBottom: 12, height: 'min(34vh, 380px)' }}>
         {MATRIX.map((m) => renderQuadrant(m))}
       </div>
 
