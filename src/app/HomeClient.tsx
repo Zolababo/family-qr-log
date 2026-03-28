@@ -1186,6 +1186,15 @@ export default function HomeClient() {
     return aa.length > 0 && aa === bb;
   }, [normalizeUserIdForCompare]);
 
+  const filterLogsBySelectedMember = useCallback(
+    (list: Log[]): Log[] => {
+      if (!user || selectedMemberId === 'all') return list;
+      if (selectedMemberId === 'me') return list.filter((l) => isSameUserId(l.actor_user_id, user.id));
+      return list.filter((l) => isSameUserId(l.actor_user_id, selectedMemberId));
+    },
+    [user, selectedMemberId, isSameUserId]
+  );
+
   const meDisplayName =
     profileName || (user?.email ? user.email.split('@')[0] : t('me'));
   const getPlaceLabelKey = (slug: string) => {
@@ -1217,11 +1226,12 @@ export default function HomeClient() {
       const q = searchQuery.trim().toLowerCase();
       list = list.filter((l) => l.action.toLowerCase().includes(q));
     }
+    list = filterLogsBySelectedMember(list);
     return list.filter((l) => {
       const dt = new Date(l.created_at);
       return dt.getFullYear() === y && dt.getMonth() === m && dt.getDate() === d;
     }).length;
-  }, [logs, feedTagFilter, activeTab, searchQuery]);
+  }, [logs, feedTagFilter, activeTab, searchQuery, filterLogsBySelectedMember]);
 
   const logsForList = useMemo(() => {
     let list = feedTagFilter === 'all' ? logs : logs.filter((l) => l.place_slug === feedTagFilter);
@@ -1229,8 +1239,8 @@ export default function HomeClient() {
       const q = searchQuery.trim().toLowerCase();
       list = list.filter((l) => l.action.toLowerCase().includes(q));
     }
-    return list;
-  }, [logs, feedTagFilter, activeTab, searchQuery]);
+    return filterLogsBySelectedMember(list);
+  }, [logs, feedTagFilter, activeTab, searchQuery, filterLogsBySelectedMember]);
   const logsByDate = logsForList.reduce<{ dateKey: string; dateLabel: string; items: Log[] }[]>((acc, log) => {
     const d = new Date(log.created_at);
     const dateKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
@@ -1347,7 +1357,10 @@ export default function HomeClient() {
     setFeedFilterOpen(true);
   }, [onFeedTagSelect]);
 
-  const logsForCalendar = calendarTagFilter === 'all' ? logs : logs.filter((l) => l.place_slug === calendarTagFilter);
+  const logsForCalendar = useMemo(() => {
+    const base = calendarTagFilter === 'all' ? logs : logs.filter((l) => l.place_slug === calendarTagFilter);
+    return filterLogsBySelectedMember(base);
+  }, [logs, calendarTagFilter, filterLogsBySelectedMember]);
   const [calYear, calMonth] = calendarYearMonth.split('-').map(Number);
   const calendarFirstDay = new Date(calYear, calMonth - 1, 1);
   const calendarLastDay = new Date(calYear, calMonth, 0);
