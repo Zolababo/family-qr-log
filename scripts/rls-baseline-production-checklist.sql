@@ -32,6 +32,8 @@ ORDER BY tablename, policyname;
 -- =============================================================================
 -- 권장 방향 (요약)
 -- =============================================================================
+-- log_comments:
+--   - INSERT/UPDATE/DELETE: user_id=auth.uid() AND 대상 log가 내 household (scripts/enable-log-comments-rls-policies.sql)
 -- members:
 --   - SELECT: 본인 household 구성원 조회
 --   - INSERT: 서비스 롤 또는 초대 토큰 검증 후에만 (클라이언트 직접 INSERT는 제한 검토)

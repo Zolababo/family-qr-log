@@ -24,9 +24,12 @@ export function signInviteToken(payload: InvitePayload): string {
   return `v1.${payloadJson}.${sig}`;
 }
 
+const MAX_INVITE_TOKEN_CHARS = 4096;
+
 export function verifyInviteToken(token: string): InvitePayload | null {
   const secret = getSecretOptional();
   if (!secret) return null;
+  if (token.length > MAX_INVITE_TOKEN_CHARS) return null;
   const parts = token.split('.');
   if (parts.length !== 3 || parts[0] !== 'v1') return null;
   const [, payloadJson, sig] = parts;

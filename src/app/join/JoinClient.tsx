@@ -54,11 +54,9 @@ export default function JoinClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
-  const legacyHousehold = searchParams.get('household');
 
   const [resolvedHouseholdId, setResolvedHouseholdId] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(Boolean(token));
-  const [legacyMode, setLegacyMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -86,13 +84,8 @@ export default function JoinClient() {
         .finally(() => setVerifying(false));
       return;
     }
-    if (legacyHousehold?.trim()) {
-      setResolvedHouseholdId(legacyHousehold.trim());
-      setLegacyMode(true);
-      return;
-    }
-    setError('초대 링크가 올바르지 않습니다.');
-  }, [token, legacyHousehold]);
+    setError('초대 링크가 올바르지 않습니다. 가족에게 받은 링크(?token=…)를 사용해 주세요.');
+  }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,21 +188,6 @@ export default function JoinClient() {
         <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>
           로그인 또는 회원가입 후 가족 그룹에 참여합니다.
         </p>
-        {legacyMode && (
-          <p
-            style={{
-              fontSize: 12,
-              color: '#fbbf24',
-              marginBottom: 16,
-              padding: 10,
-              borderRadius: 8,
-              background: 'rgba(251,191,36,0.1)',
-              border: '1px solid rgba(251,191,36,0.35)',
-            }}
-          >
-            이 링크 형식은 이전 방식입니다. 보안을 위해 설정에서 발급하는 <strong>토큰 초대 링크</strong>로 교체하는 것을 권장합니다.
-          </p>
-        )}
 
         <form onSubmit={handleSubmit}>
           <input

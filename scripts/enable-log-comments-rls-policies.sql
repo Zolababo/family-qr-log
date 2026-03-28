@@ -43,27 +43,54 @@ USING (
   )
 );
 
--- INSERT: 본인 user_id로만 작성 가능
+-- INSERT: 본인 user_id + 대상 로그가 내 household 소속일 때만 (임의 log_id 삽입 방지)
 CREATE POLICY "log_comments_insert_own"
 ON public.log_comments
 FOR INSERT
 TO authenticated
-WITH CHECK (user_id = auth.uid());
+WITH CHECK (
+  user_id = auth.uid()
+  AND EXISTS (
+    SELECT 1
+    FROM public.logs l
+    JOIN public.members m ON m.household_id = l.household_id
+    WHERE l.id = log_comments.log_id
+      AND m.user_id = auth.uid()
+  )
+);
 
--- UPDATE: 본인 댓글만 수정 가능
+-- UPDATE: 본인 댓글이며 해당 로그가 내 household 소속
 CREATE POLICY "log_comments_update_own"
 ON public.log_comments
 FOR UPDATE
 TO authenticated
-USING (user_id = auth.uid())
+USING (
+  user_id = auth.uid()
+  AND EXISTS (
+    SELECT 1
+    FROM public.logs l
+    JOIN public.members m ON m.household_id = l.household_id
+    WHERE l.id = log_comments.log_id
+      AND m.user_id = auth.uid()
+  )
+)
 WITH CHECK (user_id = auth.uid());
 
--- DELETE: 본인 댓글만 삭제 가능
+-- DELETE: 본인 댓글이며 해당 로그가 내 household 소속
 CREATE POLICY "log_comments_delete_own"
 ON public.log_comments
 FOR DELETE
 TO authenticated
-USING (user_id = auth.uid());
+USING (
+  user_id = auth.uid()
+  AND EXISTS (
+    SELECT 1
+    FROM public.logs l
+    JOIN public.members m ON m.household_id = l.household_id
+    WHERE l.id = log_comments.log_id
+      AND m.user_id = auth.uid()
+  )
+);
 
 -- 선택: 정책 목록 확인
 -- SELECT policyname, permissive, roles, cmd

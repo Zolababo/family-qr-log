@@ -19,13 +19,13 @@ const appTitle = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Family QR Log",
+  title: "Family Log",
   description: "가족과 함께 장소별 로그를 공유하세요",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "QR Log",
+    title: "Family Log",
   },
 };
 

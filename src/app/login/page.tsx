@@ -84,7 +84,7 @@ export default function LoginPage() {
   return (
     <main style={styles.main}>
       <div style={styles.card}>
-        <h1 style={{ fontSize: 22, marginBottom: 8 }}>Family QR Log</h1>
+        <h1 style={{ fontSize: 22, marginBottom: 8 }}>Family Log</h1>
         <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>
           {isSignUp ? '회원가입' : '로그인'}
         </p>

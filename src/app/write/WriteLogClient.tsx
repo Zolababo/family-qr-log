@@ -78,7 +78,7 @@ export default function WriteLogClient() {
   const [user, setUser] = useState<User | null>(null);
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [selectedLogTag, setSelectedLogTag] = useState<string | null>(null);
-  const qrPrefillAppliedRef = useRef(false);
+  const placePrefillAppliedRef = useRef(false);
   const hasUserSelectedTagRef = useRef(false);
 
   const [action, setAction] = useState('');
@@ -165,13 +165,13 @@ export default function WriteLogClient() {
   }, []);
 
   useEffect(() => {
-    if (!user || qrPrefillAppliedRef.current) return;
+    if (!user || placePrefillAppliedRef.current) return;
     if (hasUserSelectedTagRef.current) return;
     const p = searchParams.get('place');
     const valid = new Set<string>(Object.values(LOG_SLUG));
     if (p && valid.has(p)) {
       setSelectedLogTag(p);
-      qrPrefillAppliedRef.current = true;
+      placePrefillAppliedRef.current = true;
       router.replace(pathname || '/write', { scroll: false });
     }
   }, [user, searchParams, pathname, router]);

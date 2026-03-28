@@ -1,6 +1,6 @@
 {
-  "name": "Family QR Log",
-  "short_name": "QR Log",
+  "name": "Family Log",
+  "short_name": "Family Log",
   "description": "가족과 함께 장소별 로그를 공유하세요",
   "start_url": "/",
   "display": "standalone",

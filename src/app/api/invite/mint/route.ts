@@ -47,5 +47,5 @@ export async function POST(req: Request) {
   const origin = req.headers.get('origin') ?? new URL(req.url).origin;
   const inviteUrl = `${origin}/join?token=${encodeURIComponent(token)}`;
 
-  return NextResponse.json({ inviteUrl, token, exp });
+  return NextResponse.json({ inviteUrl, exp });
 }
