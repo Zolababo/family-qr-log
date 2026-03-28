@@ -3290,6 +3290,7 @@ export default function HomeClient() {
         </>
       )}
 
+      {/* 오른쪽에서 메모 패널 스와이프 감지용. 폭이 너무 넓으면 상단 프로필 칩(특히 맨 오른쪽) 터치를 가로챔 → 좁은 가장자리만 유지 */}
       <div
         role="presentation"
         style={{
@@ -3297,19 +3298,22 @@ export default function HomeClient() {
           top: 0,
           right: 0,
           bottom: 0,
-          width: activeTab === 'todo' ? 0 : 96,
+          width: activeTab === 'todo' ? 0 : 28,
           zIndex: 35,
           touchAction: 'pan-y',
           pointerEvents: activeTab === 'todo' ? 'none' : 'auto',
         }}
-        onTouchStart={(e) => { const t = e.changedTouches?.[0]; if (t) swipeStartRef.current = t.clientX; }}
+        onTouchStart={(e) => {
+          const t = e.changedTouches?.[0];
+          if (t) swipeStartRef.current = t.clientX;
+        }}
         onTouchEnd={(e) => {
           const t = e.changedTouches?.[0];
           if (!t || swipeStartRef.current == null) return;
           const start = swipeStartRef.current;
           const end = t.clientX;
           swipeStartRef.current = null;
-          if (start > window.innerWidth - 140 && start - end > 36) setShowMemoPanel(true);
+          if (start > window.innerWidth - 36 && start - end > 36) setShowMemoPanel(true);
         }}
       />
 
