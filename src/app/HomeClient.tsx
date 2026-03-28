@@ -6,7 +6,7 @@ import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
-import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus } from 'lucide-react';
+import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus, Loader2 } from 'lucide-react';
 import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug, type LogSlug } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { AppHeader } from '../components/layout/AppHeader';
@@ -302,6 +302,10 @@ export default function HomeClient() {
   const memoSwipeStartRef = useRef<number | null>(null);
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
+  const pullRefreshBusyRef = useRef(false);
+  const pullRafRef = useRef<number | null>(null);
+  const [pullRefreshOffset, setPullRefreshOffset] = useState(0);
+  const [pullRefreshRefreshing, setPullRefreshRefreshing] = useState(false);
   const sharedMemoTypingUntilRef = useRef(0);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
@@ -1040,6 +1044,170 @@ export default function HomeClient() {
     void loadLogs(householdId, undefined, undefined);
   }, [householdId, user, loadLogs]);
 
+  const reloadMembersList = useCallback(async () => {
+    if (!householdId) return;
+    const allRes = await supabase.from('members').select('user_id, display_name, avatar_url').eq('household_id', householdId);
+    if (allRes.error && /avatar_url|does not exist|column/i.test(allRes.error.message ?? '')) {
+      const fb = await supabase.from('members').select('user_id, display_name').eq('household_id', householdId);
+      if (!fb.error && fb.data) setMembers(fb.data);
+      return;
+    }
+    if (!allRes.error && allRes.data) setMembers(allRes.data);
+  }, [householdId]);
+
+  const performPullRefresh = useCallback(async () => {
+    if (!householdId || !user) return;
+    await loadLogs(householdId, undefined, undefined);
+    await reloadMembersList();
+
+    const { data: todoData } = await supabase
+      .from('logs')
+      .select('action, created_at')
+      .eq('household_id', householdId)
+      .eq('actor_user_id', user.id)
+      .like('action', `${TODO_SNAPSHOT_PREFIX}%`)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    const latestAction = typeof todoData?.[0]?.action === 'string' ? todoData[0].action : '';
+    if (latestAction && latestAction !== lastLoadedTodoSnapshotActionRef.current) {
+      const parsed = parseTodoSnapshot(latestAction);
+      if (parsed && !todoDirtyRef.current) {
+        lastLoadedTodoSnapshotActionRef.current = latestAction;
+        lastSavedTodoSnapshotActionRef.current = latestAction;
+        setTodoTasks(parsed);
+      }
+    }
+
+    if (canApplyIncomingSharedMemo()) {
+      const { data, error } = await supabase
+        .from('household_memos')
+        .select('content, family_notice, shopping_list, updated_at')
+        .eq('household_id', householdId)
+        .maybeSingle();
+      if (!error && data) {
+        const row = data as {
+          content?: string;
+          family_notice?: string;
+          shopping_list?: string;
+          updated_at?: string;
+        };
+        if (typeof row.content === 'string') {
+          setMemoContent(row.content);
+          try {
+            localStorage.setItem(MEMO_KEY, row.content);
+          } catch {}
+        }
+        if (typeof row.family_notice === 'string') setFamilyNotice(row.family_notice);
+        if (typeof row.shopping_list === 'string') setShoppingList(row.shopping_list);
+        const appliedMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+        if (appliedMs > 0) lastAppliedRemoteMemoAtMsRef.current = appliedMs;
+      } else if (error && /relation|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
+        const { data: fb } = await supabase
+          .from('logs')
+          .select('action, created_at')
+          .eq('household_id', householdId)
+          .like('action', `${SHARED_MEMO_LOG_PREFIX}%`)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const latest = fb?.[0];
+        const parsed = parseSharedMemoSnapshot(latest?.action);
+        if (parsed) {
+          if (typeof parsed.content === 'string') setMemoContent(parsed.content);
+          if (typeof parsed.family_notice === 'string') setFamilyNotice(parsed.family_notice);
+          if (typeof parsed.shopping_list === 'string') setShoppingList(parsed.shopping_list);
+          const logMs = latest?.created_at ? new Date(latest.created_at).getTime() : 0;
+          if (logMs > 0) lastAppliedRemoteMemoAtMsRef.current = logMs;
+        }
+      }
+    }
+  }, [householdId, user, loadLogs, reloadMembersList, canApplyIncomingSharedMemo]);
+
+  useEffect(() => {
+    const el = homeScrollRef.current;
+    if (!el || !householdId || !user) return;
+
+    const THRESHOLD = 56;
+    let startY = 0;
+    let tracking = false;
+    let pendingOffset = 0;
+
+    const flushOffset = () => {
+      if (pullRafRef.current != null) cancelAnimationFrame(pullRafRef.current);
+      pullRafRef.current = requestAnimationFrame(() => {
+        pullRafRef.current = null;
+        setPullRefreshOffset(pendingOffset);
+      });
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (pullRefreshBusyRef.current) return;
+      if (el.scrollTop > 2) return;
+      startY = e.touches[0].clientY;
+      tracking = true;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!tracking || pullRefreshBusyRef.current) return;
+      if (el.scrollTop > 2) {
+        tracking = false;
+        pendingOffset = 0;
+        flushOffset();
+        return;
+      }
+      const dy = e.touches[0].clientY - startY;
+      if (dy > 0) {
+        e.preventDefault();
+        pendingOffset = Math.min(dy * 0.42, 88);
+        flushOffset();
+      } else if (dy < -8) {
+        tracking = false;
+        pendingOffset = 0;
+        flushOffset();
+      }
+    };
+
+    const endPull = () => {
+      if (!tracking) return;
+      tracking = false;
+      const dist = pendingOffset;
+      pendingOffset = 0;
+      if (pullRefreshBusyRef.current) {
+        flushOffset();
+        return;
+      }
+      if (dist < THRESHOLD) {
+        flushOffset();
+        return;
+      }
+      pullRefreshBusyRef.current = true;
+      pendingOffset = 44;
+      setPullRefreshRefreshing(true);
+      flushOffset();
+      void (async () => {
+        try {
+          await performPullRefresh();
+        } finally {
+          pullRefreshBusyRef.current = false;
+          setPullRefreshRefreshing(false);
+          pendingOffset = 0;
+          setPullRefreshOffset(0);
+        }
+      })();
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', endPull);
+    el.addEventListener('touchcancel', endPull);
+    return () => {
+      if (pullRafRef.current != null) cancelAnimationFrame(pullRafRef.current);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', endPull);
+      el.removeEventListener('touchcancel', endPull);
+    };
+  }, [householdId, user, performPullRefresh]);
+
   const handleUpdateLog = async (logId: string, newAction: string) => {
     if (!user || !householdId) return;
     const { error } = await supabase.from('logs').update({ action: newAction }).eq('id', logId).eq('actor_user_id', user.id);
@@ -1662,6 +1830,34 @@ export default function HomeClient() {
             background: 'transparent',
           }}
         >
+        {user && householdId ? (
+          <div
+            aria-live="polite"
+            style={{
+              height: Math.max(pullRefreshOffset, pullRefreshRefreshing ? 42 : 0),
+              minHeight: 0,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+              gap: 8,
+              paddingBottom: pullRefreshRefreshing || pullRefreshOffset > 12 ? 6 : 0,
+              color: highContrast ? '#94a3b8' : 'var(--text-secondary)',
+              fontSize: 12,
+              transition: 'height 0.18s ease-out',
+              overflow: 'hidden',
+            }}
+          >
+            {pullRefreshRefreshing ? (
+              <>
+                <Loader2 className="animate-spin" size={18} strokeWidth={2} aria-hidden />
+                <span>{t('pullRefreshLoading')}</span>
+              </>
+            ) : pullRefreshOffset > 28 ? (
+              <ChevronDown size={22} strokeWidth={2} aria-hidden style={{ opacity: 0.75 }} />
+            ) : null}
+          </div>
+        ) : null}
         <input
           ref={profileAvatarInputRef}
           type="file"
