@@ -158,9 +158,11 @@ body {
   box-shadow: none !important;
 }
 
-/* 멤버 프로필 선택 시 큰 녹색 외곽선(포커스 링) 제거 */
+/* 멤버 프로필 선택 시 큰 녹색 외곽선(포커스 링) 제거 (button 또는 role="button" 칩) */
 [data-accessibility-root] .member-filter-scroll button:focus,
-[data-accessibility-root] .member-filter-scroll button:focus-visible {
+[data-accessibility-root] .member-filter-scroll button:focus-visible,
+[data-accessibility-root] .member-filter-scroll .profile-chip-btn:focus,
+[data-accessibility-root] .member-filter-scroll .profile-chip-btn:focus-visible {
   outline: none !important;
   outline-offset: 0 !important;
   box-shadow: none !important;
@@ -187,7 +189,8 @@ body {
   outline-offset: 0 !important;
 }
 
-[data-accessibility-root]:not([data-high-contrast="true"]) .member-filter-scroll button:hover:not(:disabled) {
+[data-accessibility-root]:not([data-high-contrast="true"]) .member-filter-scroll button:hover:not(:disabled),
+[data-accessibility-root]:not([data-high-contrast="true"]) .member-filter-scroll .profile-chip-btn:hover {
   transform: none !important;
   box-shadow: none !important;
 }
@@ -261,6 +264,8 @@ body {
 .member-filter-scroll {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  /* 부모 home-scroll-region 이 touch-action: pan-y 일 때, 가로 칩 줄에서 터치가 세로 스크롤로만 해석되는 문제 완화 */
+  touch-action: pan-x;
 }
 .member-filter-scroll::-webkit-scrollbar {
   display: none;

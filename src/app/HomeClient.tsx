@@ -1143,6 +1143,11 @@ export default function HomeClient() {
     const onTouchStart = (e: TouchEvent) => {
       if (pullRefreshBusyRef.current) return;
       if (el.scrollTop > 2) return;
+      const node = e.target;
+      // 가족 칩 가로줄에서는 당김 추적을 시작하지 않음 (pan-y 부모 + pull 리스너가 탭/클릭을 삼키는 경우 방지)
+      if (node instanceof Element && node.closest('.member-filter-scroll')) {
+        return;
+      }
       startY = e.touches[0].clientY;
       tracking = true;
     };

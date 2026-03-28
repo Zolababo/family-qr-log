@@ -1,7 +1,7 @@
 'use client';
 
 import { Users } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 
 type Member = {
   user_id: string;
@@ -43,6 +43,15 @@ export function MemberFilter({
   onMemberAvatarError,
 }: MemberFilterProps) {
   const isSelected = (id: string) => selectedMemberId === id;
+
+  const chipKeyActivate =
+    (id: 'all' | 'me' | string) =>
+    (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onSelectMember(id);
+      }
+    };
 
   const chipBase = {
     display: 'inline-flex',
@@ -110,11 +119,14 @@ const avatarInnerWrap = {
         WebkitOverflowScrolling: 'touch',
       }}
     >
-      {/* 전체 */}
-      <button
+      {/* 전체 — iOS 가로 스크롤 안의 <button> 탭 누락 이슈 회피용 div+role */}
+      <div
+        role="button"
+        tabIndex={0}
         className="profile-chip-btn"
-        type="button"
         onClick={() => onSelectMember('all')}
+        onKeyDown={chipKeyActivate('all')}
+        aria-pressed={isSelected('all')}
         style={{
           ...chipBase,
           color: isSelected('all') ? 'var(--accent)' : 'var(--text-primary)',
@@ -136,13 +148,16 @@ const avatarInnerWrap = {
           </span>
         </span>
         <span style={{ fontSize: 12, lineHeight: 1.1 }}>{t('allMembers')}</span>
-      </button>
+      </div>
 
       {/* 나 */}
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         className="profile-chip-btn"
-        type="button"
         onClick={() => onSelectMember('me')}
+        onKeyDown={chipKeyActivate('me')}
+        aria-pressed={isSelected('me')}
         style={{
           ...chipBase,
           color: isSelected('me') ? 'var(--accent)' : 'var(--text-primary)',
@@ -189,7 +204,7 @@ const avatarInnerWrap = {
         >
           {meDisplayName}
         </span>
-      </button>
+      </div>
 
       {members
         .filter((m) => m.user_id !== user.id)
@@ -200,11 +215,14 @@ const avatarInnerWrap = {
           const avatarFailed = avatarFailedUserIds.has(m.user_id);
           const showAvatar = avatarUrl && !avatarFailed;
           return (
-            <button
+            <div
+              role="button"
+              tabIndex={0}
               className="profile-chip-btn"
               key={m.user_id}
-              type="button"
               onClick={() => onSelectMember(m.user_id)}
+              onKeyDown={chipKeyActivate(m.user_id)}
+              aria-pressed={active}
               style={{
                 ...chipBase,
                 color: active ? 'var(--accent)' : 'var(--text-primary)',
@@ -251,7 +269,7 @@ const avatarInnerWrap = {
               >
                 {name}
               </span>
-            </button>
+            </div>
           );
         })}
     </div>
