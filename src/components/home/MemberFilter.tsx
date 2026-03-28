@@ -150,24 +150,7 @@ const avatarInnerWrap = {
         }}
       >
         <span style={avatarRingStyle(isSelected('me'))}>
-                  <span
-                    role="button"
-                    tabIndex={0}
-            onClick={(e) => {
-              if (profileAvatarUrl && !profileAvatarLoadFailed) {
-                e.stopPropagation();
-                onEnlargeAvatar(profileAvatarUrl);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                if (profileAvatarUrl && !profileAvatarLoadFailed) {
-                  e.stopPropagation();
-                  onEnlargeAvatar(profileAvatarUrl);
-                }
-              }
-            }}
+          <span
             style={{
               ...avatarInnerWrap,
               background: profileAvatarUrl && !profileAvatarLoadFailed ? 'transparent' : 'var(--accent)',
@@ -180,6 +163,10 @@ const avatarInnerWrap = {
                 src={profileAvatarUrl}
                 alt=""
                 onError={onProfileAvatarError}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEnlargeAvatar(profileAvatarUrl);
+                }}
                 style={{ width: AVATAR_SIZE, height: AVATAR_SIZE, objectFit: 'cover', display: 'block', borderRadius: '50%' }}
               />
             ) : (
@@ -226,23 +213,6 @@ const avatarInnerWrap = {
             >
               <span style={avatarRingStyle(active)}>
                 <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    if (showAvatar && avatarUrl) {
-                      e.stopPropagation();
-                      onEnlargeAvatar(avatarUrl);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      if (showAvatar && avatarUrl) {
-                        e.stopPropagation();
-                        onEnlargeAvatar(avatarUrl);
-                      }
-                    }
-                  }}
                   style={{
                     ...avatarInnerWrap,
                     background: showAvatar ? 'transparent' : 'var(--accent)',
@@ -252,9 +222,13 @@ const avatarInnerWrap = {
                 >
                   {showAvatar ? (
                     <img
-                      src={avatarUrl}
+                      src={avatarUrl!}
                       alt=""
                       onError={() => onMemberAvatarError(m.user_id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEnlargeAvatar(avatarUrl!);
+                      }}
                       style={{ width: AVATAR_SIZE, height: AVATAR_SIZE, objectFit: 'cover', display: 'block', borderRadius: '50%' }}
                     />
                   ) : (

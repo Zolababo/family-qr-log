@@ -1126,7 +1126,8 @@ export default function HomeClient() {
     const el = homeScrollRef.current;
     if (!el || !householdId || !user) return;
 
-    const THRESHOLD = 56;
+    // 당김 거리는 guard 이후 구간만 반영하므로, 완화된 임계값으로 동작 유지
+    const THRESHOLD = 42;
     let startY = 0;
     let tracking = false;
     let pendingOffset = 0;
@@ -1146,6 +1147,10 @@ export default function HomeClient() {
       tracking = true;
     };
 
+    // 모바일 탭은 1~몇 px 흔들림이 흔함. dy>0마다 preventDefault 하면 합성 click 이 취소되어
+    // 상단 멤버 칩·버튼이 “안 눌림”처럼 보임 → 명확히 아래로 당길 때만 막기.
+    const PULL_MOVE_GUARD_PX = 14;
+
     const onTouchMove = (e: TouchEvent) => {
       if (!tracking || pullRefreshBusyRef.current) return;
       if (el.scrollTop > 2) {
@@ -1155,9 +1160,12 @@ export default function HomeClient() {
         return;
       }
       const dy = e.touches[0].clientY - startY;
-      if (dy > 0) {
+      if (dy > PULL_MOVE_GUARD_PX) {
         e.preventDefault();
-        pendingOffset = Math.min(dy * 0.42, 88);
+        pendingOffset = Math.min((dy - PULL_MOVE_GUARD_PX) * 0.48, 88);
+        flushOffset();
+      } else if (dy > 0) {
+        pendingOffset = 0;
         flushOffset();
       } else if (dy < -8) {
         tracking = false;
