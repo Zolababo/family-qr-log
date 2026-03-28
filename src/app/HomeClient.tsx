@@ -292,6 +292,10 @@ export default function HomeClient() {
   const [replyingTo, setReplyingTo] = useState<{ logId: string; commentId: string } | null>(null);
   const [commentTarget, setCommentTarget] = useState<{ logId: string; parentId: string | null } | null>(null);
   const [commentSheetAnimated, setCommentSheetAnimated] = useState(false);
+  const [commentSheetDragY, setCommentSheetDragY] = useState(0);
+  const [commentSheetDragActive, setCommentSheetDragActive] = useState(false);
+  const commentSheetHeaderRef = useRef<HTMLDivElement | null>(null);
+  const commentSheetDragYRef = useRef(0);
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [commentSending, setCommentSending] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -738,11 +742,17 @@ export default function HomeClient() {
 
   useEffect(() => {
     if (commentTarget) {
+      setCommentSheetDragActive(false);
+      setCommentSheetDragY(0);
+      commentSheetDragYRef.current = 0;
       setCommentSheetAnimated(false);
       const id = requestAnimationFrame(() => setCommentSheetAnimated(true));
       return () => cancelAnimationFrame(id);
     } else {
       setCommentSheetAnimated(false);
+      setCommentSheetDragActive(false);
+      setCommentSheetDragY(0);
+      commentSheetDragYRef.current = 0;
     }
   }, [commentTarget]);
 
@@ -961,6 +971,59 @@ export default function HomeClient() {
     },
     [user, loadComments, editingCommentId]
   );
+
+  const closeCommentSheet = useCallback(() => {
+    setCommentSheetDragActive(false);
+    setCommentSheetDragY(0);
+    commentSheetDragYRef.current = 0;
+    setCommentSheetAnimated(false);
+    window.setTimeout(() => {
+      setCommentTarget(null);
+      setReplyingTo(null);
+    }, 250);
+  }, []);
+
+  useEffect(() => {
+    const el = commentSheetHeaderRef.current;
+    if (!el || !commentTarget) return;
+    let startY: number | null = null;
+    const onStart = (e: TouchEvent) => {
+      startY = e.touches[0].clientY;
+      setCommentSheetDragActive(true);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (startY == null) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy > 0) {
+        e.preventDefault();
+        const capped = Math.min(dy, 240);
+        commentSheetDragYRef.current = capped;
+        setCommentSheetDragY(capped);
+      }
+    };
+    const onEnd = () => {
+      if (startY == null) return;
+      startY = null;
+      const d = commentSheetDragYRef.current;
+      if (d > 72) {
+        closeCommentSheet();
+      } else {
+        setCommentSheetDragActive(false);
+        commentSheetDragYRef.current = 0;
+        setCommentSheetDragY(0);
+      }
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd);
+    el.addEventListener('touchcancel', onEnd);
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+    };
+  }, [commentTarget, closeCommentSheet]);
 
   const stickerOptions = ['✨', '❤️', '⭐', '🎉', '🧸', '🌿', '🌈', '☀️', '🍀', '💫'];
   const openStickerPicker = (logId: string | null) => {
@@ -2799,10 +2862,7 @@ export default function HomeClient() {
               zIndex: 42,
               transition: 'opacity 0.25s ease-out',
             }}
-            onClick={() => {
-              setCommentSheetAnimated(false);
-              setTimeout(() => { setCommentTarget(null); setReplyingTo(null); }, 250);
-            }}
+            onClick={closeCommentSheet}
             aria-hidden
           />
           <div
@@ -2821,18 +2881,27 @@ export default function HomeClient() {
               borderTopRightRadius: 20,
               boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
               paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
-              transform: commentSheetAnimated ? 'translateY(0)' : 'translateY(100%)',
-              transition: 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+              transform: commentSheetAnimated ? `translateY(${commentSheetDragY}px)` : 'translateY(100%)',
+              transition: commentSheetDragActive ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ padding: '12px 0 8px', display: 'flex', justifyContent: 'center' }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--divider)' }} aria-hidden />
-            </div>
-            <div style={{ padding: '0 16px 16px' }}>
-              <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+            <div
+              ref={commentSheetHeaderRef}
+              style={{
+                touchAction: 'none',
+                paddingBottom: 4,
+                cursor: 'grab',
+              }}
+            >
+              <div style={{ padding: '12px 0 8px', display: 'flex', justifyContent: 'center' }}>
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--divider)' }} aria-hidden />
+              </div>
+              <h3 style={{ margin: '0 0 12px', padding: '0 16px', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 {commentTarget.parentId ? '답글' : '댓글'}
               </h3>
+            </div>
+            <div style={{ padding: '0 16px 16px' }}>
               <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 10, paddingRight: 2 }}>
                 {currentSheetComments.length === 0 ? (
                   <div style={{ fontSize: 12, color: 'var(--text-caption)', padding: '8px 2px' }}>아직 댓글이 없어요.</div>
@@ -2924,8 +2993,7 @@ export default function HomeClient() {
                       if (draft) {
                         addComment(commentTarget.logId, draft, commentTarget.parentId);
                         setCommentDraft((prev) => { const next = { ...prev }; delete next[key]; return next; });
-                        setCommentSheetAnimated(false);
-                        setTimeout(() => { setCommentTarget(null); setReplyingTo(null); }, 250);
+                        closeCommentSheet();
                       }
                     }
                   }}
@@ -2951,13 +3019,12 @@ export default function HomeClient() {
                     if (draft) {
                       addComment(commentTarget.logId, draft, commentTarget.parentId);
                       setCommentDraft((prev) => { const next = { ...prev }; delete next[key]; return next; });
-                      setCommentSheetAnimated(false);
-                      setTimeout(() => { setCommentTarget(null); setReplyingTo(null); }, 250);
+                      closeCommentSheet();
                     }
                   }}
                   disabled={commentSending || !((commentTarget.parentId ? commentDraft[`${commentTarget.logId}_reply_${commentTarget.parentId}`] : commentDraft[commentTarget.logId]) ?? '').trim()}
                   style={{
-                    padding: '12px 18px',
+                    padding: '12px 14px',
                     borderRadius: 12,
                     border: 'none',
                     background: 'var(--accent)',
@@ -2965,31 +3032,29 @@ export default function HomeClient() {
                     fontSize: 14,
                     fontWeight: 600,
                     cursor: commentSending ? 'wait' : 'pointer',
+                    flexShrink: 0,
                   }}
                 >
                   {commentTarget.parentId ? '답글' : '전송'}
                 </button>
+                <button
+                  type="button"
+                  onClick={closeCommentSheet}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: '1px solid var(--divider)',
+                    background: 'transparent',
+                    color: 'var(--text-secondary)',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  취소
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setCommentSheetAnimated(false);
-                  setTimeout(() => { setCommentTarget(null); setReplyingTo(null); }, 250);
-                }}
-                style={{
-                  marginTop: 12,
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: 12,
-                  border: '1px solid var(--divider)',
-                  background: 'transparent',
-                  color: 'var(--text-secondary)',
-                  fontSize: 14,
-                  cursor: 'pointer',
-                }}
-              >
-                취소
-              </button>
             </div>
           </div>
         </>
