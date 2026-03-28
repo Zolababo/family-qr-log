@@ -306,6 +306,8 @@ export default function HomeClient() {
   const memoSwipeStartRef = useRef<number | null>(null);
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
+  const homeFeedChromeParallaxRef = useRef<HTMLDivElement | null>(null);
+  const homeScrollParallaxRafRef = useRef<number | null>(null);
   const pullRefreshBusyRef = useRef(false);
   const pullRafRef = useRef<number | null>(null);
   const [pullRefreshOffset, setPullRefreshOffset] = useState(0);
@@ -334,6 +336,47 @@ export default function HomeClient() {
     const el = homeScrollRef.current;
     if (el) el.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activeTab]);
+
+  /** 홈·검색 피드: 스크롤 깊이에 따라 로그 위 ‘크롬’만 살짝 더 빠르게 움직여, 위로 돌아올 때 타이틀·프로필·공지·필터가 먼저 흐르듯 보이게 함(고정 헤더 아님). */
+  useEffect(() => {
+    const scrollEl = homeScrollRef.current;
+    const chromeEl = homeFeedChromeParallaxRef.current;
+    if (!scrollEl || !chromeEl) return;
+
+    const apply = () => {
+      homeScrollParallaxRafRef.current = null;
+      const st = scrollEl.scrollTop;
+      const feedTabs = activeTab === 'home' || activeTab === 'search';
+      const enabled = Boolean(user && householdId && feedTabs);
+      const reduceMotion =
+        typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!enabled || reduceMotion) {
+        chromeEl.style.transform = '';
+        chromeEl.style.willChange = 'auto';
+        return;
+      }
+      const p = 0.14;
+      chromeEl.style.willChange = 'transform';
+      chromeEl.style.transform = `translate3d(0, ${-st * p}px, 0)`;
+    };
+
+    const onScroll = () => {
+      if (homeScrollParallaxRafRef.current != null) return;
+      homeScrollParallaxRafRef.current = requestAnimationFrame(apply);
+    };
+
+    scrollEl.addEventListener('scroll', onScroll, { passive: true });
+    apply();
+    return () => {
+      scrollEl.removeEventListener('scroll', onScroll);
+      if (homeScrollParallaxRafRef.current != null) {
+        cancelAnimationFrame(homeScrollParallaxRafRef.current);
+        homeScrollParallaxRafRef.current = null;
+      }
+      chromeEl.style.transform = '';
+      chromeEl.style.willChange = 'auto';
+    };
+  }, [activeTab, user, householdId]);
 
   useEffect(() => {
     const init = async () => {
@@ -1942,6 +1985,7 @@ export default function HomeClient() {
           onChange={handleProfileAvatarChange}
           aria-hidden
         />
+        <div ref={homeFeedChromeParallaxRef} style={{ willChange: 'transform' }}>
         {user && householdId ? (
           <div className="home-top-bleed" style={{ marginBottom: 8 }}>
             <AppHeader
@@ -2184,6 +2228,15 @@ export default function HomeClient() {
           </div>
         )}
 
+        {user && householdId && activeTab === 'home' ? (
+          <section style={{ marginBottom: 10 }}>
+            <p style={{ fontSize: 12, color: theme.textSecondary, margin: '0 0 10px' }}>
+              {t('dailySummary')} · <strong style={{ color: theme.text }}>{todayLogCount}</strong>
+            </p>
+          </section>
+        ) : null}
+        </div>
+
         {!user && (
           <div style={{ fontSize: 13, color: highContrast ? '#e0e0e0' : '#475569' }}>
             <Link
@@ -2202,14 +2255,6 @@ export default function HomeClient() {
 
         {user && householdId && (
           <>
-            {activeTab === 'home' ? (
-              <section style={{ marginBottom: 10 }}>
-                <p style={{ fontSize: 12, color: theme.textSecondary, margin: '0 0 10px' }}>
-                  {t('dailySummary')} · <strong style={{ color: theme.text }}>{todayLogCount}</strong>
-                </p>
-
-              </section>
-            ) : null}
             {activeTab === 'todo' && (
               <TodoBoard
                 highContrast={highContrast}
