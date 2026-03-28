@@ -154,13 +154,18 @@ const avatarInnerWrap = {
                     role="button"
                     tabIndex={0}
             onClick={(e) => {
-              e.stopPropagation();
-              if (profileAvatarUrl && !profileAvatarLoadFailed) onEnlargeAvatar(profileAvatarUrl);
+              if (profileAvatarUrl && !profileAvatarLoadFailed) {
+                e.stopPropagation();
+                onEnlargeAvatar(profileAvatarUrl);
+              }
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                if (profileAvatarUrl && !profileAvatarLoadFailed) onEnlargeAvatar(profileAvatarUrl);
+                if (profileAvatarUrl && !profileAvatarLoadFailed) {
+                  e.stopPropagation();
+                  onEnlargeAvatar(profileAvatarUrl);
+                }
               }
             }}
             style={{
@@ -224,13 +229,18 @@ const avatarInnerWrap = {
                   role="button"
                   tabIndex={0}
                   onClick={(e) => {
-                    e.stopPropagation();
-                    if (showAvatar && avatarUrl) onEnlargeAvatar(avatarUrl);
+                    if (showAvatar && avatarUrl) {
+                      e.stopPropagation();
+                      onEnlargeAvatar(avatarUrl);
+                    }
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      if (showAvatar && avatarUrl) onEnlargeAvatar(avatarUrl);
+                      if (showAvatar && avatarUrl) {
+                        e.stopPropagation();
+                        onEnlargeAvatar(avatarUrl);
+                      }
                     }
                   }}
                   style={{

@@ -59,38 +59,20 @@ WITH CHECK (
   )
 );
 
--- UPDATE: 본인 댓글이며 해당 로그가 내 household 소속
+-- UPDATE / DELETE: 본인 댓글만 (EXISTS 제거 — logs/members RLS와 중첩되면 삭제·수정이 막히는 경우가 있음)
+-- 임의 log_id로 댓글을 달 수 있는지는 INSERT 정책의 EXISTS로 이미 차단됨.
 CREATE POLICY "log_comments_update_own"
 ON public.log_comments
 FOR UPDATE
 TO authenticated
-USING (
-  user_id = auth.uid()
-  AND EXISTS (
-    SELECT 1
-    FROM public.logs l
-    JOIN public.members m ON m.household_id = l.household_id
-    WHERE l.id = log_comments.log_id
-      AND m.user_id = auth.uid()
-  )
-)
+USING (user_id = auth.uid())
 WITH CHECK (user_id = auth.uid());
 
--- DELETE: 본인 댓글이며 해당 로그가 내 household 소속
 CREATE POLICY "log_comments_delete_own"
 ON public.log_comments
 FOR DELETE
 TO authenticated
-USING (
-  user_id = auth.uid()
-  AND EXISTS (
-    SELECT 1
-    FROM public.logs l
-    JOIN public.members m ON m.household_id = l.household_id
-    WHERE l.id = log_comments.log_id
-      AND m.user_id = auth.uid()
-  )
-);
+USING (user_id = auth.uid());
 
 -- 선택: 정책 목록 확인
 -- SELECT policyname, permissive, roles, cmd

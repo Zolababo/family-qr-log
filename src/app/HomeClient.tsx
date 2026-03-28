@@ -908,12 +908,12 @@ export default function HomeClient() {
     async (commentId: string, logId: string, commentUserId?: string) => {
       if (!user) return;
       if (typeof window !== 'undefined' && !window.confirm('댓글을 삭제할까요?')) return;
-      const { data, error } = await supabase
+      const { data: delRows, error } = await supabase
         .from('log_comments')
         .delete()
         .eq('id', commentId)
-        .select('id')
-        .maybeSingle();
+        .select('id');
+      const deleted = Array.isArray(delRows) ? delRows[0] : delRows;
       if (error) {
         const msg = String(error.message ?? '');
         const isFkBlocked =
@@ -925,9 +925,9 @@ export default function HomeClient() {
             .from('log_comments')
             .update({ content: '삭제된 댓글입니다.' })
             .eq('id', commentId)
-            .select('id')
-            .maybeSingle();
-          if (!fallback.error && fallback.data) {
+            .select('id');
+          const fb = Array.isArray(fallback.data) ? fallback.data[0] : fallback.data;
+          if (!fallback.error && fb) {
             await loadComments([logId]);
             if (editingCommentId === commentId) {
               setEditingCommentId(null);
@@ -943,8 +943,10 @@ export default function HomeClient() {
         setStatus(`댓글 삭제 실패: ${error.message}${hint}`);
         return;
       }
-      if (!data) {
-        setStatus('댓글 삭제 실패: 권한 또는 정책 문제로 반영되지 않았습니다. (RLS 정책 확인)');
+      if (!deleted) {
+        setStatus(
+          '댓글 삭제 실패: 반영된 행이 없습니다. Supabase SQL Editor에서 scripts/enable-log-comments-rls-policies.sql 을 다시 실행해 주세요.',
+        );
         return;
       }
       await loadComments([logId]);

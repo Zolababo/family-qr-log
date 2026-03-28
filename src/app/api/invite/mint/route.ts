@@ -41,7 +41,13 @@ export async function POST(req: Request) {
   try {
     token = signInviteToken({ v: 1, householdId, exp });
   } catch {
-    return NextResponse.json({ error: 'Invite signing not configured (INVITE_SIGNING_SECRET)' }, { status: 503 });
+    return NextResponse.json(
+      {
+        error:
+          '초대 링크 서명용 비밀이 설정되지 않았습니다. Vercel(또는 호스트) 환경 변수에 INVITE_SIGNING_SECRET 을 16자 이상으로 넣어 주세요.',
+      },
+      { status: 503 },
+    );
   }
 
   const origin = req.headers.get('origin') ?? new URL(req.url).origin;
