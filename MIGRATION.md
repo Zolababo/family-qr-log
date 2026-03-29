@@ -83,7 +83,7 @@
 - **배포 시:** `scripts/add-household-memos-board-columns.sql` → `household-memos-updated-at.sql`(트리거) → **`enable-household-memos-rls-policies.sql`** 순서 권장. Realtime에 `household_memos` 포함 확인.
 
 ### 2-4. 예전과 달라진 점 (문서 정리용)
-- **홈 상단 냉장고·식탁·화장실 전용 버튼(`PlaceButtons`)** 으로 “장소 먼저 고르기” 하던 흐름은 **홈에서 제거**됨. 컴포넌트 파일 `PlaceButtons.tsx`는 저장소에 남아 있을 수 있으나 **현재 홈 플로우에는 미사용**.
+- **홈 상단 냉장고·식탁·화장실 전용 버튼**으로 “장소 먼저 고르기” 하던 흐름은 **홈에서 제거**됨. 예전 전용 컴포넌트 `PlaceButtons.tsx`는 **미사용으로 삭제**(Git 이력에 남음).
 - **시간대 추천 태그** UI는 제거됨 (`getSuggestedSlugsByHour`는 라이브러리에 남겨둘 수 있으나 UI 미사용).
 
 ### 2-5. 그대로 유지되는 기능 (요약)
@@ -143,20 +143,19 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
-- **`household_memos` 배포용 SQL:** `scripts/enable-household-memos-rls-policies.sql` 추가, `household-memos-updated-at.sql`에 **UPDATE 시 `updated_at` 트리거** 명시. 문서(로컬만 표현) 정정.
-- (이전) 마이크로 인터랙션, `Button`, `LogTagBadge` 등.
+- **삭제:** `src/components/home/PlaceButtons.tsx` (어디에서도 import 되지 않음).
+- (이전) `household_memos` SQL, 마이크로 인터랙션 등.
 
 **다음 우선순위 (로드맵 표 §6)**  
-1. ~~가족 메모 RLS·트리거 스크립트~~ (프로젝트에 SQL **적용**은 운영자 작업)  
-2. **`PlaceButtons` 정리** ← **다음 권장**  
-3. v0 토큰 …
+1. ~~`PlaceButtons`~~  
+2. **v0 토큰 실제 `globals` 반영** ← **다음 권장** (충돌 검토 후 단계적)
 
 ### 진척도 (§6 로드맵 표 8단계 기준)
 
 | 구분 | 내용 |
 |------|------|
-| **완료** | **6 / 8** (75%) — 위 5항 + **가족 메모 DB 쪽(레포):** RLS 스크립트 + `updated_at` 트리거 정리(배포 시 Supabase에서 실행). |
-| **남은 표상 단계** | **2단계** — `PlaceButtons` 정리(7), v0 토큰 실제 적용(8) |
+| **완료** | **7 / 8** (87.5%) — 위 6항 + **`PlaceButtons.tsx` 제거**(미사용). |
+| **남은 표상 단계** | **1단계** — v0 토큰 실제 적용(8) |
 | **참고** | 표 밖 제품 요구(반응·피드 고정 등)는 별도. v0 전체 컴포넌트 목록과 1:1은 아님 — **안정적으로 쓰는 것부터** 채움. |
 
 **안정성·보안 체크리스트**
@@ -179,8 +178,8 @@
 | 4 | ~~**Button** (`NameEditModal`부터)~~ | 완료 — `ghost`는 추후 화면에서 |
 | 5 | ~~**마이크로 인터랙션** (1차: CSS만)~~ | 완료 — 탭 콘텐츠 페이드는 미적용(리마운트 회피) |
 | 6 | ~~가족 메모 **RLS + updated_at 트리거** (스크립트)~~ | 레포 반영 완료 — **프로덕션 적용**은 별도 |
-| 7 | `PlaceButtons.tsx` 미사용이면 정리 | 삭제 또는 문서만 ← **다음** |
-| 8 | **v0 토큰** 실제 적용 | `docs/v0-design-tokens-reference.md` → `globals` 통합 전 충돌 검토 |
+| 7 | ~~`PlaceButtons.tsx`~~ | 삭제(미사용) |
+| 8 | **v0 토큰** 실제 적용 | `docs/v0-design-tokens-reference.md` → `globals` 통합 전 충돌 검토 ← **다음** |
 
 - 반응·공지·피드 상단 고정 등 제품 요구사항은 별도 우선순위
 
@@ -200,7 +199,8 @@
 | 2026-03 말 | `Button` 프리미티브 + `NameEditModal`, 진척도(4/8) 정리 |
 | 2026-03 말 | 마이크로 인터랙션 1차 (`globals` + `prefers-reduced-motion`), 진척도 5/8 |
 | 2026-03 말 | `household_memos` RLS 스크립트 + `updated_at` 트리거, 진척도 6/8, 메모 동기화 문서 정정 |
+| 2026-03 말 | `PlaceButtons.tsx` 삭제, 진척도 7/8 |
 
 ---
 
-*마지막 업데이트: 2026-03-29 — household_memos RLS·트리거·진척도 6/8.*
+*마지막 업데이트: 2026-03-29 — PlaceButtons 제거·진척도 7/8.*
