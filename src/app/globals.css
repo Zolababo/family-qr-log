@@ -238,6 +238,41 @@ body {
   box-shadow: var(--shadow-card) !important;
 }
 
+/* 마이크로 인터랙션: 모션 감소 시 버튼 호버·전환 끔 (WCAG) */
+@media (prefers-reduced-motion: reduce) {
+  [data-accessibility-root]:not([data-high-contrast="true"]) button,
+  [data-accessibility-root]:not([data-high-contrast="true"]) [role="button"],
+  [data-accessibility-root]:not([data-high-contrast="true"]) label[for] {
+    transition: none !important;
+  }
+  [data-accessibility-root]:not([data-high-contrast="true"]) button:hover:not(:disabled),
+  [data-accessibility-root]:not([data-high-contrast="true"]) [role="button"]:hover:not(:disabled) {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* 탭 누름 피드백 (~100ms 느낌, 호버 스케일과 구분) */
+@media (prefers-reduced-motion: no-preference) {
+  [data-accessibility-root]:not([data-high-contrast="true"]) button:active:not(:disabled),
+  [data-accessibility-root]:not([data-high-contrast="true"]) [role="button"]:active:not(:disabled) {
+    transform: scale(0.98) !important;
+    box-shadow: none !important;
+  }
+}
+
+/* 하단 탭 바: 활성 배경·글자 전환 ~200ms */
+.bottom-tab-btn {
+  transition:
+    background 200ms ease,
+    color 200ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom-tab-btn {
+    transition: none;
+  }
+}
+
 /* 상단 홈 영역: 뷰포트 풀폭 (내부 max-width 컨테이너에서 돌출) */
 .home-top-bleed {
   width: 100vw;

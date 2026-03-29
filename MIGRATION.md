@@ -143,20 +143,20 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
-- `Button` (`src/components/ui/Button.tsx`): `primary` | `secondary` | `ghost`, 최소 높이 44px — 우선 `NameEditModal` 취소/저장에만 적용.
-- (이전) `LogTagBadge`, `Toast` `setAppStatus`, `Empty` 등.
+- **마이크로 인터랙션(1차):** `globals.css` — 모션 감소 시 버튼 호버 효과 제거, 하단 탭 전환 부드럽게, `:active` 탭 피드백.
+- (이전) `Button`, `LogTagBadge`, `Toast`, `Empty` 등.
 
 **다음 우선순위 (로드맵 표 §6)**  
-1. ~~Empty · Toast · LogTagBadge · Button~~ → **UI 프리미티브 1차 완료**  
-2. **마이크로 인터랙션** (`prefers-reduced-motion` 전제) ← **다음 권장**  
-3. DB 메모 동기화, PlaceButtons, v0 토큰 …
+1. ~~UI 프리미티브 · 마이크로 인터랙션(1차)~~  
+2. **가족 메모 household DB 동기화** ← **다음 권장** (RLS·스키마)  
+3. `PlaceButtons` 정리, v0 토큰 …
 
 ### 진척도 (§6 로드맵 표 8단계 기준)
 
 | 구분 | 내용 |
 |------|------|
-| **완료** | **4 / 8** (50%) — `Empty`·검색/캘린더, `Toast` 명시 톤, `LogTagBadge`, `Button`(모달 1곳) |
-| **남은 표상 단계** | **4단계** — 마이크로 인터랙션(5), household DB 메모 동기화(6), `PlaceButtons` 정리(7), v0 토큰 실제 적용(8) |
+| **완료** | **5 / 8** (62.5%) — 위 4항 + **마이크로 인터랙션(1차):** `globals.css` — `prefers-reduced-motion: reduce` 시 버튼 호버 스케일·전환 끔, 하단 탭 `.bottom-tab-btn` 배경/색 200ms, `:active` 살짝 축소(모션 허용 시만). 탭 **콘텐츠** 페이드는 리마운트 부작용 피하려 미적용. |
+| **남은 표상 단계** | **3단계** — household DB 메모 동기화(6), `PlaceButtons` 정리(7), v0 토큰 실제 적용(8) |
 | **참고** | 표 밖 제품 요구(반응·피드 고정 등)는 별도. v0 전체 컴포넌트 목록과 1:1은 아님 — **안정적으로 쓰는 것부터** 채움. |
 
 **안정성·보안 체크리스트**
@@ -177,8 +177,8 @@
 | 2 | ~~`Toast` `setAppStatus` + `variant`~~ | 완료 |
 | 3 | ~~`LogTagBadge` (`Badge.tsx`)~~ | 완료 — `LogFeed`·캘린더 일별·검색 텍스트 목록 |
 | 4 | ~~**Button** (`NameEditModal`부터)~~ | 완료 — `ghost`는 추후 화면에서 |
-| 5 | **마이크로 인터랙션**(탭 전환·버튼 스케일 등) | `prefers-reduced-motion` 필수 ← **다음** |
-| 6 | 가족 메모·장보기·루틴 **household DB 동기화** | RLS·스키마 검토 |
+| 5 | ~~**마이크로 인터랙션** (1차: CSS만)~~ | 완료 — 탭 콘텐츠 페이드는 미적용(리마운트 회피) |
+| 6 | 가족 메모·장보기·루틴 **household DB 동기화** | RLS·스키마 검토 ← **다음** |
 | 7 | `PlaceButtons.tsx` 미사용이면 정리 | 삭제 또는 문서만 |
 | 8 | **v0 토큰** 실제 적용 | `docs/v0-design-tokens-reference.md` → `globals` 통합 전 충돌 검토 |
 
@@ -198,7 +198,8 @@
 | 2026-03 말 | `Toast` 명시 톤: `setAppStatus`, `statusToastTone`, `Toast` `variant` prop |
 | 2026-03 말 | `LogTagBadge` (`Badge.tsx`) — 피드·캘린더·검색 태그 칩 |
 | 2026-03 말 | `Button` 프리미티브 + `NameEditModal`, 진척도(4/8) 정리 |
+| 2026-03 말 | 마이크로 인터랙션 1차 (`globals` + `prefers-reduced-motion`), 진척도 5/8 |
 
 ---
 
-*마지막 업데이트: 2026-03-29 — Button·진척도 표.*
+*마지막 업데이트: 2026-03-29 — 마이크로 인터랙션 1차·진척도 5/8.*
