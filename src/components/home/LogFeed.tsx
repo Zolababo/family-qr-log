@@ -8,6 +8,7 @@ import { parseLogMeta } from '../../lib/logActionMeta';
 import { sanitizeExternalUrl } from '../../lib/safeUrl';
 import type { LogMediaResult } from '../../lib/logMedia';
 import { formatDateTime } from '../../lib/formatDateTime';
+import { LogFeedSkeleton } from './LogFeedSkeleton';
 
 export type Log = {
   id: string;
@@ -74,6 +75,8 @@ type LogFeedProps = {
   /** 스티커 오버레이를 다시 누르면 제거 */
   onStickerRemove?: (logId: string) => void;
   onTagClick?: (slug: string) => void;
+  /** 가구 로그 최초 페치 중(홈 피드 자리 표시) */
+  logsInitialLoading?: boolean;
 };
 
 export function LogFeed({
@@ -108,6 +111,7 @@ export function LogFeed({
   onPickSticker,
   onStickerRemove,
   onTagClick,
+  logsInitialLoading = false,
 }: LogFeedProps) {
   const router = useRouter();
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
@@ -141,7 +145,11 @@ export function LogFeed({
 
   return (
     (activeTab === 'home' || activeTab === 'search') && (
-      <section aria-label={t('recentLogs')} style={{ marginLeft: -16, marginRight: -16, width: 'calc(100% + 32px)' }}>
+      <section
+        aria-label={t('recentLogs')}
+        aria-busy={logsInitialLoading}
+        style={{ marginLeft: -16, marginRight: -16, width: 'calc(100% + 32px)' }}
+      >
         <div style={{ paddingLeft: 16, paddingRight: 16 }}>
           {activeTab === 'search' && (
             <input
@@ -173,6 +181,10 @@ export function LogFeed({
             padding: 0,
           }}
         >
+          {logsInitialLoading ? (
+            <LogFeedSkeleton highContrast={highContrast} />
+          ) : (
+            <>
           {logsByDate.length === 0 && (
             <div
               style={{
@@ -526,6 +538,8 @@ export function LogFeed({
               })}
             </div>
           ))}
+            </>
+          )}
         </div>
 
       </section>

@@ -87,6 +87,27 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@keyframes log-feed-skeleton-shimmer {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.log-feed-skeleton-bar {
+  animation: log-feed-skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .log-feed-skeleton-bar {
+    animation: none;
+    opacity: 0.88;
+  }
+}
+
 /* ========== Base ========== */
 html {
   background: #F7F6F3;

@@ -210,6 +210,7 @@ export default function HomeClient() {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [householdId, setHouseholdId] = useState<string | null>(null);
+  const [logsInitialLoading, setLogsInitialLoading] = useState(false);
   const [logs, setLogs] = useState<Log[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -283,6 +284,7 @@ export default function HomeClient() {
   const swipeStartRef = useRef<number | null>(null);
   const memoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadLogsReqSeqRef = useRef(0);
+  const initialLogsLoadGenRef = useRef(0);
   const todoSnapshotHydratedRef = useRef(false);
   const lastLoadedTodoSnapshotActionRef = useRef('');
   const lastSavedTodoSnapshotActionRef = useRef('');
@@ -1038,9 +1040,19 @@ export default function HomeClient() {
   };
 
   useEffect(() => {
-    if (!householdId || !user) return;
-    // 서버 필터를 걸지 않고 전체를 로드합니다.
-    void loadLogs(householdId, undefined, undefined);
+    if (!householdId || !user) {
+      setLogsInitialLoading(false);
+      return;
+    }
+    const gen = ++initialLogsLoadGenRef.current;
+    setLogsInitialLoading(true);
+    void (async () => {
+      try {
+        await loadLogs(householdId, undefined, undefined);
+      } finally {
+        if (gen === initialLogsLoadGenRef.current) setLogsInitialLoading(false);
+      }
+    })();
   }, [householdId, user, loadLogs]);
 
   useEffect(() => {
@@ -2661,6 +2673,7 @@ export default function HomeClient() {
                   void applyStickerToLog(logId, null);
                 }}
                 onTagClick={applyTagFromLogCard}
+                logsInitialLoading={logsInitialLoading}
               />
             )}
             {activeTab === 'search' && (
