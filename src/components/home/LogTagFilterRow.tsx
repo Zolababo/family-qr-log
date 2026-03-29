@@ -1,6 +1,6 @@
 'use client';
 
-type PlaceFilterRowProps = {
+type LogTagFilterRowProps = {
   filter: string;
   setFilter: (v: string) => void;
   options: { key: string; label: string }[];
@@ -26,7 +26,8 @@ const chip = (
   whiteSpace: 'nowrap' as const,
 });
 
-export function PlaceFilterRow({ filter, setFilter, options, t: _t, highContrast }: PlaceFilterRowProps) {
+/** 피드 상단: 전체 / 로그 태그 슬러그별 필터 칩 */
+export function LogTagFilterRow({ filter, setFilter, options, t: _t, highContrast }: LogTagFilterRowProps) {
   return (
     <div style={{ marginTop: 4, marginBottom: 6, width: '100%' }}>
       <div

@@ -21,7 +21,7 @@ type BottomTabBarProps = {
   onInviteFamily: () => void;
   onAccessibility: () => void;
   profileAvatarUploading?: boolean;
-  /** 홈에서 태그 선택 후 새 글 작성 시, 선택한 태그(place_slug)를 미리 채우기 */
+  /** 홈에서 태그 선택 후 새 글 작성 시, 선택한 로그 태그(DB `place_slug`)를 미리 채우기 */
   writePlaceSlug?: string | null;
 };
 

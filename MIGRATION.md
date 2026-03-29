@@ -50,8 +50,8 @@
 
 - **스택**: Next.js 16, React 19, Supabase (Auth, DB, Storage), Vercel 배포
 - **기능**: 가족 로그(텍스트·사진·영상), QR(게스트/첫 방문), 멤버 필터, 댓글·답글, 캘린더, 가족 메모 패널, PWA, 다국어(ko/en/ja/zh)
-- **제품 방향 (v2)**: QR은 **게스트·첫 방문** 위주. **가족은 홈에서 바로 기록**. 장소/주제는 **선택 태그**(`place_slug`에 일반·주제·장소 슬러그 저장).
-- **주요 파일**: `src/app/HomeClient.tsx` (메인 UI), `src/lib/logTags.ts` (슬러그·필터), `src/components/home/PlaceFilterRow.tsx`, `LogFeed.tsx`, `src/app/globals.css`, `src/app/translations.ts`
+- **제품 방향 (v2)**: QR은 **게스트·첫 방문** 위주. **가족은 홈에서 바로 기록**. 기록 분류는 **선택 태그**(DB 컬럼명만 레거시로 `place_slug`, 값은 일반·멤버·주제 슬러그).
+- **주요 파일**: `src/app/HomeClient.tsx` (메인 UI), `src/lib/logTags.ts` (슬러그·필터), `src/components/home/LogTagFilterRow.tsx`, `LogFeed.tsx`, `src/app/globals.css`, `src/app/translations.ts`
 - **롤백 참고**: Git 태그 **`v1.0`** = 이전(장소 중심) UI 스냅샷이 있으면 원복 비교용으로 사용 가능.
 
 ---
@@ -61,7 +61,7 @@
 ### 2-1. 디자인 토큰 (`globals.css`)
 - 라이트/따뜻한 테마 토큰: `--bg-*`, `--text-*`, `--accent`, 장소별 `--place-fridge` 등
 - `HomeClient`의 `theme` 객체, 칩·버튼 등이 CSS 변수와 맞춰져 있음
-- 로그 태그 칩: `.log-place-tag.general`, `.log-place-tag.health` … `todo` (주제), 기존 `fridge`/`table`/`toilet`
+- 로그 태그 칩: `.log-tag-chip.general` … `todo` (주제). DB 컬럼명은 레거시로 `place_slug`(값은 태그 슬러그).
 
 ### 2-2. PWA
 - `public/manifest.webmanifest`, `public/icon.png` 사용 중. 아이콘은 사용자가 `public/icon.png`로 교체 가능.
@@ -71,7 +71,7 @@
 | 항목 | 설명 |
 |------|------|
 | **슬러그·필터** | `src/lib/logTags.ts` — `LOG_SLUG`(general, fridge, table, toilet, health, diet, kid, pet, todo), `filterSlugForQuery`, `PLACE_SLUGS` / `TOPIC_SLUGS` |
-| **피드 필터** | `PlaceFilterRow` — 상단에 **「목록에서 보기」** 라벨. 전체/일반/주제/장소 칩으로 **아래 로그 목록만** 필터 |
+| **피드 필터** | `LogTagFilterRow` — 상단에 **「목록에서 보기」** 라벨. 전체/일반/멤버·주제 태그 칩으로 **아래 로그 목록만** 필터 |
 | **홈 컴포저** | 로그인 시 **항상** 한 줄 입력 + **올리기**. **가족 메모** 카드(공지·장보기·루틴): 기본은 **읽기**, **편집/완료**로 입력 |
 | **이번 글 태그** | 가로 스크롤 칩: 일반 + 주제 + 장소. **접기 없음** (예전 `+` 패널 제거) |
 | **음성** | 텍스트 옆 **마이크 아이콘**만 (Web Speech API, 브라우저별 지원) |
@@ -124,7 +124,7 @@
 **아키텍처**
 - 메인: `src/app/HomeClient.tsx`
 - 태그/필터: `src/lib/logTags.ts`
-- 홈: `src/components/home/PlaceFilterRow.tsx`, `LogFeed.tsx`, `src/components/layout/AppHeader.tsx`, `BottomTabBar.tsx`, `MemberFilter.tsx`
+- 홈: `src/components/home/LogTagFilterRow.tsx`, `LogFeed.tsx`, `src/components/layout/AppHeader.tsx`, `BottomTabBar.tsx`, `MemberFilter.tsx`
 - 스타일: `src/app/globals.css`
 - 문자열: `src/app/translations.ts` (키 예: `familyBoardTitle`, `feedFilterTitle`, `nextPostTagLabel`, `qrTabGuest`, `logGeneral`, `topicHealth` …)
 
@@ -148,7 +148,7 @@
 | 시점 | 내용 |
 |------|------|
 | 2026-03 초 | 디자인 토큰, PWA, 멤버/로그 UI 다듬음 |
-| 2026-03 중 | v2 UX: QR 게스트 안내, 주제/일반 슬러그, `logTags`, PlaceFilterRow, 홈 컴포저 대개편 |
+| 2026-03 중 | v2 UX: QR 게스트 안내, 주제/일반 슬러그, `logTags`, LogTagFilterRow, 홈 컴포저 대개편 |
 | 2026-03 후 | 홈 단순화: 가족 메모 카드(읽기/편집), 피드·태그 라벨 구분, 음성 아이콘, 추천 태그 UI 제거 |
 
 ---

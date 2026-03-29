@@ -10,6 +10,7 @@ import { sanitizeExternalUrl } from '../../lib/safeUrl';
 export type Log = {
   id: string;
   household_id: string;
+  /** DB 컬럼명(레거시). 저장 값은 로그 태그 슬러그. */
   place_slug: string;
   action: string;
   actor_user_id: string;
@@ -56,7 +57,7 @@ type LogFeedProps = {
   getMemberName: (userId: string) => string;
   getLogMedia: (log: Log) => { imageUrls: string[]; videoUrl: string | null };
   formatDateTime: (iso: string) => string;
-  getPlaceLabelKey: (slug: string) => string;
+  getLogTagLabelKey: (slug: string) => string;
   commentsByLogId: Record<string, LogComment[]>;
   replyingTo: { logId: string; commentId: string } | null;
   setReplyingTo: (v: { logId: string; commentId: string } | null) => void;
@@ -92,7 +93,7 @@ export function LogFeed({
   getMemberName,
   getLogMedia,
   formatDateTime,
-  getPlaceLabelKey,
+  getLogTagLabelKey,
   commentsByLogId,
   replyingTo,
   setReplyingTo,
@@ -300,11 +301,11 @@ export function LogFeed({
                               e.stopPropagation();
                               onTagClick?.(log.place_slug);
                             }}
-                            className={`log-place-tag ${log.place_slug}`}
+                            className={`log-tag-chip ${log.place_slug}`}
                             style={{ border: 'none', cursor: 'pointer' }}
-                            aria-label={`태그 ${t(getPlaceLabelKey(log.place_slug))} 필터`}
+                            aria-label={`태그 ${t(getLogTagLabelKey(log.place_slug))} 필터`}
                           >
-                            #{t(getPlaceLabelKey(log.place_slug))}
+                            #{t(getLogTagLabelKey(log.place_slug))}
                           </button>
                           <span style={{ fontSize: 12, color: highContrast ? '#94a3b8' : 'var(--text-caption)' }}>
                             {formatDateTime(log.created_at)}

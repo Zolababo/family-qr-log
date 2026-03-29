@@ -348,7 +348,7 @@ body {
   border: 1px solid #F0EDE8;
 }
 
-.log-place-tag {
+.log-tag-chip {
   display: inline-block;
   padding: 2px 10px;
   border-radius: 999px;
@@ -357,18 +357,18 @@ body {
   margin-bottom: 6px;
 }
 
-.log-place-tag.daily { background: #e6f4ea; color: #1b5e20; }
-.log-place-tag.general { background: #e8f0fe; color: #0b3d91; }
-.log-place-tag.notice { background: #fff3cd; color: #8a6d1a; }
-.log-place-tag.daddy { background: #fdecef; color: #9d174d; }
-.log-place-tag.mommy { background: #f3e8ff; color: #6b21a8; }
-.log-place-tag.bamtoli { background: #e0f2fe; color: #075985; }
-.log-place-tag.eomni_abuji { background: #fef9c3; color: #854d0e; }
-.log-place-tag.motheri_ppadeori { background: #ede9fe; color: #5b21b6; }
-.log-place-tag.danine { background: #dcfce7; color: #166534; }
-.log-place-tag.uchacha { background: #fef3c7; color: #92400e; }
-.log-place-tag.ttol_morning { background: #fee2e2; color: #991b1b; }
-.log-place-tag.todo { background: var(--accent-light); color: var(--accent); }
+.log-tag-chip.daily { background: #e6f4ea; color: #1b5e20; }
+.log-tag-chip.general { background: #e8f0fe; color: #0b3d91; }
+.log-tag-chip.notice { background: #fff3cd; color: #8a6d1a; }
+.log-tag-chip.daddy { background: #fdecef; color: #9d174d; }
+.log-tag-chip.mommy { background: #f3e8ff; color: #6b21a8; }
+.log-tag-chip.bamtoli { background: #e0f2fe; color: #075985; }
+.log-tag-chip.eomni_abuji { background: #fef9c3; color: #854d0e; }
+.log-tag-chip.motheri_ppadeori { background: #ede9fe; color: #5b21b6; }
+.log-tag-chip.danine { background: #dcfce7; color: #166534; }
+.log-tag-chip.uchacha { background: #fef3c7; color: #92400e; }
+.log-tag-chip.ttol_morning { background: #fee2e2; color: #991b1b; }
+.log-tag-chip.todo { background: var(--accent-light); color: var(--accent); }
 
 /* 목록에서 보기: 접기 패널 — summary 포커스 시 녹색 링 제거 */
 .feed-filter-disclosure.feed-filter-disclosure {

@@ -12,13 +12,14 @@ import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logAct
 import { AppHeader } from '../components/layout/AppHeader';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
 import { MemberFilter } from '../components/home/MemberFilter';
-import { PlaceFilterRow } from '../components/home/PlaceFilterRow';
+import { LogTagFilterRow } from '../components/home/LogTagFilterRow';
 import { LogFeed } from '../components/home/LogFeed';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 
 type Log = {
   id: string;
   household_id: string;
+  /** DB 컬럼명(레거시). 저장 값은 로그 태그 슬러그(`LogSlug`). */
   place_slug: string;
   action: string;
   actor_user_id: string;
@@ -1441,7 +1442,7 @@ export default function HomeClient() {
 
   const meDisplayName =
     profileName || (user?.email ? user.email.split('@')[0] : t('me'));
-  const getPlaceLabelKey = (slug: string) => {
+  const getLogTagLabelKey = (slug: string) => {
     const normalized = normalizeLogSlug(slug);
     const map: Record<string, string> = {
       [LOG_SLUG.daily]: 'logDaily',
@@ -2138,7 +2139,7 @@ export default function HomeClient() {
                     />
                   </summary>
                   <div style={{ paddingLeft: 2, paddingRight: 2, paddingBottom: 8 }}>
-                    <PlaceFilterRow
+                    <LogTagFilterRow
                       filter={feedTagFilter}
                       setFilter={onFeedTagSelect}
                       options={feedTagOptions}
@@ -2452,10 +2453,10 @@ export default function HomeClient() {
                               <button
                                 type="button"
                                 onClick={() => applyTagFromLogCard(log.place_slug)}
-                                className={`log-place-tag ${log.place_slug}`}
+                                className={`log-tag-chip ${log.place_slug}`}
                                 style={{ border: 'none', cursor: 'pointer' }}
                               >
-                                #{t(getPlaceLabelKey(log.place_slug))}
+                                #{t(getLogTagLabelKey(log.place_slug))}
                               </button>
                               <div className="log-time" style={highContrast ? { color: '#94a3b8' } : undefined}>{formatDateTime(log.created_at)}</div>
                               <div className="log-content" style={highContrast ? { color: '#fff' } : undefined}>
@@ -2678,7 +2679,7 @@ export default function HomeClient() {
                 getMemberName={getMemberName}
                 getLogMedia={getLogMedia}
                 formatDateTime={formatDateTime}
-                getPlaceLabelKey={getPlaceLabelKey}
+                getLogTagLabelKey={getLogTagLabelKey}
                 commentsByLogId={commentsByLogId}
                 replyingTo={replyingTo}
                 setReplyingTo={setReplyingTo}
@@ -2825,10 +2826,10 @@ export default function HomeClient() {
                             <button
                               type="button"
                               onClick={() => applyTagFromLogCard(log.place_slug)}
-                              className={`log-place-tag ${log.place_slug}`}
+                              className={`log-tag-chip ${log.place_slug}`}
                               style={{ border: 'none', cursor: 'pointer' }}
                             >
-                              #{t(getPlaceLabelKey(log.place_slug))}
+                              #{t(getLogTagLabelKey(log.place_slug))}
                             </button>
                             <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : 'var(--text-caption)' }}>
                               {formatDateTime(log.created_at)}

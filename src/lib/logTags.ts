@@ -1,4 +1,9 @@
-/** DB `logs.place_slug` + UI 필터용 슬러그 (v2) */
+/**
+ * 로그 태그(주제·멤버 구분) 슬러그.
+ *
+ * Supabase `logs.place_slug` 컬럼 이름은 QR·장소 시절 유산이며, **물리적 장소가 아닙니다.**
+ * 값은 일반/일일/멤버 태그 등으로 통일되어 있고, 필요 시 DB에서 컬럼명만 `category_slug` 등으로 바꾸는 마이그레이션을 따로 두면 됩니다.
+ */
 export const LOG_SLUG = {
   daily: 'daily',
   general: 'general',
