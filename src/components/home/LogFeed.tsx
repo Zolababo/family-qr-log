@@ -9,6 +9,7 @@ import { sanitizeExternalUrl } from '../../lib/safeUrl';
 import type { LogMediaResult } from '../../lib/logMedia';
 import { formatDateTime } from '../../lib/formatDateTime';
 import { LogFeedSkeleton } from './LogFeedSkeleton';
+import { Empty } from '../ui/Empty';
 
 export type Log = {
   id: string;
@@ -190,18 +191,7 @@ export function LogFeed({
             <LogFeedSkeleton highContrast={highContrast} statusLabel={feedSkeletonLabel} />
           ) : (
             <>
-          {logsByDate.length === 0 && (
-            <div
-              style={{
-                padding: '18px 16px',
-                fontSize: 13,
-                color: theme.textSecondary,
-                textAlign: 'center',
-              }}
-            >
-              {t('noLogsYet')}
-            </div>
-          )}
+          {logsByDate.length === 0 && <Empty message={t('noLogsYet')} captionColor={theme.textSecondary} />}
 
           {logsByDate.map((group) => (
             <div key={group.dateKey} style={{ marginBottom: 10, paddingLeft: 16, paddingRight: 16 }}>

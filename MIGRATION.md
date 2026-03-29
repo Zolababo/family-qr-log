@@ -124,7 +124,8 @@
 **아키텍처**
 - 메인: `src/app/HomeClient.tsx`
 - 태그/필터: `src/lib/logTags.ts`
-- 홈: `src/components/home/LogTagFilterRow.tsx`, `LogFeed.tsx`, `src/components/layout/AppHeader.tsx`, `BottomTabBar.tsx`, `MemberFilter.tsx`
+- 홈: `src/components/home/LogTagFilterRow.tsx`, `LogFeed.tsx`, `LogFeedSkeleton.tsx`, `src/components/layout/AppHeader.tsx`, `BottomTabBar.tsx`, `MemberFilter.tsx`
+- 공통 UI(소규모): `src/components/ui/Toast.tsx`, `src/components/ui/Empty.tsx`
 - 스타일: `src/app/globals.css`
 - 문자열: `src/app/translations.ts` (키 예: `familyBoardTitle`, `feedFilterTitle`, `nextPostTagLabel`, `qrTabGuest`, `logGeneral`, `topicHealth` …)
 
@@ -132,16 +133,24 @@
 - **목록에서 보기**: 피드 필터 칩. **이번 글 태그**: 다음 로그에 붙는 `place_slug` 선택
 - **가족 메모 카드**: 공지·장보기·루틴 — 읽기/편집, 내용은 로컬 기기에만 저장
 - **올리기** 버튼 문구 (`quickPost`), 빠른 문구, 사진·영상·지도 메타(접기) 등 기존 유지
+- **로딩/피드백 (점진 도입)**: `LogFeedSkeleton` — 최초 로그 로드 + 당겨서 새로고침 중 홈 피드 자리 표시. `Toast` (`src/components/ui/Toast.tsx`) — 기존 `status` 문자열을 하단 고정으로 표시(success/error/info 휴리스틱). `Empty` — 로그 없을 때 빈 문구(현재 `LogFeed`만 연결)
 
 **배포**
 - GitHub `main` 푸시 → Vercel 자동 배포. 최근 커밋 예: `feat` 가족 로그 v2 UX, `fix` 홈 UI 단순화(가족 메모 카드 등).
 
-**다음에 손대기 좋은 것**
-- 가족 메모·장보기·루틴을 **household 단위 DB**로 동기화
-- `PlaceButtons.tsx` 미사용이면 정리(삭제 또는 문서화) 여부 결정
-- 반응·공지·피드 상단 고정 등 제품 요구사항 반영
-- **UX 보강(참고·우선순위 별도)**: 온보딩(가치 3단계), 빈 상태 일러스트+CTA, Toast·경량 애니메이션, 로딩 Skeleton — 도입 시 기존 `status`/레이아웃과 충돌 여부부터 점검
-- **v0 컬러·타이포 참고안(미적용)**: `docs/v0-design-tokens-reference.md` — 적용 시 `globals.css`·고대비 모드와 충돌 검토 후 단계적으로
+**다음에 손대기 좋은 것 (안정성·보안 우선, 한 단계씩)**
+
+| 순서 | 작업 | 비고 |
+|------|------|------|
+| 1 | `Empty`를 검색·캘린더 등 다른 빈 화면에 재사용 | 일러스트/CTA는 디자인 확정 후 |
+| 2 | `Toast`에 **명시적 `variant` 옵션** | 휴리스틱 오분류 방지, 중요 메시지부터 |
+| 3 | **Button / Badge** 등 공통 UI | 터치 44px·고대비 유지하며 한 컴포넌트씩 |
+| 4 | **마이크로 인터랙션**(탭 전환·버튼 스케일 등) | `prefers-reduced-motion` 필수 |
+| 5 | 가족 메모·장보기·루틴 **household DB 동기화** | RLS·스키마 검토 |
+| 6 | `PlaceButtons.tsx` 미사용이면 정리 | 삭제 또는 문서만 |
+| 7 | **v0 토큰** 실제 적용 | `docs/v0-design-tokens-reference.md` → `globals` 통합 전 충돌 검토 |
+
+- 반응·공지·피드 상단 고정 등 제품 요구사항은 별도 우선순위
 
 ---
 
@@ -152,7 +161,8 @@
 | 2026-03 초 | 디자인 토큰, PWA, 멤버/로그 UI 다듬음 |
 | 2026-03 중 | v2 UX: QR 게스트 안내, 주제/일반 슬러그, `logTags`, LogTagFilterRow, 홈 컴포저 대개편 |
 | 2026-03 후 | 홈 단순화: 가족 메모 카드(읽기/편집), 피드·태그 라벨 구분, 음성 아이콘, 추천 태그 UI 제거 |
+| 2026-03 말 | 홈 피드 Skeleton(최초·pull-refresh), `Toast`로 `status` 표시, `Empty` 도입(LogFeed 빈 상태) |
 
 ---
 
-*마지막 업데이트: 2026-03-21 — v2 UX·가족 메모·로컬 한계·파일·롤백·이력 섹션 반영.*
+*마지막 업데이트: 2026-03-28 — Skeleton·Toast·Empty·로드맵 표 반영.*
