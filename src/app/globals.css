@@ -80,6 +80,27 @@
   --font-size-caption: 0.8rem;
 }
 
+/* ========== 5) v0 제안명 별칭 (레이아웃·색 변화 없음 — 기존 토큰을 가리킴, 추후 팔레트 전환 시 여기만 조정) */
+:root {
+  --v0-primary: var(--accent);
+  --v0-primary-light: var(--accent-light);
+  --v0-secondary: var(--accent);
+  --v0-secondary-light: var(--accent-light);
+  --v0-accent-highlight: var(--accent);
+  --v0-bg-base: var(--bg-base);
+  --v0-bg-card: var(--bg-card);
+  --v0-text-primary: var(--text-primary);
+  --v0-text-secondary: var(--text-secondary);
+  --v0-text-muted: var(--text-caption);
+  --v0-border: var(--divider);
+  --v0-divider: var(--divider);
+  --v0-text-h1: var(--font-size-h1);
+  --v0-text-h2: var(--font-size-h2);
+  --v0-text-h3: var(--font-size-h3);
+  --v0-text-body: var(--font-size-body);
+  --v0-text-caption: var(--font-size-caption);
+}
+
 @theme inline {
   --color-background: var(--app-bg);
   --color-foreground: var(--text-primary);
