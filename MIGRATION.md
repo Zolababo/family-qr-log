@@ -51,7 +51,7 @@
 - **스택**: Next.js 16, React 19, Supabase (Auth, DB, Storage), Vercel 배포
 - **기능**: 가족 로그(텍스트·사진·영상), QR(게스트/첫 방문), 멤버 필터, 댓글·답글, 캘린더, 가족 메모 패널, PWA, 다국어(ko/en/ja/zh)
 - **제품 방향 (v2)**: QR은 **게스트·첫 방문** 위주. **가족은 홈에서 바로 기록**. 기록 분류는 **선택 태그**(DB 컬럼명만 레거시로 `place_slug`, 값은 일반·멤버·주제 슬러그).
-- **주요 파일**: `src/app/HomeClient.tsx` (메인 UI·상태), `src/lib/logTags.ts` (슬러그·필터), `src/lib/logMedia.ts` (`getLogMedia`), `src/lib/formatDateTime.ts`, `src/components/home/LogTagFilterRow.tsx`, `LogFeed.tsx`, `CommentSheet.tsx`, `StickerPickerSheet.tsx`, `NameEditModal.tsx`, `AccessibilitySettingsModal.tsx`, `FamilyMemoPanel.tsx`, `EnlargedAvatarOverlay.tsx`, `src/lib/accessibilityFont.ts`, `src/app/globals.css`, `src/app/translations.ts`
+- **주요 파일**: `src/app/HomeClient.tsx` (메인 UI·상태), `src/lib/logTags.ts` (슬러그·필터), `src/lib/logMedia.ts` (`getLogMedia`), `src/lib/formatDateTime.ts`, `src/components/home/LogTagFilterRow.tsx`, `LogFeed.tsx`, `CommentSheet.tsx`, `StickerPickerSheet.tsx`, `NameEditModal.tsx`, `AccessibilitySettingsModal.tsx`, `FamilyMemoPanel.tsx`, `EnlargedAvatarOverlay.tsx`, `LogActionSheet.tsx` (로그 롱프레스 수정·삭제), `src/lib/accessibilityFont.ts`, `src/app/globals.css`, `src/app/translations.ts`
 - **롤백 참고**: Git 태그 **`v1.0`** = 이전(장소 중심) UI 스냅샷이 있으면 원복 비교용으로 사용 가능.
 
 ---
@@ -140,6 +140,7 @@
 - 가족 메모·장보기·루틴을 **household 단위 DB**로 동기화
 - `PlaceButtons.tsx` 미사용이면 정리(삭제 또는 문서화) 여부 결정
 - 반응·공지·피드 상단 고정 등 제품 요구사항 반영
+- **UX 보강(참고·우선순위 별도)**: 온보딩(가치 3단계), 빈 상태 일러스트+CTA, Toast·경량 애니메이션, 로딩 Skeleton — 도입 시 기존 `status`/레이아웃과 충돌 여부부터 점검
 
 ---
 

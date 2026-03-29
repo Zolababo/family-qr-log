@@ -23,6 +23,7 @@ import { NameEditModal } from '../components/home/NameEditModal';
 import { AccessibilitySettingsModal } from '../components/home/AccessibilitySettingsModal';
 import { FamilyMemoPanel } from '../components/home/FamilyMemoPanel';
 import { EnlargedAvatarOverlay } from '../components/home/EnlargedAvatarOverlay';
+import { LogActionSheet } from '../components/home/LogActionSheet';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 
 type Log = {
@@ -2935,78 +2936,20 @@ export default function HomeClient() {
       )}
 
       {actionPopupLogId && (
-        <div
-          role="presentation"
-          style={{ position: 'fixed', inset: 0, zIndex: 50 }}
-          onClick={() => setActionPopupLogId(null)}
-        >
-          <div
-            role="dialog"
-            style={{
-              position: 'fixed',
-              left: '50%',
-              bottom: 80,
-              transform: 'translateX(-50%)',
-              minWidth: 200,
-              padding: '12px 0',
-              borderRadius: 16,
-              background: '#fff',
-              boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
-              border: '1px solid #e2e8f0',
-              zIndex: 51,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {(() => {
-              const log = logs.find((l) => l.id === actionPopupLogId);
-              if (!log) return null;
-              return (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      router.push(`/write?edit=${encodeURIComponent(log.id)}`);
-                      setActionPopupLogId(null);
-                    }}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      padding: '14px 20px',
-                      border: 'none',
-                      background: 'none',
-                      fontSize: 15,
-                      color: highContrast ? '#ffffff' : '#0f172a',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    {t('edit')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleDeleteLog(log.id);
-                      setActionPopupLogId(null);
-                    }}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      padding: '14px 20px',
-                      border: 'none',
-                      background: 'none',
-                      fontSize: 15,
-                      color: '#dc2626',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    {t('delete')}
-                  </button>
-                </>
-              );
-            })()}
-          </div>
-        </div>
+        <LogActionSheet
+          log={logs.find((l) => l.id === actionPopupLogId) ?? null}
+          highContrast={highContrast}
+          t={t}
+          onDismiss={() => setActionPopupLogId(null)}
+          onEdit={(logId) => {
+            router.push(`/write?edit=${encodeURIComponent(logId)}`);
+            setActionPopupLogId(null);
+          }}
+          onDelete={(logId) => {
+            handleDeleteLog(logId);
+            setActionPopupLogId(null);
+          }}
+        />
       )}
 
 
