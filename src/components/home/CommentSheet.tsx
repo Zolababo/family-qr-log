@@ -3,6 +3,7 @@
 import type { RefObject, Dispatch, SetStateAction } from 'react';
 import type { User } from '@supabase/supabase-js';
 import type { LogComment } from './LogFeed';
+import { formatDateTime } from '../../lib/formatDateTime';
 
 export type CommentTarget = { logId: string; parentId: string | null };
 
@@ -17,7 +18,6 @@ type CommentSheetProps = {
   user: User;
   isSameUserId: (a: string, b: string) => boolean;
   getMemberName: (userId: string) => string;
-  formatDateTime: (iso: string) => string;
   editingCommentId: string | null;
   setEditingCommentId: (v: string | null) => void;
   editingCommentValue: string;
@@ -43,7 +43,6 @@ export function CommentSheet({
   user,
   isSameUserId,
   getMemberName,
-  formatDateTime,
   editingCommentId,
   setEditingCommentId,
   editingCommentValue,

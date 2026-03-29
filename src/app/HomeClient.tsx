@@ -10,6 +10,7 @@ import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown
 import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug, type LogSlug } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { getLogMedia } from '../lib/logMedia';
+import { formatDateTime } from '../lib/formatDateTime';
 import { AppHeader } from '../components/layout/AppHeader';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
 import { MemberFilter } from '../components/home/MemberFilter';
@@ -17,6 +18,7 @@ import { LogTagFilterRow } from '../components/home/LogTagFilterRow';
 import { LogFeed } from '../components/home/LogFeed';
 import { CommentSheet } from '../components/home/CommentSheet';
 import { StickerPickerSheet } from '../components/home/StickerPickerSheet';
+import { NameEditModal } from '../components/home/NameEditModal';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 
 type Log = {
@@ -152,24 +154,6 @@ const getPlaceChipStyle = (slug: string) => {
     default:
       return { background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--text-caption)' };
   }
-};
-
-const formatDateTime = (iso: string) => {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-
-  const year = d.getFullYear();
-  const month = (d.getMonth() + 1).toString().padStart(2, '0');
-  const date = d.getDate().toString().padStart(2, '0');
-  const weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
-  const weekday = weekdayNames[d.getDay()];
-
-  const hours = d.getHours();
-  const minutes = d.getMinutes().toString().padStart(2, '0');
-  const ampm = hours < 12 ? '오전' : '오후';
-  const hour12 = hours % 12 || 12;
-
-  return `${year}.${month}.${date} (${weekday}) · ${ampm} ${hour12}:${minutes}`;
 };
 
 const ACCESSIBILITY_KEY = 'family_qr_log_accessibility';
@@ -2658,7 +2642,6 @@ export default function HomeClient() {
                 onUpdateLog={handleUpdateLog}
                 getMemberName={getMemberName}
                 getLogMedia={getLogMedia}
-                formatDateTime={formatDateTime}
                 getLogTagLabelKey={getLogTagLabelKey}
                 commentsByLogId={commentsByLogId}
                 replyingTo={replyingTo}
@@ -2843,7 +2826,6 @@ export default function HomeClient() {
           user={user}
           isSameUserId={isSameUserId}
           getMemberName={getMemberName}
-          formatDateTime={formatDateTime}
           editingCommentId={editingCommentId}
           setEditingCommentId={setEditingCommentId}
           editingCommentValue={editingCommentValue}
@@ -2870,91 +2852,18 @@ export default function HomeClient() {
       )}
 
       {showNameEditModal && (
-        <>
-          <div
-            role="presentation"
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 54 }}
-            onClick={() => setShowNameEditModal(false)}
-            aria-hidden
-          />
-          <div
-            role="dialog"
-            aria-label={t('editName')}
-            style={{
-              position: 'fixed',
-              left: '50%',
-              top: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 'min(340px, 92vw)',
-              padding: 20,
-              borderRadius: 16,
-              background: highContrast ? '#1e1e1e' : '#fff',
-              border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-              zIndex: 55,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ fontSize: 12, color: highContrast ? '#e0e0e0' : '#94a3b8', marginBottom: 8 }}>{t('nameForFamily')}</div>
-            <input
-              value={profileName}
-              onChange={(e) => setProfileName(e.target.value)}
-              placeholder={t('namePlaceholder')}
-              aria-label={t('nameForFamily')}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: '1px solid #e2e8f0',
-                background: '#f8fafc',
-                color: '#0f172a',
-                fontSize: 14,
-                outline: 'none',
-                marginBottom: 12,
-              }}
-            />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => setShowNameEditModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  borderRadius: 10,
-                  border: '1px solid #e2e8f0',
-                  background: '#f1f5f9',
-                  color: '#64748b',
-                  fontSize: 13,
-                  cursor: 'pointer',
-                }}
-              >
-                {t('cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleProfileSave();
-                  setShowNameEditModal(false);
-                }}
-                disabled={profileSaving}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: 13,
-                  cursor: profileSaving ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {profileSaving ? t('saving') : t('save')}
-              </button>
-            </div>
-          </div>
-        </>
+        <NameEditModal
+          highContrast={highContrast}
+          t={t}
+          profileName={profileName}
+          setProfileName={setProfileName}
+          profileSaving={profileSaving}
+          onClose={() => setShowNameEditModal(false)}
+          onSave={() => {
+            void handleProfileSave();
+            setShowNameEditModal(false);
+          }}
+        />
       )}
 
       {user && (
