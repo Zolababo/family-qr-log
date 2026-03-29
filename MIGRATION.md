@@ -133,7 +133,29 @@
 - **목록에서 보기**: 피드 필터 칩. **이번 글 태그**: 다음 로그에 붙는 `place_slug` 선택
 - **가족 메모 카드**: 공지·장보기·루틴 — 읽기/편집, 내용은 로컬 기기에만 저장
 - **올리기** 버튼 문구 (`quickPost`), 빠른 문구, 사진·영상·지도 메타(접기) 등 기존 유지
-- **로딩/피드백 (점진 도입)**: `LogFeedSkeleton` — 최초 로그 로드 + 당겨서 새로고침 중 홈 피드 자리 표시. `Toast` (`src/components/ui/Toast.tsx`) — 기존 `status` 문자열을 하단 고정으로 표시(success/error/info 휴리스틱). `Empty` — 로그 없을 때 빈 문구(현재 `LogFeed`만 연결)
+- **로딩/피드백 (점진 도입)**: `LogFeedSkeleton` — 최초 로그 로드 + 당겨서 새로고침 중 홈 피드 자리 표시. `Toast` (`src/components/ui/Toast.tsx`) — 기존 `status` 문자열을 하단 고정으로 표시(success/error/info 휴리스틱). `Empty` (`src/components/ui/Empty.tsx`) — 빈 화면 문구: `LogFeed`, 검색 탭(결과 없음/로그 없음), 캘린더 날짜 상세, 「오늘의 회상」; `tone="caption"` 으로 보조 영역만 글자 크기 축소
+
+### 세션 인수인계 (끊김 없이 이어가기)
+
+**에이전트/사람이 새 채팅을 열었을 때 할 일**
+1. 이 파일 `MIGRATION.md`를 **`@MIGRATION.md`** 로 붙인다.
+2. 아래 **「이번 세션에서 한 일」** 을 최신 커밋 기준으로 갱신한다 (또는 사용자에게 확인).
+3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
+
+**이번 세션에서 한 일 (최근)**
+- `Empty` 확장: `tone` (`default` | `caption`). 검색 탭에 **결과 없음** 문구 추가(이전에는 미디어·텍스트 둘 다 없을 때 빈 화면이었음). 캘린더 선택 일·오늘의 회상 빈 상태를 `Empty` + `t()` 로 통일.
+- `translations` 키: `calendarDayNoLogs`, `searchEmptyNoMatch`, `todayMemoryEmpty` (ko/en/ja/zh).
+
+**다음 우선순위 (로드맵 표 §6)**  
+1. ~~`Empty` 검색·캘린더~~ → **완료**  
+2. **`Toast` 명시적 `variant` 옵션** ← 다음 권장 단계  
+3. 그 외: Button/Badge, DB 메모 동기화, …
+
+**안정성·보안 체크리스트**
+- 사용자에게 보이는 문구는 **가능하면 `translations` + `t()`** — 4국어 키 누락 금지.
+- Toast·피드백·Empty는 **텍스트 노드만** (HTML 주입 경로 없음).
+- UI만 바꿀 때는 `setState`/API/RLS **호출을 추가·변경하지 않았는지** 확인.
+- Supabase SQL(`scripts/*.sql`)은 **스테이징·백업 후** 적용; 프로덕션은 별도 절차.
 
 **배포**
 - GitHub `main` 푸시 → Vercel 자동 배포. 최근 커밋 예: `feat` 가족 로그 v2 UX, `fix` 홈 UI 단순화(가족 메모 카드 등).
@@ -142,8 +164,8 @@
 
 | 순서 | 작업 | 비고 |
 |------|------|------|
-| 1 | `Empty`를 검색·캘린더 등 다른 빈 화면에 재사용 | 일러스트/CTA는 디자인 확정 후 |
-| 2 | `Toast`에 **명시적 `variant` 옵션** | 휴리스틱 오분류 방지, 중요 메시지부터 |
+| 1 | ~~`Empty` 검색·캘린더·회상~~ | 완료 — 일러스트/CTA는 추후 |
+| 2 | `Toast`에 **명시적 `variant` 옵션** | 휴리스틱 오분류 방지, 중요 메시지부터 ← **다음** |
 | 3 | **Button / Badge** 등 공통 UI | 터치 44px·고대비 유지하며 한 컴포넌트씩 |
 | 4 | **마이크로 인터랙션**(탭 전환·버튼 스케일 등) | `prefers-reduced-motion` 필수 |
 | 5 | 가족 메모·장보기·루틴 **household DB 동기화** | RLS·스키마 검토 |
@@ -162,7 +184,8 @@
 | 2026-03 중 | v2 UX: QR 게스트 안내, 주제/일반 슬러그, `logTags`, LogTagFilterRow, 홈 컴포저 대개편 |
 | 2026-03 후 | 홈 단순화: 가족 메모 카드(읽기/편집), 피드·태그 라벨 구분, 음성 아이콘, 추천 태그 UI 제거 |
 | 2026-03 말 | 홈 피드 Skeleton(최초·pull-refresh), `Toast`로 `status` 표시, `Empty` 도입(LogFeed 빈 상태) |
+| 2026-03 말 | `Empty` 검색·캘린더·오늘의 회상 + 검색 무결과 문구, `MIGRATION` 세션 인수인계 섹션 |
 
 ---
 
-*마지막 업데이트: 2026-03-28 — Skeleton·Toast·Empty·로드맵 표 반영.*
+*마지막 업데이트: 2026-03-29 — Empty 확장·검색 빈 상태·세션 인수인계.*

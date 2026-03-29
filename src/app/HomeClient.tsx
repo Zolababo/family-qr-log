@@ -25,6 +25,7 @@ import { FamilyMemoPanel } from '../components/home/FamilyMemoPanel';
 import { EnlargedAvatarOverlay } from '../components/home/EnlargedAvatarOverlay';
 import { LogActionSheet } from '../components/home/LogActionSheet';
 import { Toast } from '../components/ui/Toast';
+import { Empty } from '../components/ui/Empty';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 
 type Log = {
@@ -2396,9 +2397,7 @@ export default function HomeClient() {
                       }}
                     >
                       {selectedDayLogs.length === 0 ? (
-                        <div style={{ padding: 16, fontSize: 13, color: highContrast ? '#94a3b8' : '#64748b', textAlign: 'center' }}>
-                          이 날짜에 기록된 로그가 없습니다.
-                        </div>
+                        <Empty message={t('calendarDayNoLogs')} captionColor={theme.textSecondary} />
                       ) : (
                         selectedDayLogs.map((log) => {
                           const isMine = user && log.actor_user_id === user.id;
@@ -2600,7 +2599,11 @@ export default function HomeClient() {
                     오늘의 회상
                   </div>
                   {todayMemoryLogs.length === 0 ? (
-                    <div style={{ fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>아직 같은 날짜의 과거 기록이 없어요.</div>
+                    <Empty
+                      tone="caption"
+                      message={t('todayMemoryEmpty')}
+                      captionColor={highContrast ? '#94a3b8' : '#64748b'}
+                    />
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {todayMemoryLogs.map((log) => {
@@ -2767,7 +2770,7 @@ export default function HomeClient() {
                       );
                     })}
                   </div>
-                ) : (
+                ) : searchTextOnlyLogs.length > 0 ? (
                   <div style={{ padding: '0 2px' }}>
                     {searchTextOnlyLogs.slice(0, 80).map((log) => {
                       const parsed = parseLogMeta(log.action);
@@ -2802,6 +2805,11 @@ export default function HomeClient() {
                       );
                     })}
                   </div>
+                ) : (
+                  <Empty
+                    message={searchQuery.trim() ? t('searchEmptyNoMatch') : t('noLogsYet')}
+                    captionColor={theme.textSecondary}
+                  />
                 )}
               </section>
             )}
