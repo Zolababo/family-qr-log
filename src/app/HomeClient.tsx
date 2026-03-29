@@ -6,7 +6,7 @@ import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
-import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Baby, History, MapPin, ExternalLink, Sparkles, Plus, Loader2 } from 'lucide-react';
+import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, Baby, History, MapPin, ExternalLink, Sparkles, Plus, Loader2 } from 'lucide-react';
 import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug, type LogSlug } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { getLogMedia } from '../lib/logMedia';
@@ -21,6 +21,7 @@ import { CommentSheet } from '../components/home/CommentSheet';
 import { StickerPickerSheet } from '../components/home/StickerPickerSheet';
 import { NameEditModal } from '../components/home/NameEditModal';
 import { AccessibilitySettingsModal } from '../components/home/AccessibilitySettingsModal';
+import { FamilyMemoPanel } from '../components/home/FamilyMemoPanel';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 
 type Log = {
@@ -269,7 +270,6 @@ export default function HomeClient() {
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [stickerPickerLogId, setStickerPickerLogId] = useState<string | null>(null);
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
-  const memoSwipeStartRef = useRef<number | null>(null);
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
   const pullRefreshBusyRef = useRef(false);
@@ -2887,107 +2887,19 @@ export default function HomeClient() {
 
 
       {showMemoPanel && (
-        <>
-          <div
-            role="presentation"
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.3)',
-              zIndex: 58,
-              opacity: memoPanelAnimated ? 1 : 0,
-              transition: 'opacity 0.55s ease-out',
-            }}
-            onClick={closeMemoPanel}
-          />
-          <div
-            role="dialog"
-            aria-label="메모"
-            style={{
-              position: 'fixed',
-              top: 0,
-              right: 0,
-              bottom: 0,
-              width: 'min(320px, 85vw)',
-              background: highContrast ? '#1e1e1e' : '#fff',
-              borderLeft: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
-              boxShadow: '-10px 0 30px rgba(0,0,0,0.15)',
-              zIndex: 59,
-              display: 'flex',
-              flexDirection: 'column',
-              padding: 16,
-              overflow: 'hidden',
-              overscrollBehavior: 'contain',
-              touchAction: 'pan-y',
-              transform: memoPanelAnimated ? 'translateX(0)' : 'translateX(24px)',
-              opacity: memoPanelAnimated ? 1 : 0,
-              transition: 'transform 0.65s cubic-bezier(0.22, 0.9, 0.32, 1), opacity 0.55s ease-out',
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => { const t = e.changedTouches?.[0]; if (t) memoSwipeStartRef.current = t.clientX; }}
-            onTouchEnd={(e) => {
-              const t = e.changedTouches?.[0];
-              if (!t || memoSwipeStartRef.current == null) return;
-              const start = memoSwipeStartRef.current;
-              const end = t.clientX;
-              memoSwipeStartRef.current = null;
-              if (end - start > 50) closeMemoPanel();
-            }}
-          >
-            <div style={{ marginBottom: 8, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <FileText size={18} strokeWidth={1.5} aria-hidden />
-                {t('memoTitle')}
-              </h3>
-              <button
-                type="button"
-                onClick={() => void saveSharedMemos()}
-                disabled={memoSaving}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 10,
-                  border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                  background: highContrast ? '#1e1e1e' : '#fff',
-                  color: highContrast ? '#fff' : '#334155',
-                  fontSize: 12,
-                  cursor: memoSaving ? 'wait' : 'pointer',
-                  flexShrink: 0,
-                }}
-              >
-                {memoSaving ? '저장 중...' : t('save')}
-              </button>
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <p style={{ margin: '6px 0 0', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', lineHeight: 1.35 }}>
-                {t('memoSharedHint')}
-              </p>
-            </div>
-            <textarea
-              value={memoContent}
-              onChange={(e) => {
-                sharedMemoTypingUntilRef.current = Date.now() + 2500;
-                setMemoContent(e.target.value);
-              }}
-              placeholder="메모를 입력하세요..."
-              style={{
-                flex: 1,
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: 12,
-                borderRadius: 12,
-                border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
-                background: highContrast ? '#0f0f0f' : '#f8fafc',
-                color: highContrast ? '#fff' : '#0f172a',
-                fontSize: 14,
-                resize: 'none',
-                overflowY: 'auto',
-                overscrollBehavior: 'contain',
-                outline: 'none',
-              }}
-              onWheel={(e) => e.stopPropagation()}
-            />
-          </div>
-        </>
+        <FamilyMemoPanel
+          memoPanelAnimated={memoPanelAnimated}
+          onClose={closeMemoPanel}
+          highContrast={highContrast}
+          t={t}
+          memoContent={memoContent}
+          onMemoContentChange={(value) => {
+            sharedMemoTypingUntilRef.current = Date.now() + 2500;
+            setMemoContent(value);
+          }}
+          memoSaving={memoSaving}
+          onSave={saveSharedMemos}
+        />
       )}
 
       {/* 오른쪽에서 메모 패널 스와이프 감지용. 폭이 너무 넓으면 상단 프로필 칩(특히 맨 오른쪽) 터치를 가로챔 → 좁은 가장자리만 유지 */}
