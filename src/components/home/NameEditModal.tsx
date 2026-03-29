@@ -1,6 +1,7 @@
 'use client';
 
 import type { Dispatch, SetStateAction } from 'react';
+import { Button } from '../ui/Button';
 
 type NameEditModalProps = {
   highContrast: boolean;
@@ -68,40 +69,12 @@ export function NameEditModal({
           }}
         />
         <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              flex: 1,
-              padding: '10px',
-              borderRadius: 10,
-              border: '1px solid #e2e8f0',
-              background: '#f1f5f9',
-              color: '#64748b',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
+          <Button variant="secondary" highContrast={highContrast} onClick={onClose} style={{ flex: 1 }}>
             {t('cancel')}
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={profileSaving}
-            style={{
-              flex: 1,
-              padding: '10px',
-              borderRadius: 10,
-              border: 'none',
-              background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: profileSaving ? 'not-allowed' : 'pointer',
-            }}
-          >
+          </Button>
+          <Button variant="primary" highContrast={highContrast} onClick={onSave} disabled={profileSaving} style={{ flex: 1 }}>
             {profileSaving ? t('saving') : t('save')}
-          </button>
+          </Button>
         </div>
       </div>
     </>
