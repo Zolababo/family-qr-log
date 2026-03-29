@@ -6,11 +6,12 @@ import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
-import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus, Loader2 } from 'lucide-react';
+import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Baby, History, MapPin, ExternalLink, Sparkles, Plus, Loader2 } from 'lucide-react';
 import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug, type LogSlug } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { getLogMedia } from '../lib/logMedia';
 import { formatDateTime } from '../lib/formatDateTime';
+import { FONT_STEPS, type FontScaleStep } from '../lib/accessibilityFont';
 import { AppHeader } from '../components/layout/AppHeader';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
 import { MemberFilter } from '../components/home/MemberFilter';
@@ -19,6 +20,7 @@ import { LogFeed } from '../components/home/LogFeed';
 import { CommentSheet } from '../components/home/CommentSheet';
 import { StickerPickerSheet } from '../components/home/StickerPickerSheet';
 import { NameEditModal } from '../components/home/NameEditModal';
+import { AccessibilitySettingsModal } from '../components/home/AccessibilitySettingsModal';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 
 type Log = {
@@ -159,8 +161,6 @@ const getPlaceChipStyle = (slug: string) => {
 const ACCESSIBILITY_KEY = 'family_qr_log_accessibility';
 const MEMO_KEY = 'family_qr_log_memo';
 const ACTIVE_TAB_KEY = 'family_qr_log_active_tab';
-const FONT_STEPS = [0.875, 1, 1.125, 1.25, 1.375, 1.5, 1.75, 2] as const;
-type FontScaleStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 function legacyFontStep(scale: number): FontScaleStep {
   const idx = FONT_STEPS.findIndex((s) => Math.abs(s - scale) < 0.03);
@@ -3127,166 +3127,21 @@ export default function HomeClient() {
 
 
       {showAccessibilityModal && (
-        <div
-          role="dialog"
-          aria-labelledby="accessibility-title"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 70,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
+        <AccessibilitySettingsModal
+          t={t}
+          highContrast={highContrast}
+          setHighContrast={setHighContrast}
+          accFontDraft={accFontDraft}
+          setAccFontDraft={setAccFontDraft}
+          simpleMode={simpleMode}
+          setSimpleMode={setSimpleMode}
+          onDismiss={() => setShowAccessibilityModal(false)}
+          onApplyAndClose={() => {
+            setFontScaleStep(accFontDraft.step);
+            setFontBold(accFontDraft.bold);
+            setShowAccessibilityModal(false);
           }}
-          onClick={() => setShowAccessibilityModal(false)}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 380,
-              maxHeight: '90vh',
-              overflow: 'auto',
-              padding: 24,
-              borderRadius: 20,
-              background: '#fff',
-              boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
-              border: '1px solid #e2e8f0',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="accessibility-title" style={{ margin: '0 0 20px', fontSize: 20, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Accessibility size={20} strokeWidth={1.5} aria-hidden />
-              {t('accessibility')}
-            </h2>
-
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', marginBottom: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={highContrast}
-                  onChange={(e) => setHighContrast(e.target.checked)}
-                  aria-describedby="high-contrast-desc"
-                />
-                <span style={{ fontSize: 15, color: '#0f172a' }}>{t('highContrast')}</span>
-              </label>
-              <p id="high-contrast-desc" style={{ margin: '0 0 0 28px', fontSize: 12, color: '#64748b' }}>
-                {t('highContrastDesc')}
-              </p>
-            </div>
-
-            <div style={{ marginBottom: 20 }}>
-              <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{t('fontSizeStyle')}</p>
-              <p style={{ margin: '0 0 10px', fontSize: 12, color: '#64748b' }}>{t('bigFontHint')}</p>
-              <div
-                style={{
-                  borderRadius: 14,
-                  border: '1px solid #e8eaed',
-                  background: '#fafafa',
-                  padding: '14px 14px 12px',
-                  marginBottom: 12,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: `clamp(13px, ${0.85 + accFontDraft.step * 0.12}rem, 22px)`,
-                    fontWeight: accFontDraft.bold ? 700 : 500,
-                    color: '#0f172a',
-                    lineHeight: 1.45,
-                    marginBottom: 6,
-                  }}
-                >
-                  {t('fontPreviewLine1')}
-                </div>
-                <div
-                  style={{
-                    fontSize: `clamp(12px, ${0.75 + accFontDraft.step * 0.1}rem, 18px)`,
-                    fontWeight: accFontDraft.bold ? 600 : 400,
-                    color: '#475569',
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  {t('fontPreviewLine2')}
-                </div>
-              </div>
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{t('fontSizeLabel')}</span>
-                  <span style={{ fontSize: 12, color: '#64748b' }}>{Math.round(FONT_STEPS[accFontDraft.step] * 100)}%</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', lineHeight: 1 }} aria-hidden>A</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={7}
-                    step={1}
-                    value={accFontDraft.step}
-                    onChange={(e) =>
-                      setAccFontDraft((d) => ({ ...d, step: Number(e.target.value) as FontScaleStep }))
-                    }
-                    aria-valuetext={`${Math.round(FONT_STEPS[accFontDraft.step] * 100)}%`}
-                    style={{
-                      flex: 1,
-                      height: 6,
-                      accentColor: 'var(--accent)',
-                      cursor: 'pointer',
-                    }}
-                  />
-                  <span style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', lineHeight: 1 }} aria-hidden>A</span>
-                </div>
-              </div>
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', padding: '10px 0', borderTop: '1px solid #f1f5f9' }}>
-                <span style={{ fontSize: 14, color: '#0f172a' }}>{t('fontBold')}</span>
-                <input
-                  type="checkbox"
-                  checked={accFontDraft.bold}
-                  onChange={(e) => setAccFontDraft((d) => ({ ...d, bold: e.target.checked }))}
-                />
-              </label>
-            </div>
-
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', marginBottom: 4 }}>
-                <input
-                  type="checkbox"
-                  checked={simpleMode}
-                  onChange={(e) => setSimpleMode(e.target.checked)}
-                  aria-describedby="simple-mode-desc"
-                />
-                <span style={{ fontSize: 15, color: '#0f172a' }}>{t('simpleMode')}</span>
-              </label>
-              <p id="simple-mode-desc" style={{ margin: '0 0 0 28px', fontSize: 12, color: '#64748b' }}>
-                {t('simpleModeHint')}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setFontScaleStep(accFontDraft.step);
-                setFontBold(accFontDraft.bold);
-                setShowAccessibilityModal(false);
-              }}
-              style={{
-                display: 'block',
-                width: '100%',
-                padding: 14,
-                borderRadius: 12,
-                border: '1px solid #e2e8f0',
-                background: '#f8fafc',
-                color: '#0f172a',
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              {t('close')}
-            </button>
-          </div>
-        </div>
+        />
       )}
     </main>
   );
