@@ -26,6 +26,7 @@ import { EnlargedAvatarOverlay } from '../components/home/EnlargedAvatarOverlay'
 import { LogActionSheet } from '../components/home/LogActionSheet';
 import { Toast } from '../components/ui/Toast';
 import { Empty } from '../components/ui/Empty';
+import { LogTagBadge } from '../components/ui/Badge';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 
 type Log = {
@@ -2423,14 +2424,13 @@ export default function HomeClient() {
                               className="log-card"
                               style={highContrast ? { border: '1px solid #ffc107', background: '#2a2a2a' } : undefined}
                             >
-                              <button
-                                type="button"
+                              <LogTagBadge
+                                slug={log.place_slug}
                                 onClick={() => applyTagFromLogCard(log.place_slug)}
-                                className={`log-tag-chip ${log.place_slug}`}
-                                style={{ border: 'none', cursor: 'pointer' }}
+                                aria-label={`태그 ${t(getLogTagLabelKey(log.place_slug))} 필터`}
                               >
                                 #{t(getLogTagLabelKey(log.place_slug))}
-                              </button>
+                              </LogTagBadge>
                               <div className="log-time" style={highContrast ? { color: '#94a3b8' } : undefined}>{formatDateTime(log.created_at)}</div>
                               <div className="log-content" style={highContrast ? { color: '#fff' } : undefined}>
                                 {parseLogMeta(log.action).text}
@@ -2801,14 +2801,13 @@ export default function HomeClient() {
                           }}
                         >
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
-                            <button
-                              type="button"
+                            <LogTagBadge
+                              slug={log.place_slug}
                               onClick={() => applyTagFromLogCard(log.place_slug)}
-                              className={`log-tag-chip ${log.place_slug}`}
-                              style={{ border: 'none', cursor: 'pointer' }}
+                              aria-label={`태그 ${t(getLogTagLabelKey(log.place_slug))} 필터`}
                             >
                               #{t(getLogTagLabelKey(log.place_slug))}
-                            </button>
+                            </LogTagBadge>
                             <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : 'var(--text-caption)' }}>
                               {formatDateTime(log.created_at)}
                             </span>

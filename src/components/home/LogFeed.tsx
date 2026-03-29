@@ -10,6 +10,7 @@ import type { LogMediaResult } from '../../lib/logMedia';
 import { formatDateTime } from '../../lib/formatDateTime';
 import { LogFeedSkeleton } from './LogFeedSkeleton';
 import { Empty } from '../ui/Empty';
+import { LogTagBadge } from '../ui/Badge';
 
 export type Log = {
   id: string;
@@ -302,18 +303,16 @@ export function LogFeed({
                     ) : (
                       <>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                          <button
-                            type="button"
+                          <LogTagBadge
+                            slug={log.place_slug}
                             onClick={(e) => {
                               e.stopPropagation();
                               onTagClick?.(log.place_slug);
                             }}
-                            className={`log-tag-chip ${log.place_slug}`}
-                            style={{ border: 'none', cursor: 'pointer' }}
                             aria-label={`태그 ${t(getLogTagLabelKey(log.place_slug))} 필터`}
                           >
                             #{t(getLogTagLabelKey(log.place_slug))}
-                          </button>
+                          </LogTagBadge>
                           <span style={{ fontSize: 12, color: highContrast ? '#94a3b8' : 'var(--text-caption)' }}>
                             {formatDateTime(log.created_at)}
                           </span>

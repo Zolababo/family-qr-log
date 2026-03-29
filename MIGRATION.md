@@ -125,7 +125,7 @@
 - 메인: `src/app/HomeClient.tsx`
 - 태그/필터: `src/lib/logTags.ts`
 - 홈: `src/components/home/LogTagFilterRow.tsx`, `LogFeed.tsx`, `LogFeedSkeleton.tsx`, `src/components/layout/AppHeader.tsx`, `BottomTabBar.tsx`, `MemberFilter.tsx`
-- 공통 UI(소규모): `src/components/ui/Toast.tsx`, `src/components/ui/Empty.tsx`
+- 공통 UI(소규모): `src/components/ui/Toast.tsx`, `src/components/ui/Empty.tsx`, `src/components/ui/Badge.tsx` (`LogTagBadge` — 로그 태그 칩)
 - 스타일: `src/app/globals.css`
 - 문자열: `src/app/translations.ts` (키 예: `familyBoardTitle`, `feedFilterTitle`, `nextPostTagLabel`, `qrTabGuest`, `logGeneral`, `topicHealth` …)
 
@@ -143,12 +143,12 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
-- `Toast`: `variant` prop + **`setAppStatus(msg, tone?)`** 로 홈의 모든 토스트 톤을 명시(오류/성공/정보). `inferToastVariant`는 톤 생략 시에만 사용.
-- (이전) `Empty` 확장·검색 무결과·캘린더·회상, `translations` 키 다국어.
+- `LogTagBadge` (`src/components/ui/Badge.tsx`): 로그 태그 칩 버튼 공통화 — `LogFeed`, 캘린더 일별 목록, 검색 텍스트 목록.
+- (이전) `Toast` `setAppStatus`, `Empty` 확장 등.
 
 **다음 우선순위 (로드맵 표 §6)**  
-1. ~~`Empty`~~ · ~~`Toast` 명시 톤~~ → **완료**  
-2. **Button / Badge** 등 공통 UI 한 종류씩 ← **다음 권장**  
+1. ~~`Empty`~~ · ~~`Toast` 명시 톤~~ · ~~`LogTagBadge`~~ → **완료**  
+2. **Button** 프리미티브(또는 기존 버튼 패턴 정리) ← **다음 권장**  
 3. DB 메모 동기화, 마이크로 인터랙션, …
 
 **안정성·보안 체크리스트**
@@ -167,11 +167,12 @@
 |------|------|------|
 | 1 | ~~`Empty` 검색·캘린더·회상~~ | 완료 — 일러스트/CTA는 추후 |
 | 2 | ~~`Toast` `setAppStatus` + `variant`~~ | 완료 |
-| 3 | **Button / Badge** 등 공통 UI | 터치 44px·고대비 유지하며 한 컴포넌트씩 ← **다음** |
-| 4 | **마이크로 인터랙션**(탭 전환·버튼 스케일 등) | `prefers-reduced-motion` 필수 |
-| 5 | 가족 메모·장보기·루틴 **household DB 동기화** | RLS·스키마 검토 |
-| 6 | `PlaceButtons.tsx` 미사용이면 정리 | 삭제 또는 문서만 |
-| 7 | **v0 토큰** 실제 적용 | `docs/v0-design-tokens-reference.md` → `globals` 통합 전 충돌 검토 |
+| 3 | ~~`LogTagBadge` (`Badge.tsx`)~~ | 완료 — `LogFeed`·캘린더 일별·검색 텍스트 목록 |
+| 4 | **Button** 프리미티브 등 | 터치 44px·고대비 유지하며 한 단계씩 ← **다음** |
+| 5 | **마이크로 인터랙션**(탭 전환·버튼 스케일 등) | `prefers-reduced-motion` 필수 |
+| 6 | 가족 메모·장보기·루틴 **household DB 동기화** | RLS·스키마 검토 |
+| 7 | `PlaceButtons.tsx` 미사용이면 정리 | 삭제 또는 문서만 |
+| 8 | **v0 토큰** 실제 적용 | `docs/v0-design-tokens-reference.md` → `globals` 통합 전 충돌 검토 |
 
 - 반응·공지·피드 상단 고정 등 제품 요구사항은 별도 우선순위
 
@@ -187,7 +188,8 @@
 | 2026-03 말 | 홈 피드 Skeleton(최초·pull-refresh), `Toast`로 `status` 표시, `Empty` 도입(LogFeed 빈 상태) |
 | 2026-03 말 | `Empty` 검색·캘린더·오늘의 회상 + 검색 무결과 문구, `MIGRATION` 세션 인수인계 섹션 |
 | 2026-03 말 | `Toast` 명시 톤: `setAppStatus`, `statusToastTone`, `Toast` `variant` prop |
+| 2026-03 말 | `LogTagBadge` (`Badge.tsx`) — 피드·캘린더·검색 태그 칩 |
 
 ---
 
-*마지막 업데이트: 2026-03-29 — Toast 명시 variant·setAppStatus·로드맵 갱신.*
+*마지막 업데이트: 2026-03-29 — LogTagBadge·로드맵 갱신.*
