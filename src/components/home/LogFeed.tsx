@@ -77,6 +77,8 @@ type LogFeedProps = {
   onTagClick?: (slug: string) => void;
   /** 가구 로그 최초 페치 중(홈 피드 자리 표시) */
   logsInitialLoading?: boolean;
+  /** 당겨서 새로고침 중(홈 피드 자리 표시) */
+  logsRefreshLoading?: boolean;
 };
 
 export function LogFeed({
@@ -112,8 +114,11 @@ export function LogFeed({
   onStickerRemove,
   onTagClick,
   logsInitialLoading = false,
+  logsRefreshLoading = false,
 }: LogFeedProps) {
   const router = useRouter();
+  const showFeedSkeleton = logsInitialLoading || logsRefreshLoading;
+  const feedSkeletonLabel = logsRefreshLoading ? t('pullRefreshLoading') : t('feedSkeletonLoading');
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const [pausedVideoId, setPausedVideoId] = useState<string | null>(null);
   const openMediaPage = (type: 'image' | 'video', url: string, imageUrls?: string[], imageIndex = 0) => {
@@ -147,7 +152,7 @@ export function LogFeed({
     (activeTab === 'home' || activeTab === 'search') && (
       <section
         aria-label={t('recentLogs')}
-        aria-busy={logsInitialLoading}
+        aria-busy={showFeedSkeleton}
         style={{ marginLeft: -16, marginRight: -16, width: 'calc(100% + 32px)' }}
       >
         <div style={{ paddingLeft: 16, paddingRight: 16 }}>
@@ -181,8 +186,8 @@ export function LogFeed({
             padding: 0,
           }}
         >
-          {logsInitialLoading ? (
-            <LogFeedSkeleton highContrast={highContrast} />
+          {showFeedSkeleton ? (
+            <LogFeedSkeleton highContrast={highContrast} statusLabel={feedSkeletonLabel} />
           ) : (
             <>
           {logsByDate.length === 0 && (

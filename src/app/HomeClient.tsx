@@ -2674,6 +2674,7 @@ export default function HomeClient() {
                 }}
                 onTagClick={applyTagFromLogCard}
                 logsInitialLoading={logsInitialLoading}
+                logsRefreshLoading={pullRefreshRefreshing}
               />
             )}
             {activeTab === 'search' && (

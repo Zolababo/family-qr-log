@@ -1,7 +1,7 @@
 'use client';
 
-/** 홈 피드 최초 로드 전 자리 표시(애니메이션은 prefers-reduced-motion 시 비활성) */
-export function LogFeedSkeleton({ highContrast }: { highContrast: boolean }) {
+/** 홈 피드 로드·새로고침 중 자리 표시(애니메이션은 prefers-reduced-motion 시 비활성) */
+export function LogFeedSkeleton({ highContrast, statusLabel }: { highContrast: boolean; statusLabel: string }) {
   const bar = (w: string) => (
     <div
       className="log-feed-skeleton-bar"
@@ -20,7 +20,7 @@ export function LogFeedSkeleton({ highContrast }: { highContrast: boolean }) {
   return (
     <div style={{ paddingLeft: 16, paddingRight: 16, paddingTop: 4 }}>
       <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-caption)', marginBottom: 10, letterSpacing: '0.04em' }}>
-        로딩 중…
+        {statusLabel}
       </div>
       {[0, 1, 2, 3].map((i) => (
         <div
