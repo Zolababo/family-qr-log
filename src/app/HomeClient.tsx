@@ -24,6 +24,7 @@ import { AccessibilitySettingsModal } from '../components/home/AccessibilitySett
 import { FamilyMemoPanel } from '../components/home/FamilyMemoPanel';
 import { EnlargedAvatarOverlay } from '../components/home/EnlargedAvatarOverlay';
 import { LogActionSheet } from '../components/home/LogActionSheet';
+import { Toast } from '../components/ui/Toast';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 
 type Log = {
@@ -2140,27 +2141,7 @@ export default function HomeClient() {
         )}
 
         {status && (
-          <div
-            style={{
-              marginBottom: 16,
-              fontSize: 13,
-              padding: '10px 14px',
-              borderRadius: theme.radius,
-              opacity: statusFading ? 0 : 1,
-              transition: 'opacity 0.35s ease-out',
-              color: status.includes('실패') || status.includes('필요') ? '#b91c1c' : 'var(--place-table-icon)',
-              background:
-                status.includes('실패') || status.includes('필요')
-                  ? 'rgba(248,113,113,0.1)'
-                  : 'var(--place-table)',
-              border:
-                status.includes('실패') || status.includes('필요')
-                  ? '1px solid rgba(248,113,113,0.4)'
-                  : '1px solid var(--place-table-icon)',
-            }}
-          >
-            {status}
-          </div>
+          <Toast message={status} fading={statusFading} highContrast={highContrast} liftAboveTabBar={!!user} />
         )}
 
         {!user && (
