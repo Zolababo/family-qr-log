@@ -6,6 +6,7 @@
 --
 -- 이미 적용한 스크립트:
 --   scripts/enable-log-comments-rls-policies.sql  → log_comments
+--   scripts/enable-household-memos-rls-policies.sql  → household_memos (가족 메모 동기화)
 --
 -- 확인 순서:
 -- 1) 아래 쿼리로 RLS 활성화·정책 목록 확인

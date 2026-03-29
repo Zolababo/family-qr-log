@@ -78,9 +78,9 @@
 | **QR 탭** | `qrTabGuest` 문구: 게스트/첫 방문용 안내. **가족은 홈에서 기록** |
 | **URL `?place=`** | 로그인 사용자: `LOG_SLUG` 전체에 매칭되면 태그 프리필 후 URL 정리 |
 
-**로컬 저장(중요)**  
-- 가족 공지 / 장보기 / 루틴은 **`localStorage`** (`family_qr_log_notice` 등). **기기·브라우저마다 다름**; Supabase 동기화는 **아직 없음**.  
-- 다음 단계로 하려면 Supabase 테이블 + RLS 또는 기존 `household_memos` 확장 검토.
+**로컬 + 원격(가족 메모)**  
+- 앱은 **`household_memos`**(content, family_notice, shopping_list, updated_at)로 upsert + Realtime·폴링; 테이블이 없거나 RLS/스키마 오류 시 **`logs` 스냅샷**(`@@meta`류) 또는 로컬 **`localStorage`** 로 폴백.  
+- **배포 시:** `scripts/add-household-memos-board-columns.sql` → `household-memos-updated-at.sql`(트리거) → **`enable-household-memos-rls-policies.sql`** 순서 권장. Realtime에 `household_memos` 포함 확인.
 
 ### 2-4. 예전과 달라진 점 (문서 정리용)
 - **홈 상단 냉장고·식탁·화장실 전용 버튼(`PlaceButtons`)** 으로 “장소 먼저 고르기” 하던 흐름은 **홈에서 제거**됨. 컴포넌트 파일 `PlaceButtons.tsx`는 저장소에 남아 있을 수 있으나 **현재 홈 플로우에는 미사용**.
@@ -95,7 +95,7 @@
 
 - **배포 후 화면이 안 바뀌는 것처럼 보일 때**: 브라우저·PWA 캐시 삭제, 또는 Vercel 배포 완료 여부 확인. `globals.css`/`HomeClient` 인라인 혼용 시 캐시 이슈가 있었음 → 지금은 변수·테마 정리됨.
 - **Context used가 높을 때**: 새 채팅 + **`@MIGRATION.md`** (섹션 0).
-- **가족 메모(공지·장보기·루틴)**: 현재 **로컬만**. 가족 간 공유하려면 DB 설계 필요.
+- **가족 메모**: 코드상 **동기화 시도**는 있음 (`household_memos`). 프로젝트에 테이블·**RLS·`updated_at` 트리거**가 없으면 폴백만 동작 — `scripts/` SQL 적용 여부 확인.
 - **스티커 / 남의 로그 수정**: `logs` RLS·`@@meta` 구조는 `DEPLOY.md`·SQL 참고. 반응 전용 테이블 분리는 미래 개선안.
 - **스크롤 단계별 연출**(프로필→장소→로그): 요청 이력 있음, 미완.
 - **아기 얼굴·성장 타임라인 고도화**: MVP·개인정보 검토 필요.
@@ -131,7 +131,7 @@
 
 **UI/UX (현재)**
 - **목록에서 보기**: 피드 필터 칩. **이번 글 태그**: 다음 로그에 붙는 `place_slug` 선택
-- **가족 메모 카드**: 공지·장보기·루틴 — 읽기/편집, 내용은 로컬 기기에만 저장
+- **가족 메모 카드**: 공지·장보기·루틴 — 읽기/편집; **`household_memos` + RLS** 적용 시 가족 간 동기화(미적용 시 로컬·로그 폴백)
 - **올리기** 버튼 문구 (`quickPost`), 빠른 문구, 사진·영상·지도 메타(접기) 등 기존 유지
 - **로딩/피드백 (점진 도입)**: `LogFeedSkeleton` — 최초 로그 로드 + 당겨서 새로고침 중 홈 피드 자리 표시. `Toast` — `status` 문자열 + **`setAppStatus(msg, tone?)`** (`HomeClient.tsx`): 두 번째 인자로 `success` | `error` | `info` 고정(생략 시 `inferToastVariant(msg)`). `Empty` — 빈 화면 문구: `LogFeed`, 검색 탭, 캘린더 날짜 상세, 「오늘의 회상」; `tone="caption"` 보조 스타일
 
@@ -143,20 +143,20 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
-- **마이크로 인터랙션(1차):** `globals.css` — 모션 감소 시 버튼 호버 효과 제거, 하단 탭 전환 부드럽게, `:active` 탭 피드백.
-- (이전) `Button`, `LogTagBadge`, `Toast`, `Empty` 등.
+- **`household_memos` 배포용 SQL:** `scripts/enable-household-memos-rls-policies.sql` 추가, `household-memos-updated-at.sql`에 **UPDATE 시 `updated_at` 트리거** 명시. 문서(로컬만 표현) 정정.
+- (이전) 마이크로 인터랙션, `Button`, `LogTagBadge` 등.
 
 **다음 우선순위 (로드맵 표 §6)**  
-1. ~~UI 프리미티브 · 마이크로 인터랙션(1차)~~  
-2. **가족 메모 household DB 동기화** ← **다음 권장** (RLS·스키마)  
-3. `PlaceButtons` 정리, v0 토큰 …
+1. ~~가족 메모 RLS·트리거 스크립트~~ (프로젝트에 SQL **적용**은 운영자 작업)  
+2. **`PlaceButtons` 정리** ← **다음 권장**  
+3. v0 토큰 …
 
 ### 진척도 (§6 로드맵 표 8단계 기준)
 
 | 구분 | 내용 |
 |------|------|
-| **완료** | **5 / 8** (62.5%) — 위 4항 + **마이크로 인터랙션(1차):** `globals.css` — `prefers-reduced-motion: reduce` 시 버튼 호버 스케일·전환 끔, 하단 탭 `.bottom-tab-btn` 배경/색 200ms, `:active` 살짝 축소(모션 허용 시만). 탭 **콘텐츠** 페이드는 리마운트 부작용 피하려 미적용. |
-| **남은 표상 단계** | **3단계** — household DB 메모 동기화(6), `PlaceButtons` 정리(7), v0 토큰 실제 적용(8) |
+| **완료** | **6 / 8** (75%) — 위 5항 + **가족 메모 DB 쪽(레포):** RLS 스크립트 + `updated_at` 트리거 정리(배포 시 Supabase에서 실행). |
+| **남은 표상 단계** | **2단계** — `PlaceButtons` 정리(7), v0 토큰 실제 적용(8) |
 | **참고** | 표 밖 제품 요구(반응·피드 고정 등)는 별도. v0 전체 컴포넌트 목록과 1:1은 아님 — **안정적으로 쓰는 것부터** 채움. |
 
 **안정성·보안 체크리스트**
@@ -178,8 +178,8 @@
 | 3 | ~~`LogTagBadge` (`Badge.tsx`)~~ | 완료 — `LogFeed`·캘린더 일별·검색 텍스트 목록 |
 | 4 | ~~**Button** (`NameEditModal`부터)~~ | 완료 — `ghost`는 추후 화면에서 |
 | 5 | ~~**마이크로 인터랙션** (1차: CSS만)~~ | 완료 — 탭 콘텐츠 페이드는 미적용(리마운트 회피) |
-| 6 | 가족 메모·장보기·루틴 **household DB 동기화** | RLS·스키마 검토 ← **다음** |
-| 7 | `PlaceButtons.tsx` 미사용이면 정리 | 삭제 또는 문서만 |
+| 6 | ~~가족 메모 **RLS + updated_at 트리거** (스크립트)~~ | 레포 반영 완료 — **프로덕션 적용**은 별도 |
+| 7 | `PlaceButtons.tsx` 미사용이면 정리 | 삭제 또는 문서만 ← **다음** |
 | 8 | **v0 토큰** 실제 적용 | `docs/v0-design-tokens-reference.md` → `globals` 통합 전 충돌 검토 |
 
 - 반응·공지·피드 상단 고정 등 제품 요구사항은 별도 우선순위
@@ -199,7 +199,8 @@
 | 2026-03 말 | `LogTagBadge` (`Badge.tsx`) — 피드·캘린더·검색 태그 칩 |
 | 2026-03 말 | `Button` 프리미티브 + `NameEditModal`, 진척도(4/8) 정리 |
 | 2026-03 말 | 마이크로 인터랙션 1차 (`globals` + `prefers-reduced-motion`), 진척도 5/8 |
+| 2026-03 말 | `household_memos` RLS 스크립트 + `updated_at` 트리거, 진척도 6/8, 메모 동기화 문서 정정 |
 
 ---
 
-*마지막 업데이트: 2026-03-29 — 마이크로 인터랙션 1차·진척도 5/8.*
+*마지막 업데이트: 2026-03-29 — household_memos RLS·트리거·진척도 6/8.*

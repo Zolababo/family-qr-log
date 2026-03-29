@@ -10,6 +10,19 @@ ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 UPDATE public.household_memos SET updated_at = COALESCE(updated_at, NOW());
 
--- 선택: 행 수정 시마다 updated_at 자동 갱신 (DB에 맞게 한 번만 생성)
--- CREATE OR REPLACE FUNCTION public.touch_household_memos_updated_at() ...
--- CREATE TRIGGER ... BEFORE UPDATE ON public.household_memos ...
+-- 행 수정 시마다 updated_at 자동 갱신(앱의 원격/로컬 순서 판별에 사용)
+CREATE OR REPLACE FUNCTION public.touch_household_memos_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at := NOW();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_household_memos_touch_updated_at ON public.household_memos;
+CREATE TRIGGER trg_household_memos_touch_updated_at
+  BEFORE UPDATE ON public.household_memos
+  FOR EACH ROW
+  EXECUTE FUNCTION public.touch_household_memos_updated_at();
