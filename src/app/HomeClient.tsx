@@ -9,6 +9,7 @@ import { getT, langLabels, type Lang } from './translations';
 import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, FileText, Accessibility, Baby, History, MapPin, ExternalLink, Sparkles, Plus, Loader2 } from 'lucide-react';
 import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug, type LogSlug } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
+import { getLogMedia } from '../lib/logMedia';
 import { AppHeader } from '../components/layout/AppHeader';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
 import { MemberFilter } from '../components/home/MemberFilter';
@@ -30,28 +31,6 @@ type Log = {
   image_urls?: string | string[] | null;
   video_url?: string | null;
 };
-
-function getLogMedia(log: Log): { imageUrls: string[]; videoUrl: string | null } {
-  let imageUrls: string[] = [];
-  const raw = log.image_urls;
-  if (Array.isArray(raw)) {
-    imageUrls = raw.filter((u): u is string => typeof u === 'string');
-  } else if (typeof raw === 'string' && raw.trim()) {
-    try {
-      const parsed = JSON.parse(raw);
-      imageUrls = Array.isArray(parsed) ? parsed.filter((u): u is string => typeof u === 'string') : [];
-    } catch {
-      // JSON이 깨진 문자열이어도, URL만 추출해서 최소한 미디어는 보이게 합니다.
-      const matches = raw.match(/https?:\/\/[^\s",)]+/g);
-      const escapedMatches = raw.match(/https?:\\\/\\\/[^\s",)]+/g)?.map((u) => u.replace(/\\\//g, '/'));
-      const merged = [...(matches ?? []), ...(escapedMatches ?? [])];
-      if (merged.length > 0) imageUrls = merged;
-    }
-  }
-  if (imageUrls.length === 0 && log.image_url) imageUrls = [log.image_url];
-  const videoUrl = log.video_url && log.video_url.trim() ? log.video_url : null;
-  return { imageUrls, videoUrl };
-}
 
 type Member = {
   user_id: string;

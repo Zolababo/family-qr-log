@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Calendar, MessageCircle, Play, MapPin, ExternalLink, Sparkles } from 'lucide-react';
 import { parseLogMeta } from '../../lib/logActionMeta';
 import { sanitizeExternalUrl } from '../../lib/safeUrl';
+import type { LogMediaResult } from '../../lib/logMedia';
 
 export type Log = {
   id: string;
@@ -55,7 +56,7 @@ type LogFeedProps = {
   setEditingAction: (v: string) => void;
   onUpdateLog: (logId: string, newAction: string) => void | Promise<void>;
   getMemberName: (userId: string) => string;
-  getLogMedia: (log: Log) => { imageUrls: string[]; videoUrl: string | null };
+  getLogMedia: (log: Log) => LogMediaResult;
   formatDateTime: (iso: string) => string;
   getLogTagLabelKey: (slug: string) => string;
   commentsByLogId: Record<string, LogComment[]>;
