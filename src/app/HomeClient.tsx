@@ -22,6 +22,7 @@ import { StickerPickerSheet } from '../components/home/StickerPickerSheet';
 import { NameEditModal } from '../components/home/NameEditModal';
 import { AccessibilitySettingsModal } from '../components/home/AccessibilitySettingsModal';
 import { FamilyMemoPanel } from '../components/home/FamilyMemoPanel';
+import { EnlargedAvatarOverlay } from '../components/home/EnlargedAvatarOverlay';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 
 type Log = {
@@ -2930,36 +2931,7 @@ export default function HomeClient() {
       />
 
       {enlargedAvatarUrl && (
-        <div
-          role="dialog"
-          aria-label="프로필 사진 확대"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: '#000',
-            zIndex: 90,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-            touchAction: 'manipulation',
-          }}
-          onClick={() => setEnlargedAvatarUrl(null)}
-        >
-          <img
-            src={enlargedAvatarUrl}
-            alt=""
-            style={{
-              width: '100vw',
-              height: '100vh',
-              maxWidth: '100vw',
-              maxHeight: '100vh',
-              objectFit: 'contain',
-              display: 'block',
-            }}
-            onClick={() => setEnlargedAvatarUrl(null)}
-          />
-        </div>
+        <EnlargedAvatarOverlay imageUrl={enlargedAvatarUrl} onClose={() => setEnlargedAvatarUrl(null)} />
       )}
 
       {actionPopupLogId && (
