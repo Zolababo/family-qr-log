@@ -133,7 +133,7 @@
 - **목록에서 보기**: 피드 필터 칩. **이번 글 태그**: 다음 로그에 붙는 `place_slug` 선택
 - **가족 메모 카드**: 공지·장보기·루틴 — 읽기/편집, 내용은 로컬 기기에만 저장
 - **올리기** 버튼 문구 (`quickPost`), 빠른 문구, 사진·영상·지도 메타(접기) 등 기존 유지
-- **로딩/피드백 (점진 도입)**: `LogFeedSkeleton` — 최초 로그 로드 + 당겨서 새로고침 중 홈 피드 자리 표시. `Toast` (`src/components/ui/Toast.tsx`) — 기존 `status` 문자열을 하단 고정으로 표시(success/error/info 휴리스틱). `Empty` (`src/components/ui/Empty.tsx`) — 빈 화면 문구: `LogFeed`, 검색 탭(결과 없음/로그 없음), 캘린더 날짜 상세, 「오늘의 회상」; `tone="caption"` 으로 보조 영역만 글자 크기 축소
+- **로딩/피드백 (점진 도입)**: `LogFeedSkeleton` — 최초 로그 로드 + 당겨서 새로고침 중 홈 피드 자리 표시. `Toast` — `status` 문자열 + **`setAppStatus(msg, tone?)`** (`HomeClient.tsx`): 두 번째 인자로 `success` | `error` | `info` 고정(생략 시 `inferToastVariant(msg)`). `Empty` — 빈 화면 문구: `LogFeed`, 검색 탭, 캘린더 날짜 상세, 「오늘의 회상」; `tone="caption"` 보조 스타일
 
 ### 세션 인수인계 (끊김 없이 이어가기)
 
@@ -143,17 +143,18 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
-- `Empty` 확장: `tone` (`default` | `caption`). 검색 탭에 **결과 없음** 문구 추가(이전에는 미디어·텍스트 둘 다 없을 때 빈 화면이었음). 캘린더 선택 일·오늘의 회상 빈 상태를 `Empty` + `t()` 로 통일.
-- `translations` 키: `calendarDayNoLogs`, `searchEmptyNoMatch`, `todayMemoryEmpty` (ko/en/ja/zh).
+- `Toast`: `variant` prop + **`setAppStatus(msg, tone?)`** 로 홈의 모든 토스트 톤을 명시(오류/성공/정보). `inferToastVariant`는 톤 생략 시에만 사용.
+- (이전) `Empty` 확장·검색 무결과·캘린더·회상, `translations` 키 다국어.
 
 **다음 우선순위 (로드맵 표 §6)**  
-1. ~~`Empty` 검색·캘린더~~ → **완료**  
-2. **`Toast` 명시적 `variant` 옵션** ← 다음 권장 단계  
-3. 그 외: Button/Badge, DB 메모 동기화, …
+1. ~~`Empty`~~ · ~~`Toast` 명시 톤~~ → **완료**  
+2. **Button / Badge** 등 공통 UI 한 종류씩 ← **다음 권장**  
+3. DB 메모 동기화, 마이크로 인터랙션, …
 
 **안정성·보안 체크리스트**
 - 사용자에게 보이는 문구는 **가능하면 `translations` + `t()`** — 4국어 키 누락 금지.
 - Toast·피드백·Empty는 **텍스트 노드만** (HTML 주입 경로 없음).
+- 홈 알림은 **`setAppStatus(msg, tone?)`** 만 사용(내부 `setStatusInternal` 직접 호출 금지 — 톤 불일치 방지).
 - UI만 바꿀 때는 `setState`/API/RLS **호출을 추가·변경하지 않았는지** 확인.
 - Supabase SQL(`scripts/*.sql`)은 **스테이징·백업 후** 적용; 프로덕션은 별도 절차.
 
@@ -165,8 +166,8 @@
 | 순서 | 작업 | 비고 |
 |------|------|------|
 | 1 | ~~`Empty` 검색·캘린더·회상~~ | 완료 — 일러스트/CTA는 추후 |
-| 2 | `Toast`에 **명시적 `variant` 옵션** | 휴리스틱 오분류 방지, 중요 메시지부터 ← **다음** |
-| 3 | **Button / Badge** 등 공통 UI | 터치 44px·고대비 유지하며 한 컴포넌트씩 |
+| 2 | ~~`Toast` `setAppStatus` + `variant`~~ | 완료 |
+| 3 | **Button / Badge** 등 공통 UI | 터치 44px·고대비 유지하며 한 컴포넌트씩 ← **다음** |
 | 4 | **마이크로 인터랙션**(탭 전환·버튼 스케일 등) | `prefers-reduced-motion` 필수 |
 | 5 | 가족 메모·장보기·루틴 **household DB 동기화** | RLS·스키마 검토 |
 | 6 | `PlaceButtons.tsx` 미사용이면 정리 | 삭제 또는 문서만 |
@@ -185,7 +186,8 @@
 | 2026-03 후 | 홈 단순화: 가족 메모 카드(읽기/편집), 피드·태그 라벨 구분, 음성 아이콘, 추천 태그 UI 제거 |
 | 2026-03 말 | 홈 피드 Skeleton(최초·pull-refresh), `Toast`로 `status` 표시, `Empty` 도입(LogFeed 빈 상태) |
 | 2026-03 말 | `Empty` 검색·캘린더·오늘의 회상 + 검색 무결과 문구, `MIGRATION` 세션 인수인계 섹션 |
+| 2026-03 말 | `Toast` 명시 톤: `setAppStatus`, `statusToastTone`, `Toast` `variant` prop |
 
 ---
 
-*마지막 업데이트: 2026-03-29 — Empty 확장·검색 빈 상태·세션 인수인계.*
+*마지막 업데이트: 2026-03-29 — Toast 명시 variant·setAppStatus·로드맵 갱신.*

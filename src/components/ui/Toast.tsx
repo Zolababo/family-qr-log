@@ -22,16 +22,20 @@ export function inferToastVariant(message: string): 'success' | 'error' | 'info'
   return 'info';
 }
 
+export type ToastVariant = 'success' | 'error' | 'info';
+
 type ToastProps = {
   message: string;
   fading: boolean;
   highContrast: boolean;
   /** 로그인 시 하단 탭 위로 띄움 */
   liftAboveTabBar: boolean;
+  /** 지정 시 문자열 휴리스틱 대신 사용(안정적인 톤 고정) */
+  variant?: ToastVariant | null;
 };
 
-export function Toast({ message, fading, highContrast, liftAboveTabBar }: ToastProps) {
-  const variant = inferToastVariant(message);
+export function Toast({ message, fading, highContrast, liftAboveTabBar, variant: variantProp }: ToastProps) {
+  const variant: ToastVariant = variantProp ?? inferToastVariant(message);
 
   const palette =
     variant === 'error'

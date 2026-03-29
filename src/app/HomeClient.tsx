@@ -223,8 +223,16 @@ export default function HomeClient() {
   const [shoppingList, setShoppingList] = useState('');
   const [feedFilterOpen, setFeedFilterOpen] = useState(false);
 
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatusInternal] = useState<string | null>(null);
+  /** null이면 `inferToastVariant(status)` 사용 */
+  const [statusToastTone, setStatusToastTone] = useState<'success' | 'error' | 'info' | null>(null);
   const [statusFading, setStatusFading] = useState(false);
+
+  const setAppStatus = useCallback((msg: string | null, tone?: 'success' | 'error' | 'info') => {
+    setStatusInternal(msg);
+    if (msg === null) setStatusToastTone(null);
+    else setStatusToastTone(tone !== undefined ? tone : null);
+  }, []);
 
   const [profileName, setProfileName] = useState('');
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
@@ -309,7 +317,7 @@ export default function HomeClient() {
 
   useEffect(() => {
     const init = async () => {
-      setStatus(null);
+      setAppStatus(null);
 
       const {
         data: { user },
@@ -317,7 +325,7 @@ export default function HomeClient() {
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        setStatus('로그인이 필요합니다.');
+        setAppStatus('로그인이 필요합니다.', 'error');
         return;
       }
 
@@ -346,13 +354,13 @@ export default function HomeClient() {
       }
 
       if (memberError) {
-        setStatus(`members 조회 실패: ${memberError.message}`);
+        setAppStatus(`members 조회 실패: ${memberError.message}`, 'error');
         return;
       }
 
       const myMember = myMembers?.[0];
       if (!myMember) {
-        setStatus('members 조회 실패: row 없음 (members 테이블에 user_id 확인)');
+        setAppStatus('members 조회 실패: row 없음 (members 테이블에 user_id 확인)', 'error');
         return;
       }
 
@@ -682,7 +690,7 @@ export default function HomeClient() {
         }
       }
       if (error) {
-        setStatus(`메모 저장 실패: ${error.message}`);
+        setAppStatus(`메모 저장 실패: ${error.message}`, 'error');
       }
     }, 900);
     return () => {
@@ -705,7 +713,7 @@ export default function HomeClient() {
     if (!autoHide) return;
 
     const fadeTimer = window.setTimeout(() => setStatusFading(true), 1600);
-    const clearTimer = window.setTimeout(() => setStatus(null), 2400);
+    const clearTimer = window.setTimeout(() => setAppStatus(null), 2400);
     return () => {
       window.clearTimeout(fadeTimer);
       window.clearTimeout(clearTimer);
@@ -793,7 +801,7 @@ export default function HomeClient() {
       if (reqSeq !== loadLogsReqSeqRef.current) return;
 
       if (error) {
-        setStatus(`logs 조회 실패: ${error.message}`);
+        setAppStatus(`logs 조회 실패: ${error.message}`, 'error');
         return;
       }
 
@@ -842,7 +850,7 @@ export default function HomeClient() {
       });
       setCommentSending(false);
       if (error) {
-        setStatus(`댓글 저장 실패: ${error.message}`);
+        setAppStatus(`댓글 저장 실패: ${error.message}`, 'error');
         return;
       }
       await loadComments([logId]);
@@ -876,11 +884,11 @@ export default function HomeClient() {
         const hint = /policy|row-level|rls|permission|not allowed|forbidden/i.test(error.message ?? '')
           ? ' (DB RLS 정책 점검 필요: scripts/enable-log-comments-rls-policies.sql 실행)'
           : '';
-        setStatus(`댓글 수정 실패: ${error.message}${hint}`);
+        setAppStatus(`댓글 수정 실패: ${error.message}${hint}`, 'error');
         return;
       }
       if (!data) {
-        setStatus('댓글 수정 실패: 권한 또는 정책 문제로 반영되지 않았습니다. (RLS 정책 확인)');
+        setAppStatus('댓글 수정 실패: 권한 또는 정책 문제로 반영되지 않았습니다. (RLS 정책 확인)', 'error');
         return;
       }
       await loadComments([logId]);
@@ -919,19 +927,20 @@ export default function HomeClient() {
               setEditingCommentId(null);
               setEditingCommentValue('');
             }
-            setStatus('답글이 있어 댓글 내용만 삭제되었습니다.');
+            setAppStatus('답글이 있어 댓글 내용만 삭제되었습니다.', 'success');
             return;
           }
         }
         const hint = /policy|row-level|rls|permission|not allowed|forbidden/i.test(error.message ?? '')
           ? ' (DB RLS 정책 점검 필요: scripts/enable-log-comments-rls-policies.sql 실행)'
           : '';
-        setStatus(`댓글 삭제 실패: ${error.message}${hint}`);
+        setAppStatus(`댓글 삭제 실패: ${error.message}${hint}`, 'error');
         return;
       }
       if (!deleted) {
-        setStatus(
+        setAppStatus(
           '댓글 삭제 실패: 반영된 행이 없습니다. Supabase SQL Editor에서 scripts/enable-log-comments-rls-policies.sql 을 다시 실행해 주세요.',
+          'error',
         );
         return;
       }
@@ -1024,7 +1033,7 @@ export default function HomeClient() {
         .eq('id', logId);
 
       if (error) {
-        setStatus(`스티커 저장 실패: ${error.message}`);
+        setAppStatus(`스티커 저장 실패: ${error.message}`, 'error');
         return;
       }
 
@@ -1269,12 +1278,12 @@ export default function HomeClient() {
     if (!user || !householdId) return;
     const { error } = await supabase.from('logs').update({ action: newAction }).eq('id', logId).eq('actor_user_id', user.id);
     if (error) {
-      setStatus(`수정 실패: ${error.message}`);
+      setAppStatus(`수정 실패: ${error.message}`, 'error');
       return;
     }
     setEditingLogId(null);
     setEditingAction('');
-    setStatus('수정되었습니다.');
+    setAppStatus('수정되었습니다.', 'success');
     refreshLogs();
   };
 
@@ -1283,11 +1292,11 @@ export default function HomeClient() {
     if (!window.confirm(t('deleteConfirm'))) return;
     const { error } = await supabase.from('logs').delete().eq('id', logId).eq('actor_user_id', user.id);
     if (error) {
-      setStatus(`삭제 실패: ${error.message}`);
+      setAppStatus(`삭제 실패: ${error.message}`, 'error');
       return;
     }
     setEditingLogId(null);
-    setStatus('삭제되었습니다.');
+    setAppStatus('삭제되었습니다.', 'success');
     refreshLogs();
   };
 
@@ -1295,7 +1304,7 @@ export default function HomeClient() {
     if (!user || !householdId) return;
     const trimmed = profileName.trim();
     if (!trimmed) {
-      setStatus('이름을 입력하세요.');
+      setAppStatus('이름을 입력하세요.', 'info');
       return;
     }
 
@@ -1307,7 +1316,7 @@ export default function HomeClient() {
       .eq('user_id', user.id);
 
     if (error) {
-      setStatus(`프로필 저장 실패: ${error.message}`);
+      setAppStatus(`프로필 저장 실패: ${error.message}`, 'error');
       setProfileSaving(false);
       return;
     }
@@ -1315,7 +1324,7 @@ export default function HomeClient() {
     setMembers((prev) =>
       prev.map((m) => (m.user_id === user.id ? { ...m, display_name: trimmed } : m))
     );
-    setStatus('이름이 저장되었습니다.');
+    setAppStatus('이름이 저장되었습니다.', 'success');
     setProfileSaving(false);
   };
 
@@ -1324,11 +1333,11 @@ export default function HomeClient() {
       const file = e.target.files?.[0];
       e.target.value = '';
       if (!file) {
-        setStatus('파일이 선택되지 않았습니다. 다시 시도해 주세요.');
+        setAppStatus('파일이 선택되지 않았습니다. 다시 시도해 주세요.', 'info');
         return;
       }
       if (!user || !householdId) {
-        setStatus('로그인 후 다시 시도해 주세요.');
+        setAppStatus('로그인 후 다시 시도해 주세요.', 'error');
         return;
       }
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
@@ -1336,11 +1345,11 @@ export default function HomeClient() {
       const isImageType = file.type.startsWith('image/');
       const isImageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'].includes(ext);
       if (!isImageType && !isImageExt) {
-        setStatus('사진 파일만 선택해 주세요. (jpg, png, heic 등)');
+        setAppStatus('사진 파일만 선택해 주세요. (jpg, png, heic 등)', 'info');
         return;
       }
       setProfileAvatarUploading(true);
-      setStatus('프로필 사진 업로드 중...');
+      setAppStatus('프로필 사진 업로드 중...', 'info');
       let fileToUpload: File = file;
       if (isHeic && typeof window !== 'undefined') {
         try {
@@ -1350,7 +1359,7 @@ export default function HomeClient() {
           if (!blob) throw new Error('Conversion failed');
           fileToUpload = new File([blob], file.name.replace(/\.[^.]+$/i, '.jpg'), { type: 'image/jpeg' });
         } catch (err) {
-          setStatus('HEIC 변환에 실패했습니다. JPEG/PNG로 올려 주세요.');
+          setAppStatus('HEIC 변환에 실패했습니다. JPEG/PNG로 올려 주세요.', 'error');
           setProfileAvatarUploading(false);
           return;
         }
@@ -1367,7 +1376,7 @@ export default function HomeClient() {
         const hint = /bucket|policy|row-level|RLS|storage/i.test(msg)
           ? ' → Supabase Storage에 "avatars" 버킷을 만들고, DEPLOY.md 프로필 사진 ②·③을 했는지 확인해 주세요.'
           : '';
-        setStatus(`프로필 사진 업로드 실패: ${msg}${hint}`);
+        setAppStatus(`프로필 사진 업로드 실패: ${msg}${hint}`, 'error');
         setProfileAvatarUploading(false);
         return;
       }
@@ -1383,7 +1392,7 @@ export default function HomeClient() {
         const hint = /avatar_url|column|does not exist/i.test(msg)
           ? ' → SQL Editor에서 실행: ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar_url TEXT;'
           : '';
-        setStatus(`프로필 저장 실패: ${msg}${hint}`);
+        setAppStatus(`프로필 저장 실패: ${msg}${hint}`, 'error');
         setProfileAvatarUploading(false);
         return;
       }
@@ -1392,7 +1401,7 @@ export default function HomeClient() {
       setMembers((prev) =>
         prev.map((m) => (m.user_id === user.id ? { ...m, avatar_url: publicUrl } : m))
       );
-      setStatus('프로필 사진이 변경되었습니다.');
+      setAppStatus('프로필 사진이 변경되었습니다.', 'success');
       setProfileAvatarUploading(false);
     },
     [user, householdId]
@@ -1765,7 +1774,7 @@ export default function HomeClient() {
       });
       if (snapshotAction === lastSavedSharedMemoSnapshotActionRef.current) {
         setMemoSaving(false);
-        setStatus('가족 메모가 저장되었습니다.');
+        setAppStatus('가족 메모가 저장되었습니다.', 'success');
         return;
       }
       const res = await supabase.from('logs').insert({
@@ -1782,10 +1791,10 @@ export default function HomeClient() {
     }
     setMemoSaving(false);
     if (error) {
-      setStatus(`메모 저장 실패: ${error.message}`);
+      setAppStatus(`메모 저장 실패: ${error.message}`, 'error');
       return;
     }
-    setStatus('가족 메모가 저장되었습니다.');
+    setAppStatus('가족 메모가 저장되었습니다.', 'success');
   }, [householdId, user, memoContent, familyNotice, shoppingList]);
 
   const theme = {
@@ -2142,7 +2151,13 @@ export default function HomeClient() {
         )}
 
         {status && (
-          <Toast message={status} fading={statusFading} highContrast={highContrast} liftAboveTabBar={!!user} />
+          <Toast
+            message={status}
+            variant={statusToastTone}
+            fading={statusFading}
+            highContrast={highContrast}
+            liftAboveTabBar={!!user}
+          />
         )}
 
         {!user && (
