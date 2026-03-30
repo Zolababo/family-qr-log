@@ -1,35 +1,35 @@
 @import "tailwindcss";
 
-/* ========== 1) Design tokens (라이트/따뜻한 미니멀) ========== */
+/* ========== 1) Design tokens (라이트/우드 무드, 저채도) ========== */
 :root {
   /* 배경 */
-  --bg-base: #f6f3ee;
-  --bg-card: #fffdf9;
-  --bg-subtle: #f1ebe2;
+  --bg-base: #f5efe6;
+  --bg-card: #fffcf7;
+  --bg-subtle: #efe6d8;
 
   /* 텍스트 */
-  --text-primary: #1f2320;
-  --text-secondary: #5f6762;
-  --text-caption: #8a938d;
+  --text-primary: #2d241b;
+  --text-secondary: #6b5b4a;
+  --text-caption: #9a8875;
 
-  /* 포인트 컬러 (세이지 그린, 중간 강도) */
-  --accent: #3f7466;
-  --accent-light: #e6f0eb;
+  /* 포인트 컬러 (웜 브라운, 중간 강도) */
+  --accent: #8b6a4f;
+  --accent-light: #f3e8db;
 
   /* 장소별 컬러 (기존 이름 유지) */
-  --place-fridge: #dbeef9;
-  --place-fridge-icon: #2f82b3;
-  --place-table: #dff1e7;
-  --place-table-icon: #2f7e58;
-  --place-toilet: #faf3d9;
-  --place-toilet-icon: #9d7a1f;
+  --place-fridge: #ebe3d6;
+  --place-fridge-icon: #7a654f;
+  --place-table: #f0e7db;
+  --place-table-icon: #8d6e52;
+  --place-toilet: #f7ecdf;
+  --place-toilet-icon: #9a7758;
 
   /* 장소 번호 토큰 (place-1 ~ place-5) */
-  --place-1: #dbeef9;
-  --place-2: #dff1e7;
-  --place-3: #faf3d9;
-  --place-4: #ece6f4;
-  --place-5: #f8e5ed;
+  --place-1: #ebe3d6;
+  --place-2: #f0e7db;
+  --place-3: #f7ecdf;
+  --place-4: #efe4d8;
+  --place-5: #f4e9df;
 
   /* 모서리/간격 (8pt grid 기반) */
   --radius-sm: 8px;
@@ -43,13 +43,13 @@
   --space-6: 24px;
 
   /* 그림자 */
-  --shadow-card: 0 6px 20px rgba(39, 46, 41, 0.08);
+  --shadow-card: 0 6px 20px rgba(67, 50, 33, 0.09);
 
   /* 구분선 */
-  --divider: #e8e2d8;
+  --divider: #e3d7c8;
 
   /* 멤버 칩 테두리 */
-  --border-chip: #dbd4c9;
+  --border-chip: #d8cab8;
 }
 
 /* ========== 2) Legacy palette (다크/네온용, 접근성 고대비에서 사용) ========== */
