@@ -150,7 +150,7 @@ export default function MediaViewerClient() {
           style={{
             border: '1px solid rgba(255,255,255,0.35)',
             background: 'rgba(0,0,0,0.35)',
-            color: '#fff',
+            color: 'var(--color-text-strong)',
             borderRadius: 999,
             width: 40,
             height: 40,
@@ -170,7 +170,7 @@ export default function MediaViewerClient() {
           style={{
             border: '1px solid rgba(255,255,255,0.35)',
             background: 'rgba(0,0,0,0.35)',
-            color: '#fff',
+            color: 'var(--color-text-strong)',
             borderRadius: 999,
             width: 40,
             height: 40,

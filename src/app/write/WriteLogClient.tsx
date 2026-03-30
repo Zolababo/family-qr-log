@@ -582,7 +582,7 @@ export default function WriteLogClient() {
             justifyContent: 'center',
             width: 40,
             height: 40,
-            borderRadius: 10,
+            borderRadius: 'var(--radius-md)',
             border: 'none',
             background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
             color: theme.text,
@@ -623,9 +623,9 @@ export default function WriteLogClient() {
                 flexShrink: 0,
                 padding: '6px 12px',
                 borderRadius: 999,
-                border: '1px solid #e2e8f0',
-                background: selectedLogTag === tag.value ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
-                color: selectedLogTag === tag.value ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
+                border: '1px solid var(--divider)',
+                background: selectedLogTag === tag.value ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+                color: selectedLogTag === tag.value ? 'var(--accent)' : highContrast ? '#94a3b8' : 'var(--text-secondary)',
                 fontSize: 12,
                 fontWeight: selectedLogTag === tag.value ? 600 : 400,
                 cursor: 'pointer',
@@ -638,14 +638,14 @@ export default function WriteLogClient() {
 
         <div style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: highContrast ? '#ffffff' : '#64748b' }}>{t('quickPhrases')}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: highContrast ? '#ffffff' : 'var(--text-secondary)' }}>{t('quickPhrases')}</span>
             <button
               type="button"
               onClick={() => setShowPhraseManager(true)}
               aria-label={quickPhrases.length > 0 ? t('manage') : t('add')}
               style={{
                 fontSize: 12,
-                color: highContrast ? '#ffc107' : '#3b82f6',
+                color: highContrast ? '#ffc107' : 'var(--accent)',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
@@ -665,9 +665,9 @@ export default function WriteLogClient() {
                   style={{
                     padding: '8px 14px',
                     borderRadius: 999,
-                    border: '1px solid #e2e8f0',
-                    background: '#fff',
-                    color: '#475569',
+                    border: '1px solid var(--divider)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-secondary)',
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -693,11 +693,11 @@ export default function WriteLogClient() {
               boxSizing: 'border-box',
               resize: 'none',
               borderRadius: 12,
-              border: '1px solid #e2e8f0',
+              border: '1px solid var(--divider)',
               padding: 12,
               fontSize: 14,
-              background: highContrast ? '#1e1e1e' : '#f8fafc',
-              color: highContrast ? '#fff' : '#0f172a',
+              background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+              color: highContrast ? '#fff' : 'var(--text-primary)',
               outline: 'none',
             }}
           />
@@ -715,8 +715,8 @@ export default function WriteLogClient() {
               width: 48,
               minHeight: 48,
               borderRadius: 12,
-              border: '1px solid #e2e8f0',
-              background: voiceListening ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
+              border: '1px solid var(--divider)',
+              background: voiceListening ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
               color: theme.text,
               cursor: voiceListening ? 'wait' : 'pointer',
             }}
@@ -737,9 +737,9 @@ export default function WriteLogClient() {
               gap: 10,
               padding: '10px 12px',
               borderRadius: 12,
-              border: '1px solid #e2e8f0',
-              background: highContrast ? '#1e1e1e' : '#f8fafc',
-              color: highContrast ? '#fff' : '#475569',
+              border: '1px solid var(--divider)',
+              background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+              color: highContrast ? '#fff' : 'var(--text-secondary)',
               fontSize: 13,
               cursor: 'pointer',
             }}
@@ -764,12 +764,12 @@ export default function WriteLogClient() {
                   style={{
                     flex: 1,
                     minWidth: 0,
-                    borderRadius: 10,
-                    border: '1px solid #e2e8f0',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--divider)',
                     padding: '10px 12px',
                     fontSize: 13,
-                    background: highContrast ? '#1e1e1e' : '#f8fafc',
-                    color: highContrast ? '#fff' : '#0f172a',
+                    background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+                    color: highContrast ? '#fff' : 'var(--text-primary)',
                     outline: 'none',
                   }}
                 />
@@ -791,10 +791,10 @@ export default function WriteLogClient() {
                       .finally(() => setLocationSearching(false));
                   }}
                   style={{
-                    border: '1px solid #e2e8f0',
-                    background: '#fff',
-                    color: '#475569',
-                    borderRadius: 10,
+                    border: '1px solid var(--divider)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-secondary)',
+                    borderRadius: 'var(--radius-md)',
                     padding: '0 10px',
                     fontSize: 12,
                     cursor: 'pointer',
@@ -818,10 +818,10 @@ export default function WriteLogClient() {
                         flexShrink: 0,
                         maxWidth: 260,
                         padding: '8px 10px',
-                        borderRadius: 10,
-                        border: '1px solid #e2e8f0',
-                        background: highContrast ? '#1e1e1e' : '#fff',
-                        color: highContrast ? '#fff' : '#334155',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--divider)',
+                        background: highContrast ? '#1e1e1e' : 'var(--bg-card)',
+                        color: highContrast ? '#fff' : 'var(--text-secondary)',
                         fontSize: 12,
                         textAlign: 'left',
                         cursor: 'pointer',
@@ -841,12 +841,12 @@ export default function WriteLogClient() {
                 style={{
                   width: '100%',
                   boxSizing: 'border-box',
-                  borderRadius: 10,
-                  border: '1px solid #e2e8f0',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--divider)',
                   padding: '10px 12px',
                   fontSize: 13,
-                  background: highContrast ? '#1e1e1e' : '#f8fafc',
-                  color: highContrast ? '#fff' : '#0f172a',
+                  background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+                  color: highContrast ? '#fff' : 'var(--text-primary)',
                   outline: 'none',
                 }}
               />
@@ -894,9 +894,9 @@ export default function WriteLogClient() {
                 gap: 6,
                 padding: '10px 14px',
                 borderRadius: 12,
-                border: '1px solid #e2e8f0',
-                background: mediaBusy ? '#e2e8f0' : '#f8fafc',
-                color: mediaBusy ? '#94a3b8' : '#475569',
+                border: '1px solid var(--divider)',
+                background: mediaBusy ? 'var(--divider)' : 'var(--bg-subtle)',
+                color: mediaBusy ? 'var(--text-caption)' : 'var(--text-secondary)',
                 fontSize: 13,
                 cursor: mediaBusy ? 'wait' : 'pointer',
                 pointerEvents: mediaBusy ? 'none' : 'auto',
@@ -916,9 +916,9 @@ export default function WriteLogClient() {
                 gap: 6,
                 padding: '10px 14px',
                 borderRadius: 12,
-                border: '1px solid #e2e8f0',
-                background: mediaBusy ? '#e2e8f0' : '#f8fafc',
-                color: mediaBusy ? '#94a3b8' : '#475569',
+                border: '1px solid var(--divider)',
+                background: mediaBusy ? 'var(--divider)' : 'var(--bg-subtle)',
+                color: mediaBusy ? 'var(--text-caption)' : 'var(--text-secondary)',
                 fontSize: 13,
                 cursor: mediaBusy ? 'wait' : 'pointer',
                 pointerEvents: mediaBusy ? 'none' : 'auto',
@@ -938,9 +938,9 @@ export default function WriteLogClient() {
                 gap: 6,
                 padding: '10px 14px',
                 borderRadius: 12,
-                border: '1px solid #e2e8f0',
-                background: '#f8fafc',
-                color: '#475569',
+                border: '1px solid var(--divider)',
+                background: 'var(--bg-subtle)',
+                color: 'var(--text-secondary)',
                 fontSize: 13,
                 cursor: 'pointer',
                 flexShrink: 0,
@@ -1000,7 +1000,7 @@ export default function WriteLogClient() {
                       borderRadius: 6,
                       border: 'none',
                       background: 'rgba(0,0,0,0.6)',
-                      color: '#fff',
+                      color: 'var(--bg-card)',
                       fontSize: 10,
                       cursor: 'pointer',
                     }}
@@ -1025,7 +1025,7 @@ export default function WriteLogClient() {
                       borderRadius: '50%',
                       border: 'none',
                       background: 'rgba(0,0,0,0.6)',
-                      color: '#fff',
+                      color: 'var(--bg-card)',
                       fontSize: 14,
                       lineHeight: 1,
                       cursor: 'pointer',
@@ -1078,7 +1078,7 @@ export default function WriteLogClient() {
                       borderRadius: '50%',
                       border: 'none',
                       background: 'rgba(0,0,0,0.6)',
-                      color: '#fff',
+                      color: 'var(--bg-card)',
                       fontSize: 14,
                       lineHeight: 1,
                       cursor: 'pointer',
@@ -1091,10 +1091,10 @@ export default function WriteLogClient() {
             </div>
           )}
           {imageCompressing && (
-            <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b' }}>{t('writeCompressing')}</p>
+            <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--text-secondary)' }}>{t('writeCompressing')}</p>
           )}
           {videoCompressing && (
-            <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b' }}>{t('writeCompressingVideo')}</p>
+            <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--text-secondary)' }}>{t('writeCompressingVideo')}</p>
           )}
         </div>
 
@@ -1110,8 +1110,11 @@ export default function WriteLogClient() {
             fontSize: 14,
             fontWeight: 600,
             cursor: loading || !householdId || mediaBusy ? 'not-allowed' : 'pointer',
-            background: loading || !householdId || mediaBusy ? 'rgba(100,116,139,0.5)' : 'var(--accent)',
-            color: '#fff',
+            background:
+              loading || !householdId || mediaBusy
+                ? 'color-mix(in srgb, var(--text-secondary) 45%, transparent)'
+                : 'var(--accent)',
+            color: 'var(--bg-card)',
             minHeight: 42,
             boxShadow: 'var(--shadow-card)',
           }}
@@ -1140,18 +1143,18 @@ export default function WriteLogClient() {
               overflow: 'auto',
               padding: 16,
               borderRadius: 16,
-              background: highContrast ? '#1e1e1e' : '#fff',
-              border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+              background: highContrast ? '#1e1e1e' : 'var(--bg-card)',
+              border: highContrast ? '2px solid #ffc107' : '1px solid var(--divider)',
               zIndex: 59,
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 id="write-decorate-title" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 id="write-decorate-title" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <ImageIcon size={20} strokeWidth={1.5} aria-hidden />
                 {t('writeDecorateTitle')}
               </h3>
-              <button type="button" onClick={() => setEditImageIndex(null)} aria-label={t('close')} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <button type="button" onClick={() => setEditImageIndex(null)} aria-label={t('close')} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'var(--bg-subtle)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <X size={20} strokeWidth={1.5} aria-hidden />
               </button>
             </div>
@@ -1163,7 +1166,7 @@ export default function WriteLogClient() {
                 maxHeight: 220,
                 objectFit: 'contain',
                 borderRadius: 12,
-                border: '1px solid #e2e8f0',
+                border: '1px solid var(--divider)',
                 ...(editImageFilter === 'grayscale' && { filter: 'grayscale(100%)' }),
                 ...(editImageFilter === 'sepia' && { filter: 'sepia(100%)' }),
               }}
@@ -1177,10 +1180,10 @@ export default function WriteLogClient() {
                     onClick={() => setEditImageFilter(f)}
                     style={{
                       padding: '8px 12px',
-                      borderRadius: 10,
-                      border: editImageFilter === f ? '2px solid #3b82f6' : '1px solid #e2e8f0',
-                      background: editImageFilter === f ? 'rgba(59,130,246,0.15)' : '#f8fafc',
-                      color: editImageFilter === f ? '#1d4ed8' : '#64748b',
+                      borderRadius: 'var(--radius-md)',
+                      border: editImageFilter === f ? '2px solid var(--accent)' : '1px solid var(--divider)',
+                      background: editImageFilter === f ? 'var(--accent-light)' : 'var(--bg-subtle)',
+                      color: editImageFilter === f ? 'var(--accent-hover)' : 'var(--text-secondary)',
                       fontSize: 12,
                       cursor: 'pointer',
                     }}
@@ -1189,7 +1192,7 @@ export default function WriteLogClient() {
                   </button>
                 ))}
               </div>
-              <div style={{ fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b', marginBottom: 6 }}>{t('writeCaptionLabel')}</div>
+              <div style={{ fontSize: 12, color: highContrast ? '#94a3b8' : 'var(--text-secondary)', marginBottom: 6 }}>{t('writeCaptionLabel')}</div>
               <input
                 type="text"
                 value={editImageTag}
@@ -1198,20 +1201,20 @@ export default function WriteLogClient() {
                   width: '100%',
                   boxSizing: 'border-box',
                   padding: '10px 12px',
-                  borderRadius: 10,
-                  border: '1px solid #e2e8f0',
-                  background: highContrast ? '#0f0f0f' : '#f8fafc',
-                  color: highContrast ? '#fff' : '#0f172a',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--divider)',
+                  background: highContrast ? '#0f0f0f' : 'var(--bg-subtle)',
+                  color: highContrast ? '#fff' : 'var(--text-primary)',
                   fontSize: 14,
                   outline: 'none',
                 }}
               />
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-              <button type="button" onClick={() => setEditImageIndex(null)} style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 13, cursor: 'pointer' }}>
+              <button type="button" onClick={() => setEditImageIndex(null)} style={{ padding: '10px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--divider)', background: 'var(--bg-subtle)', fontSize: 13, cursor: 'pointer' }}>
                 {t('cancel')}
               </button>
-              <button type="button" onClick={applyImageEdit} style={{ flex: 1, padding: '10px 16px', borderRadius: 10, border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+              <button type="button" onClick={applyImageEdit} style={{ flex: 1, padding: '10px 16px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--accent)', color: 'var(--bg-card)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                 {t('writeApply')}
               </button>
             </div>
@@ -1233,20 +1236,20 @@ export default function WriteLogClient() {
               width: 'min(360px, 92vw)',
               padding: 16,
               borderRadius: 16,
-              background: highContrast ? '#1e1e1e' : '#fff',
-              border: highContrast ? '2px solid #ffc107' : '1px solid #e2e8f0',
+              background: highContrast ? '#1e1e1e' : 'var(--bg-card)',
+              border: highContrast ? '2px solid #ffc107' : '1px solid var(--divider)',
               boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
               zIndex: 59,
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>{t('writeDrawTitle')}</h3>
-              <button type="button" onClick={() => setShowDrawModal(false)} aria-label={t('close')} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f1f5f9', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : 'var(--text-primary)' }}>{t('writeDrawTitle')}</h3>
+              <button type="button" onClick={() => setShowDrawModal(false)} aria-label={t('close')} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'var(--bg-subtle)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <X size={20} strokeWidth={1.5} aria-hidden />
               </button>
             </div>
-            <p style={{ margin: '0 0 8px', fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>{t('writeDrawHint')}</p>
+            <p style={{ margin: '0 0 8px', fontSize: 12, color: highContrast ? '#94a3b8' : 'var(--text-secondary)' }}>{t('writeDrawHint')}</p>
             <canvas
               ref={drawCanvasRef}
               style={{
@@ -1255,8 +1258,8 @@ export default function WriteLogClient() {
                 maxWidth: '100%',
                 height: 280,
                 borderRadius: 12,
-                border: '2px solid #e2e8f0',
-                background: '#fff',
+                border: '2px solid var(--divider)',
+                background: 'var(--bg-card)',
                 touchAction: 'none',
               }}
               onPointerDown={(e) => {
@@ -1310,7 +1313,7 @@ export default function WriteLogClient() {
                   const prev = drawHistoryRef.current[drawHistoryRef.current.length - 1];
                   if (prev) ctx.putImageData(prev, 0, 0);
                 }}
-                style={{ flex: 1, minHeight: 42, padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                style={{ flex: 1, minHeight: 42, padding: '10px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--divider)', background: 'var(--bg-subtle)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
                 되돌리기
               </button>
@@ -1326,7 +1329,7 @@ export default function WriteLogClient() {
                     drawHistoryRef.current = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
                   }
                 }}
-                style={{ flex: 1, minHeight: 42, padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                style={{ flex: 1, minHeight: 42, padding: '10px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--divider)', background: 'var(--bg-subtle)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
                 {t('writeDrawClear')}
               </button>
@@ -1345,7 +1348,7 @@ export default function WriteLogClient() {
                     setShowDrawModal(false);
                   }, 'image/png');
                 }}
-                style={{ flex: 1, minHeight: 42, padding: '10px 12px', borderRadius: 10, border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center' }}
+                style={{ flex: 1, minHeight: 42, padding: '10px 12px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--accent)', color: 'var(--bg-card)', fontWeight: 600, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center' }}
               >
                 {t('writeDrawDone')}
               </button>
@@ -1372,14 +1375,14 @@ export default function WriteLogClient() {
               overflow: 'auto',
               padding: 20,
               borderRadius: 20,
-              background: '#fff',
+              background: 'var(--bg-card)',
               boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
-              border: '1px solid #e2e8f0',
+              border: '1px solid var(--divider)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{t('phraseManageTitle')}</h3>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>{t('phraseManageTitle')}</h3>
               <button
                 type="button"
                 onClick={() => {
@@ -1390,9 +1393,9 @@ export default function WriteLogClient() {
                 style={{
                   padding: '6px 10px',
                   borderRadius: 8,
-                  border: '1px solid #e2e8f0',
-                  background: '#f8fafc',
-                  color: '#64748b',
+                  border: '1px solid var(--divider)',
+                  background: 'var(--bg-subtle)',
+                  color: 'var(--text-secondary)',
                   fontSize: 12,
                   cursor: 'pointer',
                 }}
@@ -1400,7 +1403,7 @@ export default function WriteLogClient() {
                 {t('close')}
               </button>
             </div>
-            <p style={{ margin: '0 0 12px', fontSize: 11, color: '#94a3b8' }}>{t('phraseManageHint')}</p>
+            <p style={{ margin: '0 0 12px', fontSize: 11, color: 'var(--text-caption)' }}>{t('phraseManageHint')}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16, minHeight: 32 }}>
               {quickPhrases.map((phrase, i) => (
                 <span
@@ -1411,10 +1414,10 @@ export default function WriteLogClient() {
                     gap: 4,
                     padding: '6px 10px',
                     borderRadius: 999,
-                    background: '#f1f5f9',
-                    border: '1px solid #e2e8f0',
+                    background: 'var(--bg-subtle)',
+                    border: '1px solid var(--divider)',
                     fontSize: 13,
-                    color: '#334155',
+                    color: 'var(--text-secondary)',
                   }}
                 >
                   {phrase}
@@ -1428,8 +1431,8 @@ export default function WriteLogClient() {
                       height: 18,
                       borderRadius: '50%',
                       border: 'none',
-                      background: '#cbd5e1',
-                      color: '#fff',
+                      background: 'var(--text-caption)',
+                      color: 'var(--bg-card)',
                       fontSize: 12,
                       lineHeight: 1,
                       cursor: 'pointer',
@@ -1453,10 +1456,10 @@ export default function WriteLogClient() {
                   flex: 1,
                   minWidth: 0,
                   padding: '10px 12px',
-                  borderRadius: 10,
-                  border: '1px solid #e2e8f0',
-                  background: '#f8fafc',
-                  color: '#0f172a',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--divider)',
+                  background: 'var(--bg-subtle)',
+                  color: 'var(--text-primary)',
                   fontSize: 13,
                   outline: 'none',
                 }}
@@ -1481,10 +1484,10 @@ export default function WriteLogClient() {
                 }}
                 style={{
                   padding: '10px 16px',
-                  borderRadius: 10,
+                  borderRadius: 'var(--radius-md)',
                   border: 'none',
-                  background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
-                  color: '#fff',
+                  background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))',
+                  color: 'var(--bg-card)',
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: 'pointer',
