@@ -17,7 +17,7 @@ type AppHeaderProps = {
 
 export function AppHeader({ theme, highContrast, t }: AppHeaderProps) {
   return (
-    <header style={{ marginBottom: 0, paddingBottom: 2, borderBottom: 'none' }}>
+    <header style={{ marginBottom: 0, paddingTop: 'var(--space-2)', paddingBottom: 'var(--space-2)', borderBottom: 'none' }}>
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
         <h1
           id="app-title"

@@ -300,6 +300,19 @@ body {
   }
 }
 
+/* 홈 메인 스크롤: 좌·우·상단 여백 (8pt 그리드, 하단은 탭바 높이로 인라인 유지) */
+.home-scroll-region {
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  padding-right: max(var(--space-4), env(safe-area-inset-right));
+  padding-top: var(--space-2);
+}
+
+/* 하단 탭 내비: 세이프 에어리어 + 터치 여유 */
+.bottom-tab-nav {
+  padding-top: var(--space-2);
+  padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+}
+
 /* 상단 홈 영역: 뷰포트 풀폭 (내부 max-width 컨테이너에서 돌출) */
 .home-top-bleed {
   width: 100vw;
@@ -307,8 +320,8 @@ body {
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
   box-sizing: border-box;
-  padding-left: max(12px, env(safe-area-inset-left));
-  padding-right: max(12px, env(safe-area-inset-right));
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  padding-right: max(var(--space-4), env(safe-area-inset-right));
   background: var(--bg-base);
   overflow-x: clip;
 }
@@ -425,10 +438,10 @@ body {
 .log-card {
   background: var(--bg-card);
   border-radius: var(--radius-md);
-  padding: 16px;
-  margin-bottom: 10px;
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
   box-shadow: var(--shadow-card);
-  border: 1px solid #F0EDE8;
+  border: 1px solid var(--divider);
 }
 
 .log-tag-chip {
