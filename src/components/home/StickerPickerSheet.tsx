@@ -44,6 +44,7 @@ type StickerPickerSheetProps = {
 
 /** 로그 카드 스티커 선택 하단 시트 — `onPickSticker`는 부모에서 `applyStickerToLog` 등과 연결 */
 export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: StickerPickerSheetProps) {
+  const handleRef = useRef<HTMLDivElement | null>(null);
   const startYRef = useRef<number | null>(null);
   const dragYRef = useRef(0);
   const [translateY, setTranslateY] = useState(0);
@@ -67,6 +68,45 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
       body.style.overscrollBehaviorY = prevBodyOverscroll;
     };
   }, []);
+
+  useEffect(() => {
+    const el = handleRef.current;
+    if (!el) return;
+
+    let startY: number | null = null;
+    const onStart = (e: TouchEvent) => {
+      startY = e.touches[0]?.clientY ?? null;
+      startYRef.current = startY;
+      dragYRef.current = 0;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (startY == null) return;
+      const dy = (e.touches[0]?.clientY ?? 0) - startY;
+      const drag = dy > 0 ? Math.min(dy, 220) : 0;
+      dragYRef.current = drag;
+      if (drag > 0) e.preventDefault();
+      setTranslateY(drag);
+    };
+    const onEnd = () => {
+      const drag = dragYRef.current;
+      dragYRef.current = 0;
+      startYRef.current = null;
+      startY = null;
+      setTranslateY(0);
+      if (drag > DRAG_CLOSE_THRESHOLD) onClose();
+    };
+
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd);
+    el.addEventListener('touchcancel', onEnd);
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+    };
+  }, [onClose]);
 
   return (
     <>
@@ -103,35 +143,8 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, paddingTop: 2, paddingBottom: 4, cursor: 'grab' }}
-          onTouchStart={(e) => {
-            const t = e.touches?.[0];
-            if (!t) return;
-            startYRef.current = t.clientY;
-            dragYRef.current = 0;
-          }}
-          onTouchMove={(e) => {
-            const t = e.touches?.[0];
-            const startY = startYRef.current;
-            if (!t || startY == null) return;
-            const delta = t.clientY - startY;
-            const drag = delta > 0 ? Math.min(delta, 220) : 0;
-            dragYRef.current = drag;
-            if (drag > 0) e.preventDefault();
-            setTranslateY(drag);
-          }}
-          onTouchEnd={() => {
-            const drag = dragYRef.current;
-            dragYRef.current = 0;
-            startYRef.current = null;
-            setTranslateY(0);
-            if (drag > DRAG_CLOSE_THRESHOLD) onClose();
-          }}
-          onTouchCancel={() => {
-            dragYRef.current = 0;
-            startYRef.current = null;
-            setTranslateY(0);
-          }}
+          ref={handleRef}
+          style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, paddingTop: 2, paddingBottom: 4, cursor: 'grab', touchAction: 'none' }}
         >
           <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--divider)' }} aria-hidden />
         </div>
