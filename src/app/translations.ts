@@ -106,6 +106,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     dailySummaryBody: '오늘 올라온 가족 로그',
     voiceInput: '말로 입력',
     voiceNotSupported: '이 브라우저는 음성 입력을 지원하지 않아요.',
+    voicePermissionDenied: '마이크 권한이 꺼져 있어요. 브라우저 설정에서 마이크를 허용해 주세요.',
     routinesTitle: '가족 루틴 (메모)',
     routinesPlaceholder: '예: 매주 화요일 쓰레기',
     quickConfirm: '👍 확인',
@@ -138,6 +139,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     writePreviewAlt: '미리보기',
     writeRemoveMedia: '제거',
     writeCompressing: '사진 처리 중…',
+    writeCompressingVideo: '영상 최적화 중… (첫 영상은 도구를 불러오느라 시간이 걸릴 수 있어요)',
     writeDecorating: '꾸미기',
   },
   en: {
@@ -241,6 +243,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     dailySummaryBody: "Today's family logs",
     voiceInput: 'Voice',
     voiceNotSupported: 'Voice input is not supported in this browser.',
+    voicePermissionDenied: 'Microphone permission is off. Please allow microphone access in your browser settings.',
     routinesTitle: 'Family routines',
     routinesPlaceholder: 'e.g. Trash every Tuesday',
     quickConfirm: '👍 Got it',
@@ -273,6 +276,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     writePreviewAlt: 'Preview',
     writeRemoveMedia: 'Remove',
     writeCompressing: 'Processing photos…',
+    writeCompressingVideo: 'Optimizing video… (first clip may take a moment to load tools)',
     writeDecorating: 'Decorate',
   },
   ja: {
@@ -376,6 +380,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     dailySummaryBody: '今日のログ',
     voiceInput: '音声',
     voiceNotSupported: 'このブラウザは音声入力に対応していません。',
+    voicePermissionDenied: 'マイクの権限がオフです。ブラウザ設定でマイクを許可してください。',
     routinesTitle: 'ルーティン',
     routinesPlaceholder: '例: 火曜ゴミ出し',
     quickConfirm: '👍 確認',
@@ -408,6 +413,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     writePreviewAlt: 'プレビュー',
     writeRemoveMedia: '削除',
     writeCompressing: '写真を処理中…',
+    writeCompressingVideo: '動画を最適化中…（初回は読み込みに時間がかかることがあります）',
     writeDecorating: '装飾',
   },
   zh: {
@@ -511,6 +517,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     dailySummaryBody: '今天的家庭记录',
     voiceInput: '语音',
     voiceNotSupported: '此浏览器不支持语音输入。',
+    voicePermissionDenied: '麦克风权限已关闭。请在浏览器设置中允许麦克风访问。',
     routinesTitle: '家庭例行',
     routinesPlaceholder: '例：每周二倒垃圾',
     quickConfirm: '👍 收到',
@@ -543,6 +550,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     writePreviewAlt: '预览',
     writeRemoveMedia: '移除',
     writeCompressing: '处理照片中…',
+    writeCompressingVideo: '正在优化视频…（首次加载工具可能较慢）',
     writeDecorating: '装饰',
   },
 };

@@ -12,10 +12,10 @@ const nextConfig: NextConfig = {
       { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'X-Content-Type-Options', value: 'nosniff' },
-      // camera=(self): 글쓰기 화면 input capture="environment"와 호환 (camera=()는 일부 브라우저에서 차단)
+      // camera/microphone=(self): 글쓰기 화면의 카메라/음성 입력 기능 허용
       {
         key: 'Permissions-Policy',
-        value: 'camera=(self), microphone=(), geolocation=()',
+        value: 'camera=(self), microphone=(self), geolocation=()',
       },
     ] as { key: string; value: string }[];
     if (isProd) {

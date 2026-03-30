@@ -10,6 +10,7 @@ import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown
 import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug, type LogSlug } from '../lib/logTags';
 import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
 import { getLogMedia } from '../lib/logMedia';
+import { compressImageFile } from '../lib/imageCompress';
 import { formatDateTime } from '../lib/formatDateTime';
 import { FONT_STEPS, type FontScaleStep } from '../lib/accessibilityFont';
 import { AppHeader } from '../components/layout/AppHeader';
@@ -1364,6 +1365,12 @@ export default function HomeClient() {
           setProfileAvatarUploading(false);
           return;
         }
+      }
+      try {
+        const compressed = await compressImageFile(fileToUpload, { maxSide: 640, quality: 0.78 });
+        fileToUpload = compressed.file;
+      } catch {
+        // Keep upload flow resilient: fall back to original converted/original file.
       }
       const uploadExt = fileToUpload.name.split('.').pop()?.toLowerCase() || 'jpg';
       const path = `${householdId}/${user.id}.${uploadExt}`;

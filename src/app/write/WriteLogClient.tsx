@@ -10,6 +10,7 @@ import { Camera, Image as ImageIcon, X, ChevronLeft, MapPin, Mic } from 'lucide-
 import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug } from '../../lib/logTags';
 import { composeActionWithMeta, parseLogMeta, type LogMeta } from '../../lib/logActionMeta';
 import { compressImageFile, VIDEO_MAX_MB } from '../../lib/imageCompress';
+import { compressVideoForUpload } from '../../lib/videoCompress';
 
 const QUICK_PHRASES_KEY = 'family_qr_log_quick_phrases';
 const ACCESSIBILITY_KEY = 'family_qr_log_accessibility';
@@ -91,6 +92,7 @@ export default function WriteLogClient() {
   const logMediaPreviewCount = logImagePreviews.length + (logVideoPreview ? 1 : 0);
   const isSingleLogMediaPreview = logMediaPreviewCount === 1;
   const [imageCompressing, setImageCompressing] = useState(false);
+  const [videoCompressing, setVideoCompressing] = useState(false);
   const [quickPhrases, setQuickPhrases] = useState<string[]>([]);
   const [showPhraseManager, setShowPhraseManager] = useState(false);
   const [newPhraseInput, setNewPhraseInput] = useState('');
@@ -235,6 +237,7 @@ export default function WriteLogClient() {
   }, [user, householdId, editingLogId]);
 
   const t = useMemo(() => getT(language), [language]);
+  const mediaBusy = imageCompressing || videoCompressing;
 
   const saveQuickPhrases = useCallback((next: string[]) => {
     setQuickPhrases(next);
@@ -293,7 +296,7 @@ export default function WriteLogClient() {
   const handleMediaSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>, _fromCamera: boolean) => {
       const fileList = e.target.files;
-      if (!fileList?.length || imageCompressing) return;
+      if (!fileList?.length || imageCompressing || videoCompressing) return;
       const files = Array.from(fileList);
       const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'];
       const imageFiles = files.filter((f) => {
@@ -308,14 +311,28 @@ export default function WriteLogClient() {
         if (videoFile.size > VIDEO_MAX_MB * 1024 * 1024) {
           setStatus(`${VIDEO_MAX_MB}MB`);
         } else {
+          setVideoCompressing(true);
+          setStatus(null);
           if (logVideoPreviewUrlRef.current) {
             URL.revokeObjectURL(logVideoPreviewUrlRef.current);
             logVideoPreviewUrlRef.current = null;
           }
-          const url = URL.createObjectURL(videoFile);
-          logVideoPreviewUrlRef.current = url;
-          setLogVideoFile(videoFile);
-          setLogVideoPreview(url);
+          void (async () => {
+            try {
+              const out = await compressVideoForUpload(videoFile);
+              const url = URL.createObjectURL(out);
+              logVideoPreviewUrlRef.current = url;
+              setLogVideoFile(out);
+              setLogVideoPreview(url);
+            } catch {
+              const url = URL.createObjectURL(videoFile);
+              logVideoPreviewUrlRef.current = url;
+              setLogVideoFile(videoFile);
+              setLogVideoPreview(url);
+            } finally {
+              setVideoCompressing(false);
+            }
+          })();
         }
       }
 
@@ -346,7 +363,7 @@ export default function WriteLogClient() {
         });
       e.target.value = '';
     },
-    [imageCompressing]
+    [imageCompressing, videoCompressing]
   );
 
   const handleInsert = async () => {
@@ -464,7 +481,7 @@ export default function WriteLogClient() {
       interimResults: boolean;
       onresult: ((e: { results: { 0: { 0: { transcript: string } } } }) => void) | null;
       onend: (() => void) | null;
-      onerror: (() => void) | null;
+      onerror: ((e: { error?: string }) => void) | null;
       start: () => void;
     };
     const w = window as unknown as {
@@ -486,7 +503,14 @@ export default function WriteLogClient() {
       if (text) setAction((prev) => (prev ? `${prev} ${text}` : text));
     };
     rec.onend = () => setVoiceListening(false);
-    rec.onerror = () => setVoiceListening(false);
+    rec.onerror = (e) => {
+      setVoiceListening(false);
+      if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') {
+        setStatus(t('voicePermissionDenied'));
+        return;
+      }
+      setStatus(t('voiceNotSupported'));
+    };
     setVoiceListening(true);
     try {
       rec.start();
@@ -862,7 +886,7 @@ export default function WriteLogClient() {
             }}
           >
             <label
-              htmlFor={imageCompressing ? undefined : 'write-log-camera-input'}
+              htmlFor={mediaBusy ? undefined : 'write-log-camera-input'}
               aria-label={t('takePhoto')}
               style={{
                 display: 'inline-flex',
@@ -871,11 +895,11 @@ export default function WriteLogClient() {
                 padding: '10px 14px',
                 borderRadius: 12,
                 border: '1px solid #e2e8f0',
-                background: imageCompressing ? '#e2e8f0' : '#f8fafc',
-                color: imageCompressing ? '#94a3b8' : '#475569',
+                background: mediaBusy ? '#e2e8f0' : '#f8fafc',
+                color: mediaBusy ? '#94a3b8' : '#475569',
                 fontSize: 13,
-                cursor: imageCompressing ? 'wait' : 'pointer',
-                pointerEvents: imageCompressing ? 'none' : 'auto',
+                cursor: mediaBusy ? 'wait' : 'pointer',
+                pointerEvents: mediaBusy ? 'none' : 'auto',
                 flexShrink: 0,
                 whiteSpace: 'nowrap',
               }}
@@ -884,7 +908,7 @@ export default function WriteLogClient() {
               {t('takePhoto')}
             </label>
             <label
-              htmlFor={imageCompressing ? undefined : 'write-log-gallery-input'}
+              htmlFor={mediaBusy ? undefined : 'write-log-gallery-input'}
               aria-label={t('fromAlbum')}
               style={{
                 display: 'inline-flex',
@@ -893,11 +917,11 @@ export default function WriteLogClient() {
                 padding: '10px 14px',
                 borderRadius: 12,
                 border: '1px solid #e2e8f0',
-                background: imageCompressing ? '#e2e8f0' : '#f8fafc',
-                color: imageCompressing ? '#94a3b8' : '#475569',
+                background: mediaBusy ? '#e2e8f0' : '#f8fafc',
+                color: mediaBusy ? '#94a3b8' : '#475569',
                 fontSize: 13,
-                cursor: imageCompressing ? 'wait' : 'pointer',
-                pointerEvents: imageCompressing ? 'none' : 'auto',
+                cursor: mediaBusy ? 'wait' : 'pointer',
+                pointerEvents: mediaBusy ? 'none' : 'auto',
                 flexShrink: 0,
                 whiteSpace: 'nowrap',
               }}
@@ -1069,12 +1093,15 @@ export default function WriteLogClient() {
           {imageCompressing && (
             <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b' }}>{t('writeCompressing')}</p>
           )}
+          {videoCompressing && (
+            <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b' }}>{t('writeCompressingVideo')}</p>
+          )}
         </div>
 
         <button
           type="button"
           onClick={handleInsert}
-          disabled={loading || !householdId}
+          disabled={loading || !householdId || mediaBusy}
           style={{
             width: '100%',
             borderRadius: 12,
@@ -1082,8 +1109,8 @@ export default function WriteLogClient() {
             padding: '10px 14px',
             fontSize: 14,
             fontWeight: 600,
-            cursor: loading || !householdId ? 'not-allowed' : 'pointer',
-            background: loading || !householdId ? 'rgba(100,116,139,0.5)' : 'var(--accent)',
+            cursor: loading || !householdId || mediaBusy ? 'not-allowed' : 'pointer',
+            background: loading || !householdId || mediaBusy ? 'rgba(100,116,139,0.5)' : 'var(--accent)',
             color: '#fff',
             minHeight: 42,
             boxShadow: 'var(--shadow-card)',

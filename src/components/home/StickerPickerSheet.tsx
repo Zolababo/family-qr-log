@@ -1,6 +1,39 @@
 'use client';
 
-export const STICKER_OPTIONS = ['✨', '❤️', '⭐', '🎉', '🧸', '🌿', '🌈', '☀️', '🍀', '💫'];
+import { useRef, useState } from 'react';
+
+export const STICKER_OPTIONS = [
+  '🙂',
+  '😄',
+  '🥰',
+  '😍',
+  '😘',
+  '🤗',
+  '👍',
+  '👏',
+  '🙏',
+  '💪',
+  '❤️',
+  '💖',
+  '✨',
+  '🌈',
+  '🎉',
+  '⭐',
+  '🧸',
+  '☀️',
+  '🍀',
+  '💫',
+  '사랑해',
+  '행복해',
+  '최고야',
+  '잘했어',
+  '고마워',
+  '응원해',
+  '수고했어',
+  '화이팅',
+  '멋져',
+  '축하해',
+];
 
 type StickerPickerSheetProps = {
   highContrast: boolean;
@@ -11,6 +44,10 @@ type StickerPickerSheetProps = {
 
 /** 로그 카드 스티커 선택 하단 시트 — `onPickSticker`는 부모에서 `applyStickerToLog` 등과 연결 */
 export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: StickerPickerSheetProps) {
+  const startYRef = useRef<number | null>(null);
+  const [translateY, setTranslateY] = useState(0);
+  const DRAG_CLOSE_THRESHOLD = 90;
+
   return (
     <>
       <div
@@ -27,6 +64,35 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
       <div
         role="dialog"
         aria-label="스티커 선택"
+        onTouchStart={(e) => {
+          const t = e.touches?.[0];
+          if (!t) return;
+          startYRef.current = t.clientY;
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches?.[0];
+          const startY = startYRef.current;
+          if (!t || startY == null) return;
+          const delta = t.clientY - startY;
+          if (delta <= 0) {
+            setTranslateY(0);
+            return;
+          }
+          setTranslateY(Math.min(delta, 180));
+        }}
+        onTouchEnd={() => {
+          if (translateY > DRAG_CLOSE_THRESHOLD) {
+            setTranslateY(0);
+            onClose();
+            return;
+          }
+          setTranslateY(0);
+          startYRef.current = null;
+        }}
+        onTouchCancel={() => {
+          setTranslateY(0);
+          startYRef.current = null;
+        }}
         style={{
           position: 'fixed',
           left: 0,
@@ -39,11 +105,14 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
           boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
           paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
           paddingTop: 8,
+          transform: `translateY(${translateY}px)`,
+          transition: translateY > 0 ? 'none' : 'transform 0.18s ease-out',
+          touchAction: 'pan-y',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--divider)' }} aria-hidden />
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--divider)' }} aria-hidden />
         </div>
         <div style={{ padding: '0 16px 12px' }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: highContrast ? '#fff' : '#0f172a', marginBottom: 10 }}>
@@ -76,9 +145,10 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
                   border: '1px solid var(--divider)',
                   background: highContrast ? 'rgba(255,255,255,0.04)' : 'var(--bg-subtle)',
                   color: highContrast ? '#fff' : '#0f172a',
-                  fontSize: 18,
+                  fontSize: s.length <= 2 ? 20 : 13,
                   cursor: 'pointer',
-                  lineHeight: 1,
+                  lineHeight: s.length <= 2 ? 1 : 1.2,
+                  fontWeight: s.length <= 2 ? 500 : 700,
                 }}
                 aria-label={`스티커: ${s}`}
               >

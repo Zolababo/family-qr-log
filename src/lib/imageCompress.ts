@@ -1,7 +1,17 @@
-const MAX_IMAGE_SIDE = 1200;
-const JPEG_QUALITY = 0.82;
+type CompressOptions = {
+  maxSide?: number;
+  quality?: number;
+};
 
-export function compressImageFile(file: File): Promise<{ file: File; previewUrl: string }> {
+const DEFAULT_MAX_IMAGE_SIDE = 1080;
+const DEFAULT_JPEG_QUALITY = 0.8;
+
+export function compressImageFile(
+  file: File,
+  options: CompressOptions = {}
+): Promise<{ file: File; previewUrl: string }> {
+  const maxSide = options.maxSide ?? DEFAULT_MAX_IMAGE_SIDE;
+  const quality = options.quality ?? DEFAULT_JPEG_QUALITY;
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -9,13 +19,13 @@ export function compressImageFile(file: File): Promise<{ file: File; previewUrl:
       URL.revokeObjectURL(url);
       let w = img.width;
       let h = img.height;
-      if (w > MAX_IMAGE_SIDE || h > MAX_IMAGE_SIDE) {
+      if (w > maxSide || h > maxSide) {
         if (w >= h) {
-          h = Math.round((h * MAX_IMAGE_SIDE) / w);
-          w = MAX_IMAGE_SIDE;
+          h = Math.round((h * maxSide) / w);
+          w = maxSide;
         } else {
-          w = Math.round((w * MAX_IMAGE_SIDE) / h);
-          h = MAX_IMAGE_SIDE;
+          w = Math.round((w * maxSide) / h);
+          h = maxSide;
         }
       }
       const canvas = document.createElement('canvas');
@@ -38,7 +48,7 @@ export function compressImageFile(file: File): Promise<{ file: File; previewUrl:
           resolve({ file: out, previewUrl: URL.createObjectURL(blob) });
         },
         'image/jpeg',
-        JPEG_QUALITY
+        quality
       );
     };
     img.onerror = () => {
