@@ -256,6 +256,12 @@ body {
   box-shadow: var(--shadow-card) !important;
 }
 
+/* 가로 스크롤 칩(.log-filter-btn): 호버 시 translateY로 overflow 영역 위쪽이 잘려 테두리가 끊겨 보임 → 들림 제거 */
+[data-accessibility-root]:not([data-high-contrast="true"]) button.log-filter-btn:hover:not(:disabled) {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 /* 마이크로 인터랙션: 모션 감소 시 버튼 호버·전환 끔 (WCAG) */
 @media (prefers-reduced-motion: reduce) {
   [data-accessibility-root]:not([data-high-contrast="true"]) button,

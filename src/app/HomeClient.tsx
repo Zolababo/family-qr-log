@@ -2244,7 +2244,7 @@ export default function HomeClient() {
                   </button>
                 </div>
                 <div
-                  className="horizontal-scroll-hide"
+                  className="horizontal-scroll-hide calendar-tag-filter-row"
                   style={{
                     display: 'flex',
                     flexWrap: 'nowrap',
@@ -2252,7 +2252,8 @@ export default function HomeClient() {
                     WebkitOverflowScrolling: 'touch',
                     gap: 6,
                     marginBottom: 6,
-                    paddingBottom: 2,
+                    paddingTop: 4,
+                    paddingBottom: 4,
                   }}
                 >
                   {feedTagOptions.map(({ key, label }) => {
@@ -2261,6 +2262,7 @@ export default function HomeClient() {
                       <button
                         key={key}
                         type="button"
+                        className="log-filter-btn"
                         onClick={() => setCalendarTagFilter(key as 'all' | LogSlug)}
                         style={{
                           flexShrink: 0,
