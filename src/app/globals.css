@@ -196,27 +196,7 @@ body {
   border-radius: 0 !important;
 }
 
-/* 하단 탭바는 포커스/선택 시 큰 외곽선이 생기지 않게 */
-[data-accessibility-root] .bottom-tab-btn:focus {
-  outline: none !important;
-  outline-offset: 0 !important;
-}
-[data-accessibility-root] .bottom-tab-btn:focus-visible {
-  outline: none !important;
-  outline-offset: 0 !important;
-  box-shadow: none !important;
-}
-
-/* 멤버 프로필 선택 시 큰 녹색 외곽선(포커스 링) 제거 (button 또는 role="button" 칩) */
-[data-accessibility-root] .member-filter-scroll button:focus,
-[data-accessibility-root] .member-filter-scroll button:focus-visible,
-[data-accessibility-root] .member-filter-scroll .profile-chip-btn:focus,
-[data-accessibility-root] .member-filter-scroll .profile-chip-btn:focus-visible {
-  outline: none !important;
-  outline-offset: 0 !important;
-  box-shadow: none !important;
-}
-
+/* 하단 탭·칩: 호버 시 전역 버튼 애니메이션만 억제 (포커스 링은 아래 :focus-visible 규칙) */
 [data-accessibility-root] .profile-chip-btn,
 [data-accessibility-root] .place-pill-btn,
 [data-accessibility-root] .log-filter-btn {
@@ -225,17 +205,9 @@ body {
 
 [data-accessibility-root] .profile-chip-btn:hover,
 [data-accessibility-root] .place-pill-btn:hover,
-[data-accessibility-root] .log-filter-btn:hover,
-[data-accessibility-root] .profile-chip-btn:focus,
-[data-accessibility-root] .place-pill-btn:focus,
-[data-accessibility-root] .log-filter-btn:focus,
-[data-accessibility-root] .profile-chip-btn:focus-visible,
-[data-accessibility-root] .place-pill-btn:focus-visible,
-[data-accessibility-root] .log-filter-btn:focus-visible {
+[data-accessibility-root] .log-filter-btn:hover {
   transform: none !important;
   box-shadow: none !important;
-  outline: none !important;
-  outline-offset: 0 !important;
 }
 
 [data-accessibility-root]:not([data-high-contrast="true"]) .member-filter-scroll button:hover:not(:disabled),
@@ -339,22 +311,9 @@ body {
   box-shadow: none !important;
 }
 
-/* 설정 모달 언어 칩: 포커스 시 흰 배경/녹색 링 제거 (목록 필터 칩과 동일) */
-[data-accessibility-root] .settings-lang-btn:focus,
+/* 설정 모달 언어 칩: 호버 시 버튼 떠오름 효과만 억제 */
 [data-accessibility-root] .settings-lang-btn:focus-visible {
-  outline: none !important;
-  outline-offset: 0 !important;
-  box-shadow: none !important;
   transform: none !important;
-}
-
-/* 링크/이미지 포커스 링 제거 */
-[data-accessibility-root] a:focus,
-[data-accessibility-root] a:focus-visible,
-[data-accessibility-root] img:focus,
-[data-accessibility-root] img:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
 }
 
 /* ========== 멤버 필터 (가로 스크롤 pill, 스크롤바 숨김) ========== */
@@ -487,12 +446,6 @@ body {
 .feed-filter-summary::-webkit-details-marker {
   display: none;
 }
-[data-accessibility-root] .feed-filter-summary:focus,
-[data-accessibility-root] .feed-filter-summary:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
 .log-time {
   font-size: 11px;
   color: var(--text-caption);
@@ -572,8 +525,8 @@ body {
   color: var(--text-primary) !important;
 }
 
-[data-accessibility-root]:not([data-high-contrast="true"]) input:not([type="checkbox"]):not([type="radio"]):focus,
-[data-accessibility-root]:not([data-high-contrast="true"]) textarea:focus {
+[data-accessibility-root]:not([data-high-contrast="true"]) input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+[data-accessibility-root]:not([data-high-contrast="true"]) textarea:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 45%, #ffffff 55%) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent) !important;
 }
@@ -581,6 +534,39 @@ body {
 [data-accessibility-root]:not([data-high-contrast="true"]) input::placeholder,
 [data-accessibility-root]:not([data-high-contrast="true"]) textarea::placeholder {
   color: var(--text-caption) !important;
+}
+
+/* 키보드 포커스 표시 (WCAG 2.4.7) — :focus-visible만, 마우스 클릭 시 기본 링 숨김 */
+.skip-link:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+[data-accessibility-root]:not([data-high-contrast="true"]) button:focus-visible,
+[data-accessibility-root]:not([data-high-contrast="true"]) [role="button"]:focus-visible,
+[data-accessibility-root]:not([data-high-contrast="true"]) a:focus-visible,
+[data-accessibility-root]:not([data-high-contrast="true"]) summary:focus-visible,
+[data-accessibility-root]:not([data-high-contrast="true"]) select:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+  box-shadow: none !important;
+}
+
+[data-accessibility-root]:not([data-high-contrast="true"]) img:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+
+[data-accessibility-root][data-high-contrast="true"] button:focus-visible,
+[data-accessibility-root][data-high-contrast="true"] [role="button"]:focus-visible,
+[data-accessibility-root][data-high-contrast="true"] a:focus-visible,
+[data-accessibility-root][data-high-contrast="true"] summary:focus-visible,
+[data-accessibility-root][data-high-contrast="true"] input:focus-visible:not([type="checkbox"]):not([type="radio"]),
+[data-accessibility-root][data-high-contrast="true"] textarea:focus-visible,
+[data-accessibility-root][data-high-contrast="true"] select:focus-visible {
+  outline: 3px solid #ffc107 !important;
+  outline-offset: 2px !important;
+  box-shadow: none !important;
 }
 
 /* ========== High-contrast: 기존 접근성 유지 ========== */

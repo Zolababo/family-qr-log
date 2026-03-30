@@ -1852,7 +1852,6 @@ export default function HomeClient() {
         [data-accessibility-root][data-high-contrast="true"] h1, [data-accessibility-root][data-high-contrast="true"] h2, [data-accessibility-root][data-high-contrast="true"] strong { color: #ffffff !important; }
         [data-accessibility-root][data-high-contrast="true"] .acc-inner { background: #0f0f0f !important; color: #ffffff !important; border: 2px solid #ffc107 !important; box-shadow: none !important; }
         [data-accessibility-root][data-high-contrast="true"] select { background: #1e1e1e !important; color: #fff !important; border-color: #ffc107 !important; }
-        [data-accessibility-root] *:focus { outline: none !important; outline-offset: 0 !important; box-shadow: none !important; }
       `}</style>
       <a
         href="#main-content"
