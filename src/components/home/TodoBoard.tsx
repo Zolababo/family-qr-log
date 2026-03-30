@@ -67,7 +67,7 @@ export function TodoBoard({
   const renderQuadrant = (meta: (typeof MATRIX)[number]) => {
     const { key, title, accent } = meta;
     const tasks = todoActiveByGroup[key];
-    const border = highContrast ? '1px solid #444' : '1px solid #e2e8f0';
+    const border = highContrast ? '1px solid #444' : '1px solid var(--divider)';
     return (
       <div
         key={key}
@@ -81,7 +81,7 @@ export function TodoBoard({
           minHeight: 0,
           borderRadius: 12,
           border,
-          background: highContrast ? `linear-gradient(180deg, ${accent}, #121212 40%)` : `linear-gradient(180deg, ${accent}, #fff 35%)`,
+          background: highContrast ? `linear-gradient(180deg, ${accent}, #121212 40%)` : `linear-gradient(180deg, ${accent}, var(--bg-card) 35%)`,
           padding: '9px 10px 8px',
           height: '100%',
         }}
@@ -101,7 +101,7 @@ export function TodoBoard({
           }}
         >
           {tasks.length === 0 ? (
-            <div style={{ fontSize: 11, color: highContrast ? '#64748b' : '#94a3b8', padding: '4px 0' }}>항목 없음</div>
+            <div style={{ fontSize: 11, color: highContrast ? '#94a3b8' : 'var(--text-caption)', padding: '4px 0' }}>항목 없음</div>
           ) : (
             tasks.map((task, idx) => (
               <div
@@ -111,9 +111,9 @@ export function TodoBoard({
                   alignItems: 'center',
                   gap: 6,
                   padding: '6px 0',
-                  borderBottom: idx < tasks.length - 1 ? (highContrast ? '1px solid #333' : '1px solid #f1f5f9') : 'none',
+                  borderBottom: idx < tasks.length - 1 ? (highContrast ? '1px solid #333' : '1px solid var(--divider)') : 'none',
                   fontSize: 12,
-                  color: highContrast ? '#e2e8f0' : '#0f172a',
+                  color: highContrast ? '#e2e8f0' : 'var(--text-primary)',
                 }}
               >
                 <span style={{ flex: 1, minWidth: 0, lineHeight: 1.35, wordBreak: 'break-word' }}>{task.text}</span>
@@ -144,11 +144,11 @@ export function TodoBoard({
               flex: 1,
               minWidth: 0,
               borderRadius: 8,
-              border: highContrast ? '1px solid #555' : '1px solid #e2e8f0',
+              border: highContrast ? '1px solid #555' : '1px solid var(--divider)',
               padding: '8px 10px',
               fontSize: 12,
-              background: highContrast ? '#0c0c0c' : '#f8fafc',
-              color: highContrast ? '#fff' : '#0f172a',
+              background: highContrast ? '#0c0c0c' : 'var(--bg-subtle)',
+              color: highContrast ? '#fff' : 'var(--text-primary)',
               outline: 'none',
               boxSizing: 'border-box',
             }}
@@ -176,7 +176,7 @@ export function TodoBoard({
   return (
     <section aria-label="할 일 목록" style={{ marginBottom: 20, width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
       <div style={{ marginBottom: 10 }}>
-        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: highContrast ? '#fff' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <CheckSquare2 size={18} strokeWidth={1.5} aria-hidden />
           할 일
         </h3>
@@ -186,9 +186,9 @@ export function TodoBoard({
         {MATRIX.map((m) => renderQuadrant(m))}
       </div>
 
-      <div style={{ border: highContrast ? '1px solid #333' : '1px solid #e2e8f0', borderRadius: 12, padding: 10, background: highContrast ? '#121212' : '#f8fafc' }}>
+      <div style={{ border: highContrast ? '1px solid #333' : '1px solid var(--divider)', borderRadius: 12, padding: 10, background: highContrast ? '#121212' : 'var(--bg-subtle)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#fff' : '#334155' }}>완료된 항목</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#fff' : 'var(--text-secondary)' }}>완료된 항목</div>
           <div style={{ display: 'flex', gap: 4 }}>
             {TODO_PERIOD_OPTIONS.map((period) => (
               <button
@@ -199,9 +199,9 @@ export function TodoBoard({
                   fontSize: 11,
                   padding: '3px 8px',
                   borderRadius: 999,
-                  border: todoCompletedPeriod === period ? '1px solid var(--accent)' : '1px solid #e2e8f0',
-                  background: todoCompletedPeriod === period ? 'var(--accent-light)' : '#fff',
-                  color: todoCompletedPeriod === period ? 'var(--accent)' : '#64748b',
+                  border: todoCompletedPeriod === period ? '1px solid var(--accent)' : '1px solid var(--divider)',
+                  background: todoCompletedPeriod === period ? 'var(--accent-light)' : 'var(--bg-card)',
+                  color: todoCompletedPeriod === period ? 'var(--accent)' : 'var(--text-secondary)',
                   cursor: 'pointer',
                 }}
               >
@@ -211,16 +211,16 @@ export function TodoBoard({
           </div>
         </div>
         {todoCompletedGroups.length === 0 ? (
-          <div style={{ fontSize: 11, color: '#94a3b8' }}>완료 항목 없음</div>
+          <div style={{ fontSize: 11, color: 'var(--text-caption)' }}>완료 항목 없음</div>
         ) : (
           <div style={{ display: 'grid', gap: 6 }}>
             {todoCompletedGroups.map(([label, tasks]) => (
               <div key={label}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: highContrast ? '#e5e7eb' : '#475569', marginBottom: 3 }}>{label}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: highContrast ? '#e5e7eb' : 'var(--text-secondary)', marginBottom: 3 }}>{label}</div>
                 {tasks.map((task) => (
                   <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0' }}>
-                    <span style={{ flex: 1, fontSize: 12, color: highContrast ? '#d1d5db' : '#475569' }}>{task.text}</span>
-                    <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#0ea5e9' }} aria-label="복원">
+                    <span style={{ flex: 1, fontSize: 12, color: highContrast ? '#d1d5db' : 'var(--text-secondary)' }}>{task.text}</span>
+                    <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : 'var(--accent)' }} aria-label="복원">
                       <RotateCcw size={15} strokeWidth={1.75} aria-hidden />
                     </button>
                     <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444' }} aria-label="삭제">

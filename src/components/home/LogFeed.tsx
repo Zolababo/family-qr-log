@@ -169,9 +169,9 @@ export function LogFeed({
                 boxSizing: 'border-box',
                 padding: '12px 14px',
                 borderRadius: 12,
-                border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
-                background: highContrast ? '#1e1e1e' : '#f8fafc',
-                color: highContrast ? '#fff' : '#0f172a',
+                border: highContrast ? '2px solid #ffc107' : '1px solid var(--divider)',
+                background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+                color: highContrast ? '#fff' : 'var(--text-primary)',
                 fontSize: 15,
                 marginBottom: 12,
                 outline: 'none',
@@ -254,11 +254,11 @@ export function LogFeed({
                             boxSizing: 'border-box',
                             resize: 'none',
                             borderRadius: 8,
-                            border: '1px solid #cbd5e1',
+                            border: '1px solid var(--divider)',
                             padding: 8,
                             fontSize: 13,
-                            background: '#f8fafc',
-                            color: '#0f172a',
+                            background: 'var(--bg-subtle)',
+                            color: 'var(--text-primary)',
                             outline: 'none',
                             marginBottom: 8,
                           }}
@@ -272,7 +272,7 @@ export function LogFeed({
                               borderRadius: 8,
                               border: 'none',
                               background: 'var(--accent)',
-                              color: '#fff',
+                              color: 'var(--bg-card)',
                               fontSize: 12,
                               fontWeight: 600,
                               cursor: 'pointer',
@@ -289,9 +289,9 @@ export function LogFeed({
                             style={{
                               padding: '6px 12px',
                               borderRadius: 8,
-                              border: '1px solid #cbd5e1',
-                              background: '#fff',
-                              color: '#64748b',
+                              border: '1px solid var(--divider)',
+                              background: 'var(--bg-card)',
+                              color: 'var(--text-secondary)',
                               fontSize: 12,
                               cursor: 'pointer',
                             }}
@@ -338,7 +338,7 @@ export function LogFeed({
                                 gap: 4,
                                 marginTop: 4,
                                 fontSize: 11,
-                                color: highContrast ? '#ffc107' : '#3b82f6',
+                                color: highContrast ? '#ffc107' : 'var(--accent)',
                                 textDecoration: 'none',
                               }}
                             >
@@ -386,7 +386,7 @@ export function LogFeed({
                                     left: 8,
                                     zIndex: 3,
                                     background: 'rgba(0,0,0,0.42)',
-                                    color: '#fff',
+                                    color: 'var(--bg-card)',
                                     padding: '6px 8px',
                                     borderRadius: 999,
                                     fontSize: 16,
@@ -473,7 +473,7 @@ export function LogFeed({
                                         background: 'rgba(0,0,0,0.12)',
                                       }}
                                     >
-                                      <Play size={48} color="#fff" strokeWidth={1.5} />
+                                      <Play size={48} color="var(--color-text-strong)" strokeWidth={1.5} />
                                     </div>
                                   )}
                                 </div>
@@ -495,7 +495,7 @@ export function LogFeed({
                                 borderRadius: 999,
                                 border: '1px solid var(--divider)',
                                 background: 'transparent',
-                                color: highContrast ? '#ffc107' : '#64748b',
+                                color: highContrast ? '#ffc107' : 'var(--text-secondary)',
                                 fontSize: 11,
                                 cursor: 'pointer',
                               }}
@@ -516,7 +516,7 @@ export function LogFeed({
                               borderRadius: 999,
                               border: '1px solid var(--divider)',
                               background: 'transparent',
-                              color: highContrast ? '#ffc107' : '#64748b',
+                              color: highContrast ? '#ffc107' : 'var(--text-secondary)',
                               fontSize: 11,
                               cursor: 'pointer',
                             }}

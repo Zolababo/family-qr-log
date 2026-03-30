@@ -24,9 +24,9 @@ export function LogActionSheet({ log, highContrast, t, onDismiss, onEdit, onDele
           minWidth: 200,
           padding: '12px 0',
           borderRadius: 16,
-          background: '#fff',
+          background: 'var(--bg-card)',
           boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
-          border: '1px solid #e2e8f0',
+          border: '1px solid var(--divider)',
           zIndex: 51,
         }}
         onClick={(e) => e.stopPropagation()}
@@ -43,7 +43,7 @@ export function LogActionSheet({ log, highContrast, t, onDismiss, onEdit, onDele
                 border: 'none',
                 background: 'none',
                 fontSize: 15,
-                color: highContrast ? '#ffffff' : '#0f172a',
+                color: highContrast ? '#ffffff' : 'var(--text-primary)',
                 cursor: 'pointer',
                 textAlign: 'left',
               }}

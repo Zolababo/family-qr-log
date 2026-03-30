@@ -72,10 +72,10 @@ export function BottomTabBar({
     minWidth: 0,
   });
 
-  const modalBg = highContrast ? '#0f0f0f' : '#fff';
-  const modalBorder = highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)';
+  const modalBg = highContrast ? '#0f0f0f' : 'var(--bg-card)';
+  const modalBorder = highContrast ? '2px solid #ffc107' : '1px solid var(--divider)';
   const textColor = highContrast ? '#ffffff' : 'var(--text-primary)';
-  const secondaryColor = highContrast ? '#94a3b8' : '#64748b';
+  const secondaryColor = highContrast ? '#94a3b8' : 'var(--text-secondary)';
   const rowHover = highContrast ? '#333' : 'var(--bg-subtle)';
 
   const writeHref =
@@ -114,7 +114,7 @@ export function BottomTabBar({
               height: 48,
               borderRadius: '50%',
               background: 'var(--accent)',
-              color: '#fff',
+              color: 'var(--bg-card)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -313,7 +313,7 @@ export function BottomTabBar({
                       style={{
                         padding: '8px 12px',
                         borderRadius: 10,
-                        border: '1px solid #e2e8f0',
+                        border: '1px solid var(--divider)',
                         background: language === lang ? 'var(--accent-light)' : 'transparent',
                         color: textColor,
                         fontSize: 13,

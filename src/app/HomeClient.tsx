@@ -1862,8 +1862,8 @@ export default function HomeClient() {
           top: 8,
           zIndex: 9999,
           padding: '8px 16px',
-          background: highContrast ? '#ffc107' : '#2563eb',
-          color: highContrast ? '#0f0f0f' : '#fff',
+          background: highContrast ? '#ffc107' : 'var(--accent)',
+          color: highContrast ? '#0f0f0f' : 'var(--bg-card)',
           fontSize: 14,
           borderRadius: 8,
           textDecoration: 'none',
@@ -2052,13 +2052,13 @@ export default function HomeClient() {
                             width: '100%',
                             boxSizing: 'border-box',
                             borderRadius: 10,
-                            border: '1px solid #e2e8f0',
+                            border: '1px solid var(--divider)',
                             padding: '10px 12px',
                             fontSize: 13,
                             lineHeight: 1.5,
                             resize: 'vertical',
                             minHeight: 72,
-                            background: highContrast ? '#1e1e1e' : '#fff',
+                            background: highContrast ? '#1e1e1e' : 'var(--bg-card)',
                             color: theme.text,
                             outline: 'none',
                             fontFamily: 'inherit',
@@ -2082,13 +2082,13 @@ export default function HomeClient() {
                             width: '100%',
                             boxSizing: 'border-box',
                             borderRadius: 10,
-                            border: '1px solid #e2e8f0',
+                            border: '1px solid var(--divider)',
                             padding: '10px 12px',
                             fontSize: 13,
                             lineHeight: 1.5,
                             resize: 'vertical',
                             minHeight: 72,
-                            background: highContrast ? '#1e1e1e' : '#f8fafc',
+                            background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
                             color: theme.text,
                             outline: 'none',
                             fontFamily: 'inherit',
@@ -2103,9 +2103,9 @@ export default function HomeClient() {
                           style={{
                             padding: '8px 12px',
                             borderRadius: 10,
-                            border: '1px solid #e2e8f0',
-                            background: memoSaving ? '#e2e8f0' : '#f8fafc',
-                            color: memoSaving ? '#94a3b8' : '#334155',
+                            border: '1px solid var(--divider)',
+                            background: memoSaving ? 'var(--divider)' : 'var(--bg-subtle)',
+                            color: memoSaving ? 'var(--text-caption)' : 'var(--text-secondary)',
                             fontSize: 12,
                             cursor: memoSaving ? 'wait' : 'pointer',
                           }}
@@ -2168,15 +2168,15 @@ export default function HomeClient() {
         )}
 
         {!user && (
-          <div style={{ fontSize: 13, color: highContrast ? '#e0e0e0' : '#475569' }}>
+          <div style={{ fontSize: 13, color: highContrast ? '#e0e0e0' : 'var(--text-secondary)' }}>
             <Link
               href="/login"
-              style={{ color: highContrast ? '#ffc107' : '#2563eb', textDecoration: 'underline', fontWeight: 600 }}
+              style={{ color: highContrast ? '#ffc107' : 'var(--accent)', textDecoration: 'underline', fontWeight: 600 }}
             >
               {t('login')}
             </Link>
             {t('loginOrJoin')}{' '}
-            <Link href="/join" style={{ color: highContrast ? '#ffc107' : '#2563eb', textDecoration: 'underline' }}>
+            <Link href="/join" style={{ color: highContrast ? '#ffc107' : 'var(--accent)', textDecoration: 'underline' }}>
               {t('join')}
             </Link>
             {t('please')}
@@ -2216,10 +2216,10 @@ export default function HomeClient() {
                     }}
                     style={{
                       padding: '8px 12px',
-                      border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                      border: highContrast ? '1px solid #ffc107' : '1px solid var(--divider)',
                       borderRadius: 10,
-                      background: highContrast ? '#1e1e1e' : '#f8fafc',
-                      color: highContrast ? '#ffc107' : '#64748b',
+                      background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+                      color: highContrast ? '#ffc107' : 'var(--text-secondary)',
                       fontSize: 14,
                       cursor: 'pointer',
                     }}
@@ -2227,7 +2227,7 @@ export default function HomeClient() {
                   >
                     <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
                   </button>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : 'var(--text-primary)' }}>
                     <Calendar size={20} strokeWidth={1.5} aria-hidden />
                     {calYear}년 {calMonth}월
                   </div>
@@ -2240,10 +2240,10 @@ export default function HomeClient() {
                     }}
                     style={{
                       padding: '8px 12px',
-                      border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                      border: highContrast ? '1px solid #ffc107' : '1px solid var(--divider)',
                       borderRadius: 10,
-                      background: highContrast ? '#1e1e1e' : '#f8fafc',
-                      color: highContrast ? '#ffc107' : '#64748b',
+                      background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+                      color: highContrast ? '#ffc107' : 'var(--text-secondary)',
                       fontSize: 14,
                       cursor: 'pointer',
                     }}
@@ -2275,9 +2275,9 @@ export default function HomeClient() {
                           flexShrink: 0,
                           padding: '6px 12px',
                           borderRadius: 999,
-                          border: active ? '1px solid var(--accent)' : '1px solid #e2e8f0',
-                          background: active ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : '#f8fafc',
-                          color: active ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
+                          border: active ? '1px solid var(--accent)' : '1px solid var(--divider)',
+                          background: active ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+                          color: active ? 'var(--accent)' : highContrast ? '#94a3b8' : 'var(--text-secondary)',
                           fontSize: 12,
                           fontWeight: active ? 600 : 400,
                           cursor: 'pointer',
@@ -2293,10 +2293,10 @@ export default function HomeClient() {
                     display: 'grid',
                     gridTemplateColumns: 'repeat(7, 1fr)',
                     gap: 4,
-                    background: highContrast ? '#1e1e1e' : '#fff',
+                    background: highContrast ? '#1e1e1e' : 'var(--bg-card)',
                     borderRadius: 12,
                     padding: 10,
-                    border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
+                    border: highContrast ? '1px solid #ffc107' : '1px solid var(--divider)',
                   }}
                 >
                   {['일', '월', '화', '수', '목', '금', '토'].map((w) => (
@@ -2306,7 +2306,7 @@ export default function HomeClient() {
                         textAlign: 'center',
                         fontSize: 11,
                         fontWeight: 700,
-                        color: highContrast ? '#ffc107' : '#64748b',
+                        color: highContrast ? '#ffc107' : 'var(--text-secondary)',
                         padding: '6px 0',
                       }}
                     >
@@ -2332,17 +2332,17 @@ export default function HomeClient() {
                           background: !isInMonth
                             ? 'transparent'
                             : selected
-                              ? (highContrast ? 'rgba(255,193,7,0.3)' : 'rgba(59,130,246,0.2)')
+                              ? (highContrast ? 'rgba(255,193,7,0.3)' : 'color-mix(in srgb, var(--accent) 22%, var(--bg-card))')
                               : highContrast
                                 ? '#2a2a2a'
-                                : '#fff',
+                                : 'var(--bg-card)',
                           color: !isInMonth
-                            ? (highContrast ? '#6b7280' : '#cbd5e1')
+                            ? (highContrast ? '#6b7280' : 'var(--divider)')
                             : selected
-                              ? (highContrast ? '#ffc107' : '#1d4ed8')
+                              ? (highContrast ? '#ffc107' : 'var(--accent-hover)')
                               : highContrast
                                 ? '#fff'
-                                : '#0f172a',
+                                : 'var(--text-primary)',
                           fontSize: 13,
                           fontWeight: selected ? 700 : 500,
                           cursor: isInMonth ? 'pointer' : 'default',
@@ -2359,7 +2359,7 @@ export default function HomeClient() {
                             fontSize: 10,
                             marginTop: 0,
                             minHeight: 12,
-                            color: highContrast ? '#ffc107' : '#64748b',
+                            color: highContrast ? '#ffc107' : 'var(--text-secondary)',
                             lineHeight: 1.1,
                             whiteSpace: 'nowrap',
                             opacity: count > 0 ? 1 : 0,
@@ -2380,9 +2380,9 @@ export default function HomeClient() {
                         marginBottom: 10,
                         padding: '8px 12px',
                         borderRadius: 10,
-                        background: highContrast ? 'rgba(255,193,7,0.15)' : '#e2e8f0',
-                        borderLeft: highContrast ? '4px solid #ffc107' : '4px solid #64748b',
-                        color: highContrast ? '#ffc107' : '#0f172a',
+                        background: highContrast ? 'rgba(255,193,7,0.15)' : 'var(--bg-subtle)',
+                        borderLeft: highContrast ? '4px solid #ffc107' : '4px solid var(--text-secondary)',
+                        color: highContrast ? '#ffc107' : 'var(--text-primary)',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -2399,8 +2399,8 @@ export default function HomeClient() {
                           padding: '4px 10px',
                           border: 'none',
                           borderRadius: 8,
-                          background: highContrast ? '#333' : '#cbd5e1',
-                          color: highContrast ? '#fff' : '#475569',
+                          background: highContrast ? '#333' : 'var(--divider)',
+                          color: highContrast ? '#fff' : 'var(--text-secondary)',
                           fontSize: 12,
                           cursor: 'pointer',
                         }}
@@ -2413,8 +2413,8 @@ export default function HomeClient() {
                         maxHeight: '45vh',
                         overflowY: 'auto',
                         borderRadius: 12,
-                        border: highContrast ? '1px solid #ffc107' : '1px solid #e2e8f0',
-                        background: highContrast ? '#1e1e1e' : '#f8fafc',
+                        border: highContrast ? '1px solid #ffc107' : '1px solid var(--divider)',
+                        background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
                         padding: 10,
                       }}
                     >
@@ -2455,7 +2455,7 @@ export default function HomeClient() {
                                       gap: 4,
                                       margin: '6px 0 8px',
                                       fontSize: 12,
-                                      color: highContrast ? '#ffc107' : '#3b82f6',
+                                      color: highContrast ? '#ffc107' : 'var(--accent)',
                                       textDecoration: 'none',
                                     }}
                                   >
@@ -2472,10 +2472,10 @@ export default function HomeClient() {
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxWidth: '100%', marginBottom: 8 }}>
                                     {imageUrls.slice(0, 3).map((url, i) => (
                                       <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', borderRadius: 8, overflow: 'hidden', maxWidth: 100 }}>
-                                        <img src={url} alt="" style={{ width: '100%', maxHeight: 120, objectFit: 'contain', display: 'block', background: '#f1f5f9' }} />
+                                        <img src={url} alt="" style={{ width: '100%', maxHeight: 120, objectFit: 'contain', display: 'block', background: 'var(--bg-subtle)' }} />
                                       </a>
                                     ))}
-                                    {imageUrls.length > 3 && <span style={{ fontSize: 12, color: highContrast ? '#94a3b8' : '#64748b' }}>+{imageUrls.length - 3}</span>}
+                                    {imageUrls.length > 3 && <span style={{ fontSize: 12, color: highContrast ? '#94a3b8' : 'var(--text-secondary)' }}>+{imageUrls.length - 3}</span>}
                                     {videoUrl && (
                                       <div style={{ borderRadius: 8, overflow: 'hidden', background: '#000', maxWidth: 160 }}>
                                         <video src={videoUrl} controls playsInline preload="metadata" style={{ width: '100%', maxHeight: 120, display: 'block' }} />
@@ -2493,7 +2493,7 @@ export default function HomeClient() {
                   </div>
                 )}
                 <div style={{ marginTop: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 14, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 14, fontWeight: 700, color: highContrast ? '#fff' : 'var(--text-primary)' }}>
                     <Baby size={20} strokeWidth={1.5} aria-hidden />
                     성장 타임라인
                   </div>
@@ -2513,9 +2513,9 @@ export default function HomeClient() {
                         style={{
                           padding: '6px 10px',
                           borderRadius: 999,
-                          border: `1px solid ${growthRange === opt.key ? 'var(--accent)' : '#e2e8f0'}`,
-                          background: growthRange === opt.key ? 'var(--accent-light)' : '#fff',
-                          color: growthRange === opt.key ? 'var(--accent)' : '#64748b',
+                          border: `1px solid ${growthRange === opt.key ? 'var(--accent)' : 'var(--divider)'}`,
+                          background: growthRange === opt.key ? 'var(--accent-light)' : 'var(--bg-card)',
+                          color: growthRange === opt.key ? 'var(--accent)' : 'var(--text-secondary)',
                           fontSize: 12,
                           cursor: 'pointer',
                         }}
@@ -2569,7 +2569,7 @@ export default function HomeClient() {
                             border: '1px solid var(--divider)',
                             borderRadius: 12,
                             overflow: 'hidden',
-                            background: '#fff',
+                            background: 'var(--bg-card)',
                             padding: 0,
                             textAlign: 'left',
                             cursor: media ? 'pointer' : 'default',
@@ -2593,7 +2593,7 @@ export default function HomeClient() {
                                     height: 0,
                                     borderTop: '10px solid transparent',
                                     borderBottom: '10px solid transparent',
-                                    borderLeft: '16px solid #fff',
+                                    borderLeft: '16px solid var(--bg-card)',
                                     marginLeft: 2,
                                     opacity: 0.9,
                                   }}
@@ -2606,8 +2606,8 @@ export default function HomeClient() {
                             <div style={{ height: 120, background: 'var(--bg-subtle)' }} />
                           )}
                           <div style={{ padding: 8 }}>
-                            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{formatDateTime(log.created_at).slice(0, 12)}</div>
-                            <div style={{ fontSize: 12, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{parsed.text}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{formatDateTime(log.created_at).slice(0, 12)}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{parsed.text}</div>
                           </div>
                         </button>
                       );
@@ -2615,7 +2615,7 @@ export default function HomeClient() {
                   </div>
                 </div>
                 <div style={{ marginTop: 18 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 14, fontWeight: 700, color: highContrast ? '#fff' : '#0f172a' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 14, fontWeight: 700, color: highContrast ? '#fff' : 'var(--text-primary)' }}>
                     <History size={20} strokeWidth={1.5} aria-hidden />
                     오늘의 회상
                   </div>
@@ -2623,7 +2623,7 @@ export default function HomeClient() {
                     <Empty
                       tone="caption"
                       message={t('todayMemoryEmpty')}
-                      captionColor={highContrast ? '#94a3b8' : '#64748b'}
+                      captionColor={highContrast ? '#94a3b8' : 'var(--text-secondary)'}
                     />
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -2631,9 +2631,9 @@ export default function HomeClient() {
                         const year = new Date(log.created_at).getFullYear();
                         const parsed = parseLogMeta(log.action);
                         return (
-                          <div key={`memory-${log.id}`} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--divider)', background: highContrast ? '#1e1e1e' : '#fff' }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#ffc107' : '#334155', marginBottom: 4 }}>{year}년 오늘</div>
-                            <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : '#0f172a' }}>{parsed.text}</div>
+                          <div key={`memory-${log.id}`} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--divider)', background: highContrast ? '#1e1e1e' : 'var(--bg-card)' }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#ffc107' : 'var(--text-secondary)', marginBottom: 4 }}>{year}년 오늘</div>
+                            <div style={{ fontSize: 13, color: highContrast ? 'var(--divider)' : 'var(--text-primary)' }}>{parsed.text}</div>
                           </div>
                         );
                       })}
@@ -2745,7 +2745,7 @@ export default function HomeClient() {
                               borderRadius: 12,
                               overflow: 'hidden',
                               border: highContrast ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--divider)',
-                              background: highContrast ? '#0f0f0f' : '#fff',
+                              background: highContrast ? '#0f0f0f' : 'var(--bg-card)',
                             }}
                           >
                             {hasImages ? (
@@ -2759,7 +2759,7 @@ export default function HomeClient() {
                                   aspectRatio: '1 / 1',
                                   objectFit: 'cover',
                                   display: 'block',
-                                  background: '#f1f5f9',
+                                  background: 'var(--bg-subtle)',
                                 }}
                               />
                             ) : (
@@ -2779,7 +2779,7 @@ export default function HomeClient() {
                                     height: 0,
                                     borderTop: '10px solid transparent',
                                     borderBottom: '10px solid transparent',
-                                    borderLeft: '16px solid #fff',
+                                    borderLeft: '16px solid var(--bg-card)',
                                     marginLeft: 2,
                                     opacity: 0.9,
                                   }}
@@ -2802,7 +2802,7 @@ export default function HomeClient() {
                             padding: '10px 12px',
                             borderRadius: 12,
                             border: highContrast ? '1px solid #333' : '1px solid var(--divider)',
-                            background: highContrast ? '#1e1e1e' : '#fff',
+                            background: highContrast ? '#1e1e1e' : 'var(--bg-card)',
                             marginBottom: 10,
                           }}
                         >
@@ -2818,7 +2818,7 @@ export default function HomeClient() {
                               {formatDateTime(log.created_at)}
                             </span>
                           </div>
-                          <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : 'var(--text-primary)', lineHeight: 1.35 }}>
+                          <div style={{ fontSize: 13, color: highContrast ? 'var(--divider)' : 'var(--text-primary)', lineHeight: 1.35 }}>
                             {parsed.text}
                           </div>
                         </div>

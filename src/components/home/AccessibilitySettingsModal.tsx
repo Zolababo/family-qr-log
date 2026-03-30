@@ -57,13 +57,13 @@ export function AccessibilitySettingsModal({
           overflow: 'auto',
           padding: 24,
           borderRadius: 20,
-          background: '#fff',
+          background: 'var(--bg-card)',
           boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
-          border: '1px solid #e2e8f0',
+          border: '1px solid var(--divider)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="accessibility-title" style={{ margin: '0 0 20px', fontSize: 20, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <h2 id="accessibility-title" style={{ margin: '0 0 20px', fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <Accessibility size={20} strokeWidth={1.5} aria-hidden />
           {t('accessibility')}
         </h2>
@@ -76,21 +76,21 @@ export function AccessibilitySettingsModal({
               onChange={(e) => setHighContrast(e.target.checked)}
               aria-describedby="high-contrast-desc"
             />
-            <span style={{ fontSize: 15, color: '#0f172a' }}>{t('highContrast')}</span>
+            <span style={{ fontSize: 15, color: 'var(--text-primary)' }}>{t('highContrast')}</span>
           </label>
-          <p id="high-contrast-desc" style={{ margin: '0 0 0 28px', fontSize: 12, color: '#64748b' }}>
+          <p id="high-contrast-desc" style={{ margin: '0 0 0 28px', fontSize: 12, color: 'var(--text-secondary)' }}>
             {t('highContrastDesc')}
           </p>
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{t('fontSizeStyle')}</p>
-          <p style={{ margin: '0 0 10px', fontSize: 12, color: '#64748b' }}>{t('bigFontHint')}</p>
+          <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{t('fontSizeStyle')}</p>
+          <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--text-secondary)' }}>{t('bigFontHint')}</p>
           <div
             style={{
               borderRadius: 14,
-              border: '1px solid #e8eaed',
-              background: '#fafafa',
+              border: '1px solid var(--divider)',
+              background: 'var(--bg-subtle)',
               padding: '14px 14px 12px',
               marginBottom: 12,
             }}
@@ -99,7 +99,7 @@ export function AccessibilitySettingsModal({
               style={{
                 fontSize: `clamp(13px, ${0.85 + accFontDraft.step * 0.12}rem, 22px)`,
                 fontWeight: accFontDraft.bold ? 700 : 500,
-                color: '#0f172a',
+                color: 'var(--text-primary)',
                 lineHeight: 1.45,
                 marginBottom: 6,
               }}
@@ -110,7 +110,7 @@ export function AccessibilitySettingsModal({
               style={{
                 fontSize: `clamp(12px, ${0.75 + accFontDraft.step * 0.1}rem, 18px)`,
                 fontWeight: accFontDraft.bold ? 600 : 400,
-                color: '#475569',
+                color: 'var(--text-secondary)',
                 letterSpacing: '0.02em',
               }}
             >
@@ -119,11 +119,11 @@ export function AccessibilitySettingsModal({
           </div>
           <div style={{ marginBottom: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{t('fontSizeLabel')}</span>
-              <span style={{ fontSize: 12, color: '#64748b' }}>{Math.round(FONT_STEPS[accFontDraft.step] * 100)}%</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('fontSizeLabel')}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{Math.round(FONT_STEPS[accFontDraft.step] * 100)}%</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', lineHeight: 1 }} aria-hidden>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-caption)', lineHeight: 1 }} aria-hidden>
                 A
               </span>
               <input
@@ -141,13 +141,13 @@ export function AccessibilitySettingsModal({
                   cursor: 'pointer',
                 }}
               />
-              <span style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', lineHeight: 1 }} aria-hidden>
+              <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }} aria-hidden>
                 A
               </span>
             </div>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', padding: '10px 0', borderTop: '1px solid #f1f5f9' }}>
-            <span style={{ fontSize: 14, color: '#0f172a' }}>{t('fontBold')}</span>
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', padding: '10px 0', borderTop: '1px solid var(--divider)' }}>
+            <span style={{ fontSize: 14, color: 'var(--text-primary)' }}>{t('fontBold')}</span>
             <input type="checkbox" checked={accFontDraft.bold} onChange={(e) => setAccFontDraft((d) => ({ ...d, bold: e.target.checked }))} />
           </label>
         </div>
@@ -155,9 +155,9 @@ export function AccessibilitySettingsModal({
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', marginBottom: 4 }}>
             <input type="checkbox" checked={simpleMode} onChange={(e) => setSimpleMode(e.target.checked)} aria-describedby="simple-mode-desc" />
-            <span style={{ fontSize: 15, color: '#0f172a' }}>{t('simpleMode')}</span>
+            <span style={{ fontSize: 15, color: 'var(--text-primary)' }}>{t('simpleMode')}</span>
           </label>
-          <p id="simple-mode-desc" style={{ margin: '0 0 0 28px', fontSize: 12, color: '#64748b' }}>
+          <p id="simple-mode-desc" style={{ margin: '0 0 0 28px', fontSize: 12, color: 'var(--text-secondary)' }}>
             {t('simpleModeHint')}
           </p>
         </div>
@@ -170,9 +170,9 @@ export function AccessibilitySettingsModal({
             width: '100%',
             padding: 14,
             borderRadius: 12,
-            border: '1px solid #e2e8f0',
-            background: '#f8fafc',
-            color: '#0f172a',
+            border: '1px solid var(--divider)',
+            background: 'var(--bg-subtle)',
+            color: 'var(--text-primary)',
             fontSize: 15,
             fontWeight: 600,
             cursor: 'pointer',
