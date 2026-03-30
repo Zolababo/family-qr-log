@@ -45,6 +45,7 @@ type StickerPickerSheetProps = {
 /** 로그 카드 스티커 선택 하단 시트 — `onPickSticker`는 부모에서 `applyStickerToLog` 등과 연결 */
 export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: StickerPickerSheetProps) {
   const startYRef = useRef<number | null>(null);
+  const dragYRef = useRef(0);
   const [translateY, setTranslateY] = useState(0);
   const DRAG_CLOSE_THRESHOLD = 90;
 
@@ -64,35 +65,6 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
       <div
         role="dialog"
         aria-label="스티커 선택"
-        onTouchStart={(e) => {
-          const t = e.touches?.[0];
-          if (!t) return;
-          startYRef.current = t.clientY;
-        }}
-        onTouchMove={(e) => {
-          const t = e.touches?.[0];
-          const startY = startYRef.current;
-          if (!t || startY == null) return;
-          const delta = t.clientY - startY;
-          if (delta <= 0) {
-            setTranslateY(0);
-            return;
-          }
-          setTranslateY(Math.min(delta, 180));
-        }}
-        onTouchEnd={() => {
-          if (translateY > DRAG_CLOSE_THRESHOLD) {
-            setTranslateY(0);
-            onClose();
-            return;
-          }
-          setTranslateY(0);
-          startYRef.current = null;
-        }}
-        onTouchCancel={() => {
-          setTranslateY(0);
-          startYRef.current = null;
-        }}
         style={{
           position: 'fixed',
           left: 0,
@@ -111,8 +83,38 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--divider)' }} aria-hidden />
+        <div
+          style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, paddingTop: 2, paddingBottom: 4, cursor: 'grab' }}
+          onTouchStart={(e) => {
+            const t = e.touches?.[0];
+            if (!t) return;
+            startYRef.current = t.clientY;
+            dragYRef.current = 0;
+          }}
+          onTouchMove={(e) => {
+            const t = e.touches?.[0];
+            const startY = startYRef.current;
+            if (!t || startY == null) return;
+            const delta = t.clientY - startY;
+            const drag = delta > 0 ? Math.min(delta, 220) : 0;
+            dragYRef.current = drag;
+            if (drag > 0) e.preventDefault();
+            setTranslateY(drag);
+          }}
+          onTouchEnd={() => {
+            const drag = dragYRef.current;
+            dragYRef.current = 0;
+            startYRef.current = null;
+            setTranslateY(0);
+            if (drag > DRAG_CLOSE_THRESHOLD) onClose();
+          }}
+          onTouchCancel={() => {
+            dragYRef.current = 0;
+            startYRef.current = null;
+            setTranslateY(0);
+          }}
+        >
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--divider)' }} aria-hidden />
         </div>
         <div style={{ padding: '0 16px 12px' }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: highContrast ? '#fff' : '#0f172a', marginBottom: 10 }}>
