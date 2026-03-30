@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export const STICKER_OPTIONS = [
   '🙂',
@@ -48,6 +48,25 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
   const dragYRef = useRef(0);
   const [translateY, setTranslateY] = useState(0);
   const DRAG_CLOSE_THRESHOLD = 90;
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverscroll = html.style.overscrollBehaviorY;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyOverscroll = body.style.overscrollBehaviorY;
+
+    // Prevent browser pull-to-refresh while the bottom sheet is open.
+    html.style.overscrollBehaviorY = 'contain';
+    body.style.overflow = 'hidden';
+    body.style.overscrollBehaviorY = 'contain';
+
+    return () => {
+      html.style.overscrollBehaviorY = prevHtmlOverscroll;
+      body.style.overflow = prevBodyOverflow;
+      body.style.overscrollBehaviorY = prevBodyOverscroll;
+    };
+  }, []);
 
   return (
     <>
