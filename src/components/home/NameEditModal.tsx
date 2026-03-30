@@ -41,15 +41,15 @@ export function NameEditModal({
           transform: 'translate(-50%, -50%)',
           width: 'min(340px, 92vw)',
           padding: 20,
-          borderRadius: 16,
-          background: highContrast ? '#1e1e1e' : '#fff',
-          border: highContrast ? '2px solid #ffc107' : '1px solid var(--bg-subtle)',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+          borderRadius: 18,
+          background: highContrast ? '#1e1e1e' : 'var(--bg-card)',
+          border: highContrast ? '2px solid #ffc107' : '1px solid var(--divider)',
+          boxShadow: highContrast ? '0 20px 40px rgba(0,0,0,0.35)' : 'var(--shadow-card)',
           zIndex: 55,
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ fontSize: 12, color: highContrast ? '#e0e0e0' : '#94a3b8', marginBottom: 8 }}>{t('nameForFamily')}</div>
+        <div style={{ fontSize: 12, color: highContrast ? '#e0e0e0' : 'var(--text-caption)', marginBottom: 8 }}>{t('nameForFamily')}</div>
         <input
           value={profileName}
           onChange={(e) => setProfileName(e.target.value)}
@@ -59,10 +59,10 @@ export function NameEditModal({
             width: '100%',
             boxSizing: 'border-box',
             padding: '10px 12px',
-            borderRadius: 10,
-            border: '1px solid #e2e8f0',
-            background: '#f8fafc',
-            color: '#0f172a',
+            borderRadius: 12,
+            border: `1px solid ${highContrast ? '#555' : 'var(--divider)'}`,
+            background: highContrast ? '#161616' : 'var(--bg-subtle)',
+            color: highContrast ? '#f8fafc' : 'var(--text-primary)',
             fontSize: 14,
             outline: 'none',
             marginBottom: 12,

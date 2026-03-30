@@ -261,7 +261,7 @@ body {
 
 [data-accessibility-root]:not([data-high-contrast="true"]) button:hover:not(:disabled),
 [data-accessibility-root]:not([data-high-contrast="true"]) [role="button"]:hover:not(:disabled) {
-  transform: scale(1.02) !important;
+  transform: translateY(-1px) !important;
   box-shadow: var(--shadow-card) !important;
 }
 
@@ -283,7 +283,7 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   [data-accessibility-root]:not([data-high-contrast="true"]) button:active:not(:disabled),
   [data-accessibility-root]:not([data-high-contrast="true"]) [role="button"]:active:not(:disabled) {
-    transform: scale(0.98) !important;
+    transform: translateY(0) !important;
     box-shadow: none !important;
   }
 }
@@ -556,6 +556,12 @@ body {
   border: var(--glass-border) !important;
   border-radius: var(--radius-sm) !important;
   color: var(--text-primary) !important;
+}
+
+[data-accessibility-root]:not([data-high-contrast="true"]) input:not([type="checkbox"]):not([type="radio"]):focus,
+[data-accessibility-root]:not([data-high-contrast="true"]) textarea:focus {
+  border-color: color-mix(in srgb, var(--accent) 45%, #ffffff 55%) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent) !important;
 }
 
 [data-accessibility-root]:not([data-high-contrast="true"]) input::placeholder,

@@ -46,14 +46,14 @@ export function Toast({ message, fading, highContrast, liftAboveTabBar, variant:
         }
       : variant === 'success'
         ? {
-            color: highContrast ? '#bbf7d0' : '#166534',
-            background: highContrast ? 'rgba(20,83,45,0.45)' : 'rgba(34,197,94,0.12)',
-            border: highContrast ? '1px solid rgba(74,222,128,0.45)' : '1px solid rgba(34,197,94,0.35)',
+            color: highContrast ? '#bbf7d0' : '#3f5f49',
+            background: highContrast ? 'rgba(20,83,45,0.45)' : 'rgba(63,116,102,0.14)',
+            border: highContrast ? '1px solid rgba(74,222,128,0.45)' : '1px solid rgba(63,116,102,0.35)',
           }
         : {
             color: highContrast ? '#e2e8f0' : 'var(--text-primary)',
-            background: highContrast ? '#1e1e1e' : 'var(--place-table)',
-            border: highContrast ? '1px solid #444' : '1px solid var(--place-table-icon)',
+            background: highContrast ? '#1e1e1e' : 'var(--accent-light)',
+            border: highContrast ? '1px solid #444' : '1px solid rgba(139,106,79,0.35)',
           };
 
   return (
@@ -72,11 +72,11 @@ export function Toast({ message, fading, highContrast, liftAboveTabBar, variant:
         maxWidth: 'min(480px, calc(100vw - 32px))',
         zIndex: 55,
         padding: '12px 16px',
-        borderRadius: 12,
+        borderRadius: 14,
         fontSize: 14,
         lineHeight: 1.45,
         fontWeight: 500,
-        boxShadow: highContrast ? '0 8px 28px rgba(0,0,0,0.45)' : '0 8px 28px rgba(15,23,42,0.12)',
+        boxShadow: highContrast ? '0 8px 28px rgba(0,0,0,0.45)' : 'var(--shadow-card)',
         opacity: fading ? 0 : 1,
         transition: 'opacity 0.35s ease-out',
         wordBreak: 'break-word',

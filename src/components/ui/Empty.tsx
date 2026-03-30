@@ -20,6 +20,9 @@ export function Empty({
         lineHeight: isCaption ? 1.45 : 1.5,
         color: captionColor,
         textAlign: 'center',
+        background: isCaption ? 'transparent' : 'var(--bg-subtle)',
+        border: isCaption ? 'none' : '1px solid var(--divider)',
+        borderRadius: isCaption ? 0 : 12,
       }}
     >
       {message}

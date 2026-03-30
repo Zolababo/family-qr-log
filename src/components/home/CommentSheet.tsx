@@ -81,9 +81,9 @@ export function CommentSheet({
           margin: '0 auto',
           zIndex: 43,
           background: 'var(--bg-card)',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+          borderTopLeftRadius: 18,
+          borderTopRightRadius: 18,
+          boxShadow: '0 -10px 28px rgba(67,50,33,0.16)',
           paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
           transform: commentSheetAnimated ? `translateY(${commentSheetDragY}px)` : 'translateY(100%)',
           transition: commentSheetDragActive ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
@@ -101,7 +101,7 @@ export function CommentSheet({
           <div style={{ padding: '12px 0 8px', display: 'flex', justifyContent: 'center' }}>
             <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--divider)' }} aria-hidden />
           </div>
-          <h3 style={{ margin: '0 0 12px', padding: '0 16px', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+          <h3 style={{ margin: '0 0 12px', padding: '0 16px', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
             {commentTarget.parentId ? '답글' : '댓글'}
           </h3>
         </div>
