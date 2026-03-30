@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-export const STICKER_OPTIONS = [
+const EMOJI_OPTIONS = [
   '🙂',
   '😄',
   '🥰',
@@ -23,8 +23,35 @@ export const STICKER_OPTIONS = [
   '☀️',
   '🍀',
   '💫',
+];
+
+const FEELING_TEXT_OPTIONS = [
   '사랑해',
   '행복해',
+  '기뻐',
+  '신난다',
+  '설레',
+  '슬퍼',
+  '속상해',
+  '아쉬워',
+  '괜찮아',
+  '열받아',
+  '짜증나',
+  '어리둥절',
+  '황당해',
+  '당황했어',
+  '놀랐어',
+  '무서워',
+  '평온해',
+  '고요해',
+  '피곤해',
+  '졸려',
+  '배고파',
+  '보고싶어',
+  '데질라구',
+];
+
+const FUN_TEXT_OPTIONS = [
   '최고야',
   '잘했어',
   '고마워',
@@ -33,6 +60,16 @@ export const STICKER_OPTIONS = [
   '화이팅',
   '멋져',
   '축하해',
+  '토닥토닥',
+  '오예',
+  '대박',
+  '찐감동',
+  '굿굿',
+  '킹받네',
+  '오늘도 버틴다',
+  '힘내보자',
+  '고생했지',
+  '아자아자',
 ];
 
 type StickerPickerSheetProps = {
@@ -44,11 +81,13 @@ type StickerPickerSheetProps = {
 
 /** 로그 카드 스티커 선택 하단 시트 — `onPickSticker`는 부모에서 `applyStickerToLog` 등과 연결 */
 export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: StickerPickerSheetProps) {
+  const [category, setCategory] = useState<'emoji' | 'feeling' | 'fun'>('emoji');
   const handleRef = useRef<HTMLDivElement | null>(null);
   const startYRef = useRef<number | null>(null);
   const dragYRef = useRef(0);
   const [translateY, setTranslateY] = useState(0);
   const DRAG_CLOSE_THRESHOLD = 90;
+  const visibleOptions = category === 'emoji' ? EMOJI_OPTIONS : category === 'feeling' ? FEELING_TEXT_OPTIONS : FUN_TEXT_OPTIONS;
 
   useEffect(() => {
     const html = document.documentElement;
@@ -152,23 +191,58 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
           <div style={{ fontSize: 14, fontWeight: 800, color: highContrast ? '#fff' : '#0f172a', marginBottom: 10 }}>
             스티커 선택
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
             <button
               type="button"
-              onClick={() => onPickSticker(null)}
+              onClick={() => setCategory('emoji')}
               style={{
-                padding: '10px 12px',
+                padding: '8px 12px',
                 borderRadius: 999,
                 border: '1px solid var(--divider)',
-                background: 'transparent',
-                color: highContrast ? '#94a3b8' : '#64748b',
+                background: category === 'emoji' ? 'var(--accent-light)' : 'transparent',
+                color: category === 'emoji' ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
                 fontSize: 12,
+                fontWeight: 700,
                 cursor: 'pointer',
               }}
             >
-              제거
+              이모지
             </button>
-            {STICKER_OPTIONS.map((s) => (
+            <button
+              type="button"
+              onClick={() => setCategory('feeling')}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 999,
+                border: '1px solid var(--divider)',
+                background: category === 'feeling' ? 'var(--accent-light)' : 'transparent',
+                color: category === 'feeling' ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              감정 멘트
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategory('fun')}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 999,
+                border: '1px solid var(--divider)',
+                background: category === 'fun' ? 'var(--accent-light)' : 'transparent',
+                color: category === 'fun' ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              재미 멘트
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {visibleOptions.map((s) => (
               <button
                 key={s}
                 type="button"
