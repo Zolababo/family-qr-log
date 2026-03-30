@@ -8,7 +8,7 @@ type AppHeaderProps = {
 
 export function AppHeader({ t }: AppHeaderProps) {
   return (
-    <header style={{ marginBottom: 0, paddingTop: 'var(--space-2)', paddingBottom: 'var(--space-2)', borderBottom: 'none' }}>
+    <header style={{ marginBottom: 0, paddingTop: 'var(--space-3)', paddingBottom: 'var(--space-2)', borderBottom: 'none' }}>
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
         <h1
           id="app-title"
@@ -24,9 +24,9 @@ export function AppHeader({ t }: AppHeaderProps) {
             className="app-title-logo-img"
             src="/logo-title.png"
             alt={t('appTitleLogoAlt')}
-            width={340}
-            height={88}
-            sizes="(max-width: 480px) 92vw, 340px"
+            width={400}
+            height={100}
+            sizes="(max-width: 480px) 96vw, 400px"
             priority
             style={{
               width: 'auto',

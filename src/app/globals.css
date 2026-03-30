@@ -177,9 +177,9 @@ body {
 }
 
 [data-accessibility-root]:not([data-high-contrast="true"]) #app-title.app-title-logo-heading .app-title-logo-img {
-  max-height: clamp(32px, 11vw, 48px) !important;
+  max-height: clamp(44px, 14vw, 68px) !important;
   width: auto !important;
-  max-width: min(100%, 340px) !important;
+  max-width: min(100%, 400px) !important;
   height: auto !important;
 }
 
