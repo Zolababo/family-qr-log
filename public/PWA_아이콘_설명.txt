@@ -1,20 +1,16 @@
-PWA 앱 아이콘 설정 (금테 뱃지 이미지 사용)
+PWA / 모바일 홈 화면 아이콘
 
-1. 첨부하신 뱃지 이미지(금테 + 검은 안 + QR·가족·FAMILY QR LOG)를 사용하려면:
+생성된 파일 (픽셀 크기 고정, manifest와 일치)
+  - icon-192.png     … 192×192 (any)
+  - icon-512.png     … 512×512 (any)
+  - icon-maskable-512.png … 512×512 (maskable, 본문은 캔버스의 약 80% 안)
+  - apple-touch-icon.png … 180×180 (iOS 홈 화면)
+  - icon.png         … 192×192 (favicon 호환용, icon-192와 동일)
 
-   - 해당 이미지 파일을 이 폴더(public)에 넣고
-   - 파일 이름을 정확히 "icon.png" 로 저장하세요.
+마스터 원본
+  - scripts/pwa-icon-source.png (정사각 권장)
 
-2. 흰 바탕을 없애고 금테부터만 쓰고 싶다면:
+아이콘 다시 빌드
+  npm run icons
 
-   - 그림판, 포토스케이프, 캔바 등에서 이미지를 열고
-   - 흰 여백을 잘라내어 "금테가 딱 맞게"만 남긴 뒤
-   - 그렇게 자른 이미지를 public/icon.png 로 저장하세요.
-
-3. 저장 위치:
-
-   프로젝트 폴더\public\icon.png
-
-   예: c:\Users\skim0\Desktop\Test\family-qr-log\public\icon.png
-
-4. icon.png 를 넣은 뒤 앱을 다시 배포하면 PWA·홈 화면 아이콘이 뱃지 이미지로 바뀝니다.
+원본을 바꾼 뒤에는 위 명령으로 public/*.png 를 다시 생성하고 배포하세요.
