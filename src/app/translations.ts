@@ -7,6 +7,7 @@ export type Lang = 'ko' | 'en' | 'ja' | 'zh';
 export const translations: Record<Lang, Record<string, string>> = {
   ko: {
     appTitle: 'Family Log',
+    appTitleLogoAlt: '밤톨이네 이야기',
     menu: '메뉴',
     inviteFamily: '가족초대',
     editName: '이름 수정',
@@ -144,6 +145,7 @@ export const translations: Record<Lang, Record<string, string>> = {
   },
   en: {
     appTitle: 'Family Log',
+    appTitleLogoAlt: "Bamtoli's Story",
     menu: 'Menu',
     inviteFamily: 'Invite Family',
     editName: 'Edit Name',
@@ -281,6 +283,7 @@ export const translations: Record<Lang, Record<string, string>> = {
   },
   ja: {
     appTitle: 'Family Log',
+    appTitleLogoAlt: 'バムトリー家の物語',
     menu: 'メニュー',
     inviteFamily: '家族を招待',
     editName: '名前を変更',
@@ -418,6 +421,7 @@ export const translations: Record<Lang, Record<string, string>> = {
   },
   zh: {
     appTitle: 'Family Log',
+    appTitleLogoAlt: '板栗家的故事',
     menu: '菜单',
     inviteFamily: '邀请家人',
     editName: '修改名字',

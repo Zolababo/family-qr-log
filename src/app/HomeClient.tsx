@@ -1940,11 +1940,7 @@ export default function HomeClient() {
         />
         {user && householdId ? (
           <div className="home-top-bleed" style={{ marginBottom: 8 }}>
-            <AppHeader
-              theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
-              highContrast={highContrast}
-              t={t}
-            />
+            <AppHeader t={t} />
             <MemberFilter
               user={user}
               members={members}
@@ -2148,11 +2144,7 @@ export default function HomeClient() {
           </div>
         ) : (
           <div className="home-top-bleed" style={{ marginBottom: 8 }}>
-            <AppHeader
-              theme={{ border: theme.border, text: theme.text, textSecondary: theme.textSecondary, card: theme.card, radius: theme.radius, radiusLg: theme.radiusLg }}
-              highContrast={highContrast}
-              t={t}
-            />
+            <AppHeader t={t} />
           </div>
         )}
 
