@@ -387,7 +387,7 @@ export function LogFeed({
                                       display: 'flex',
                                       flexDirection: 'column',
                                       alignItems: 'flex-start',
-                                      gap: 6,
+                                      gap: 8,
                                       maxWidth: 'min(76%, 280px)',
                                     }}
                                   >
@@ -396,15 +396,15 @@ export function LogFeed({
                                         display: 'flex',
                                         flexDirection: 'column',
                                         alignItems: 'flex-start',
-                                        gap: 6,
-                                        background: 'rgba(0,0,0,0.46)',
+                                        gap: 8,
+                                        background: 'rgba(0,0,0,0.36)',
                                         color: 'var(--bg-card)',
-                                        padding: '8px 10px',
-                                        borderRadius: 16,
-                                        lineHeight: 1.15,
+                                        padding: '8px 9px',
+                                        borderRadius: 18,
+                                        lineHeight: 1.2,
                                         fontFamily: 'inherit',
                                         textAlign: 'left',
-                                        backdropFilter: 'blur(3px)',
+                                        backdropFilter: 'blur(4px)',
                                       }}
                                     >
                                       {stickerEntries.length > 0
@@ -413,23 +413,37 @@ export function LogFeed({
                                               key={userId}
                                               style={{
                                                 display: 'flex',
-                                                alignItems: 'baseline',
-                                                gap: 6,
-                                                flexWrap: 'wrap',
+                                              alignItems: 'flex-start',
+                                              gap: 6,
+                                              flexWrap: 'wrap',
+                                              maxWidth: '100%',
                                               }}
                                             >
                                               <span
                                                 style={{
-                                                  fontSize: 10,
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                padding: '3px 6px',
+                                                borderRadius: 999,
+                                                background: 'rgba(255,255,255,0.14)',
+                                                fontSize: 10,
                                                   fontWeight: 800,
-                                                  color: 'rgba(255,255,255,0.82)',
-                                                  letterSpacing: '0.01em',
+                                                lineHeight: 1,
+                                                color: 'rgba(255,255,255,0.92)',
+                                                letterSpacing: '0.01em',
+                                                flexShrink: 0,
                                                 }}
                                               >
                                                 {author}
                                               </span>
                                               <span
                                                 style={{
+                                                  display: 'inline-flex',
+                                                  alignItems: 'center',
+                                                  maxWidth: '100%',
+                                                  padding: sticker.length <= 2 ? '4px 8px' : '5px 9px',
+                                                  borderRadius: 12,
+                                                  background: 'rgba(255,255,255,0.18)',
                                                   fontSize: sticker.length <= 2 ? 17 : 13,
                                                   fontWeight: sticker.length <= 2 ? 500 : 700,
                                                   color: 'var(--bg-card)',
@@ -444,6 +458,12 @@ export function LogFeed({
                                             <span
                                               key={`${sticker}-${idx}`}
                                               style={{
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              maxWidth: '100%',
+                                              padding: sticker.length <= 2 ? '4px 8px' : '5px 9px',
+                                              borderRadius: 12,
+                                              background: 'rgba(255,255,255,0.18)',
                                                 fontSize: sticker.length <= 2 ? 17 : 13,
                                                 fontWeight: sticker.length <= 2 ? 500 : 700,
                                                 color: 'var(--bg-card)',
