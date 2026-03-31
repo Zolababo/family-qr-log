@@ -1,9 +1,20 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Share2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { sanitizeMediaUrl } from '@/lib/safeUrl';
+
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const distanceBetweenTouches = (touches: { length: number; [index: number]: { clientX: number; clientY: number } | undefined }) => {
+  if (touches.length < 2) return 0;
+  const [a, b] = [touches[0], touches[1]];
+  return Math.hypot((b?.clientX ?? 0) - (a?.clientX ?? 0), (b?.clientY ?? 0) - (a?.clientY ?? 0));
+};
 
 export default function MediaViewerClient() {
   const searchParams = useSearchParams();
@@ -41,13 +52,26 @@ export default function MediaViewerClient() {
   const initialIndex = Number.isFinite(indexParam) ? Math.max(0, Math.min(indexParam, Math.max(0, urls.length - 1))) : 0;
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const safePrimaryUrl = sanitizeMediaUrl(url);
   const activeImageUrl = urls.length > 0 ? urls[currentIndex] : safePrimaryUrl;
   const canSwipeImages = type === 'image' && urls.length > 1;
+  const pinchDistanceRef = useRef<number | null>(null);
+  const pinchScaleStartRef = useRef(1);
+  const panStartRef = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
 
   useEffect(() => {
     setCurrentIndex(initialIndex);
   }, [initialIndex]);
+
+  useEffect(() => {
+    setZoomScale(1);
+    setTranslate({ x: 0, y: 0 });
+    setTouchStartX(null);
+    pinchDistanceRef.current = null;
+    panStartRef.current = null;
+  }, [activeImageUrl]);
 
   const downloadMedia = (src: string) => {
     if (typeof window === 'undefined') return;
@@ -97,10 +121,76 @@ export default function MediaViewerClient() {
         <img
           src={activeImageUrl}
           alt=""
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-          onTouchStart={(e) => setTouchStartX(e.changedTouches?.[0]?.clientX ?? null)}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            transform: `translate(${translate.x}px, ${translate.y}px) scale(${zoomScale})`,
+            transformOrigin: 'center center',
+            transition: pinchDistanceRef.current == null ? 'transform 120ms ease-out' : 'none',
+            touchAction: 'none',
+            userSelect: 'none',
+          }}
+          onTouchStart={(e) => {
+            if (e.touches.length >= 2) {
+              pinchDistanceRef.current = distanceBetweenTouches(e.touches);
+              pinchScaleStartRef.current = zoomScale;
+              setTouchStartX(null);
+              panStartRef.current = null;
+              return;
+            }
+
+            const touch = e.changedTouches?.[0];
+            if (!touch) return;
+            if (zoomScale > 1.01) {
+              panStartRef.current = {
+                x: touch.clientX,
+                y: touch.clientY,
+                originX: translate.x,
+                originY: translate.y,
+              };
+              setTouchStartX(null);
+              return;
+            }
+            setTouchStartX(touch.clientX);
+          }}
+          onTouchMove={(e) => {
+            if (e.touches.length >= 2) {
+              const nextDistance = distanceBetweenTouches(e.touches);
+              const startDistance = pinchDistanceRef.current;
+              if (!startDistance) return;
+              const nextScale = clamp((nextDistance / startDistance) * pinchScaleStartRef.current, MIN_SCALE, MAX_SCALE);
+              setZoomScale(nextScale);
+              if (nextScale <= 1.01) {
+                setTranslate({ x: 0, y: 0 });
+              }
+              e.preventDefault();
+              return;
+            }
+
+            if (zoomScale > 1.01 && panStartRef.current) {
+              const touch = e.touches?.[0];
+              if (!touch) return;
+              const nextX = panStartRef.current.originX + (touch.clientX - panStartRef.current.x);
+              const nextY = panStartRef.current.originY + (touch.clientY - panStartRef.current.y);
+              setTranslate({ x: nextX, y: nextY });
+              e.preventDefault();
+            }
+          }}
           onTouchEnd={(e) => {
-            if (!canSwipeImages || touchStartX == null) return;
+            if (e.touches.length >= 2) return;
+            if (pinchDistanceRef.current != null) {
+              pinchDistanceRef.current = null;
+              pinchScaleStartRef.current = zoomScale;
+            }
+            if (zoomScale <= 1.01) {
+              if (zoomScale !== 1 || translate.x !== 0 || translate.y !== 0) {
+                setZoomScale(1);
+                setTranslate({ x: 0, y: 0 });
+              }
+              panStartRef.current = null;
+            }
+            if (!canSwipeImages || touchStartX == null || zoomScale > 1.01) return;
             const endX = e.changedTouches?.[0]?.clientX ?? touchStartX;
             const dx = endX - touchStartX;
             setTouchStartX(null);
@@ -111,12 +201,20 @@ export default function MediaViewerClient() {
               setCurrentIndex((prev) => (prev - 1 + urls.length) % urls.length);
             }
           }}
+          onDoubleClick={() => {
+            if (zoomScale > 1.01) {
+              setZoomScale(1);
+              setTranslate({ x: 0, y: 0 });
+            } else {
+              setZoomScale(2);
+            }
+          }}
         />
       ) : null}
       {safePrimaryUrl && type === 'video' ? (
         <video src={safePrimaryUrl} controls autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
       ) : null}
-      {canSwipeImages && (
+      {canSwipeImages && zoomScale <= 1.01 && (
         <div
           style={{
             position: 'fixed',
