@@ -1776,6 +1776,13 @@ export default function HomeClient() {
     setTodoTasks((prev) => prev.filter((task) => task.id !== id));
   }, []);
 
+  const updateTodoTaskText = useCallback((id: number, nextText: string) => {
+    const trimmed = nextText.trim();
+    if (!trimmed) return;
+    todoDirtyRef.current = true;
+    setTodoTasks((prev) => prev.map((task) => (task.id === id ? { ...task, text: trimmed } : task)));
+  }, []);
+
   const saveSharedMemos = useCallback(async () => {
     if (!householdId || !user) return;
     setMemoSaving(true);
@@ -2184,6 +2191,7 @@ export default function HomeClient() {
                 addTodoTask={addTodoTask}
                 toggleTodoTaskDone={toggleTodoTaskDone}
                 removeTodoTask={removeTodoTask}
+                updateTodoTaskText={updateTodoTaskText}
               />
             )}
             {activeTab === 'calendar' && (
