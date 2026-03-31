@@ -378,15 +378,7 @@ export function LogFeed({
                                 if (stickerEntries.length === 0 && fallback.length === 0) return null;
 
                                 return (
-                                  <button
-                                    type="button"
-                                    aria-label={t('stickerRemoveAria')}
-                                    title={t('stickerRemoveHint')}
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      if (ownSticker || fallback.length > 0) onStickerRemove?.(log.id);
-                                    }}
+                                  <div
                                     style={{
                                       position: 'absolute',
                                       top: 8,
@@ -397,40 +389,60 @@ export function LogFeed({
                                       alignItems: 'flex-start',
                                       gap: 6,
                                       maxWidth: 'min(76%, 280px)',
-                                      background: 'rgba(0,0,0,0.46)',
-                                      color: 'var(--bg-card)',
-                                      padding: '8px 10px',
-                                      borderRadius: 16,
-                                      lineHeight: 1.15,
-                                      cursor: ownSticker || fallback.length > 0 ? 'pointer' : 'default',
-                                      border: 'none',
-                                      fontFamily: 'inherit',
-                                      textAlign: 'left',
-                                      backdropFilter: 'blur(3px)',
                                     }}
                                   >
-                                    {stickerEntries.length > 0
-                                      ? stickerEntries.map(({ userId, sticker, author }) => (
-                                          <span
-                                            key={userId}
-                                            style={{
-                                              display: 'flex',
-                                              alignItems: 'baseline',
-                                              gap: 6,
-                                              flexWrap: 'wrap',
-                                            }}
-                                          >
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'flex-start',
+                                        gap: 6,
+                                        background: 'rgba(0,0,0,0.46)',
+                                        color: 'var(--bg-card)',
+                                        padding: '8px 10px',
+                                        borderRadius: 16,
+                                        lineHeight: 1.15,
+                                        fontFamily: 'inherit',
+                                        textAlign: 'left',
+                                        backdropFilter: 'blur(3px)',
+                                      }}
+                                    >
+                                      {stickerEntries.length > 0
+                                        ? stickerEntries.map(({ userId, sticker, author }) => (
                                             <span
+                                              key={userId}
                                               style={{
-                                                fontSize: 10,
-                                                fontWeight: 800,
-                                                color: 'rgba(255,255,255,0.82)',
-                                                letterSpacing: '0.01em',
+                                                display: 'flex',
+                                                alignItems: 'baseline',
+                                                gap: 6,
+                                                flexWrap: 'wrap',
                                               }}
                                             >
-                                              {author}
+                                              <span
+                                                style={{
+                                                  fontSize: 10,
+                                                  fontWeight: 800,
+                                                  color: 'rgba(255,255,255,0.82)',
+                                                  letterSpacing: '0.01em',
+                                                }}
+                                              >
+                                                {author}
+                                              </span>
+                                              <span
+                                                style={{
+                                                  fontSize: sticker.length <= 2 ? 17 : 13,
+                                                  fontWeight: sticker.length <= 2 ? 500 : 700,
+                                                  color: 'var(--bg-card)',
+                                                  wordBreak: 'break-word',
+                                                }}
+                                              >
+                                                {sticker}
+                                              </span>
                                             </span>
+                                          ))
+                                        : fallback.map((sticker, idx) => (
                                             <span
+                                              key={`${sticker}-${idx}`}
                                               style={{
                                                 fontSize: sticker.length <= 2 ? 17 : 13,
                                                 fontWeight: sticker.length <= 2 ? 500 : 700,
@@ -440,22 +452,34 @@ export function LogFeed({
                                             >
                                               {sticker}
                                             </span>
-                                          </span>
-                                        ))
-                                      : fallback.map((sticker, idx) => (
-                                          <span
-                                            key={`${sticker}-${idx}`}
-                                            style={{
-                                              fontSize: sticker.length <= 2 ? 17 : 13,
-                                              fontWeight: sticker.length <= 2 ? 500 : 700,
-                                              color: 'var(--bg-card)',
-                                              wordBreak: 'break-word',
-                                            }}
-                                          >
-                                            {sticker}
-                                          </span>
-                                        ))}
-                                  </button>
+                                          ))}
+                                    </div>
+                                    {ownSticker || fallback.length > 0 ? (
+                                      <button
+                                        type="button"
+                                        aria-label={t('stickerRemoveAria')}
+                                        title={t('stickerRemoveHint')}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          onStickerRemove?.(log.id);
+                                        }}
+                                        style={{
+                                          background: 'rgba(0,0,0,0.54)',
+                                          color: 'var(--bg-card)',
+                                          padding: '5px 8px',
+                                          borderRadius: 999,
+                                          fontSize: 11,
+                                          fontWeight: 700,
+                                          cursor: 'pointer',
+                                          border: '1px solid rgba(255,255,255,0.18)',
+                                          fontFamily: 'inherit',
+                                        }}
+                                        >
+                                          {t('stickerRemoveButton')}
+                                        </button>
+                                    ) : null}
+                                  </div>
                                 );
                               })()}
                               {imageUrls.length > 0 && (
