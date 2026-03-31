@@ -97,10 +97,11 @@ type StickerPickerSheetProps = {
   onClose: () => void;
   /** null = 스티커 제거 */
   onPickSticker: (sticker: string | null) => void;
+  canRemove?: boolean;
 };
 
 /** 로그 카드 스티커 선택 하단 시트 — `onPickSticker`는 부모에서 `applyStickerToLog` 등과 연결 */
-export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: StickerPickerSheetProps) {
+export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRemove = false }: StickerPickerSheetProps) {
   const [category, setCategory] = useState<'emoji' | 'feeling' | 'fun' | 'family'>('emoji');
   const handleRef = useRef<HTMLDivElement | null>(null);
   const startYRef = useRef<number | null>(null);
@@ -218,6 +219,28 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
           <div style={{ fontSize: 14, fontWeight: 800, color: highContrast ? '#fff' : '#0f172a', marginBottom: 10 }}>
             스티커 선택
           </div>
+          {canRemove ? (
+            <div style={{ marginBottom: 10 }}>
+              <button
+                type="button"
+                onClick={() => onPickSticker(null)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '8px 12px',
+                  borderRadius: 999,
+                  border: '1px solid var(--divider)',
+                  background: highContrast ? 'rgba(255,255,255,0.04)' : 'var(--bg-subtle)',
+                  color: highContrast ? '#fff' : 'var(--text-secondary)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                내 스티커 지우기
+              </button>
+            </div>
+          ) : null}
           <div style={{ display: 'flex', gap: 8, marginBottom: 10, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
             <button
               type="button"

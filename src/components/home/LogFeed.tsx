@@ -74,8 +74,6 @@ type LogFeedProps = {
   longPressTimerRef: RefObject<NodeJS.Timeout | null>;
   setActionPopupLogId: (v: string | null) => void;
   onPickSticker?: (logId: string) => void;
-  /** 스티커 오버레이를 다시 누르면 제거 */
-  onStickerRemove?: (logId: string) => void;
   onTagClick?: (slug: string) => void;
   /** 가구 로그 최초 페치 중(홈 피드 자리 표시) */
   logsInitialLoading?: boolean;
@@ -113,7 +111,6 @@ export function LogFeed({
   longPressTimerRef,
   setActionPopupLogId,
   onPickSticker,
-  onStickerRemove,
   onTagClick,
   logsInitialLoading = false,
   logsRefreshLoading = false,
@@ -378,7 +375,14 @@ export function LogFeed({
                                 if (stickerEntries.length === 0 && fallback.length === 0) return null;
 
                                 return (
-                                  <div
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      onPickSticker?.(log.id);
+                                    }}
+                                    aria-label="스티커 보기 및 변경"
                                     style={{
                                       position: 'absolute',
                                       top: 8,
@@ -389,6 +393,10 @@ export function LogFeed({
                                       alignItems: 'flex-start',
                                       gap: 8,
                                       maxWidth: 'min(76%, 280px)',
+                                      padding: 0,
+                                      background: 'transparent',
+                                      border: 'none',
+                                      cursor: onPickSticker ? 'pointer' : 'default',
                                     }}
                                   >
                                     <div
@@ -474,32 +482,7 @@ export function LogFeed({
                                             </span>
                                           ))}
                                     </div>
-                                    {ownSticker || fallback.length > 0 ? (
-                                      <button
-                                        type="button"
-                                        aria-label={t('stickerRemoveAria')}
-                                        title={t('stickerRemoveHint')}
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          onStickerRemove?.(log.id);
-                                        }}
-                                        style={{
-                                          background: 'rgba(0,0,0,0.54)',
-                                          color: 'var(--bg-card)',
-                                          padding: '5px 8px',
-                                          borderRadius: 999,
-                                          fontSize: 11,
-                                          fontWeight: 700,
-                                          cursor: 'pointer',
-                                          border: '1px solid rgba(255,255,255,0.18)',
-                                          fontFamily: 'inherit',
-                                        }}
-                                        >
-                                          {t('stickerRemoveButton')}
-                                        </button>
-                                    ) : null}
-                                  </div>
+                                  </button>
                                 );
                               })()}
                               {imageUrls.length > 0 && (

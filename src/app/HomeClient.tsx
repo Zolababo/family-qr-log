@@ -1198,6 +1198,14 @@ export default function HomeClient() {
     applyStickerToLog(stickerPickerLogId, sticker);
   };
 
+  const selectedStickerLogOwnSticker = useMemo(() => {
+    if (!user || !stickerPickerLogId) return null;
+    const targetLog = logs.find((log) => log.id === stickerPickerLogId);
+    if (!targetLog) return null;
+    const { meta } = parseLogMeta(targetLog.action);
+    return meta.stickerByUser?.[user.id] ?? null;
+  }, [logs, stickerPickerLogId, user]);
+
   useEffect(() => {
     if (!householdId || !user) {
       setLogsInitialLoading(false);
@@ -2862,9 +2870,6 @@ export default function HomeClient() {
                 longPressTimerRef={longPressTimerRef}
                 setActionPopupLogId={setActionPopupLogId}
                 onPickSticker={(logId) => openStickerPicker(logId)}
-                onStickerRemove={(logId) => {
-                  void applyStickerToLog(logId, null);
-                }}
                 onTagClick={applyTagFromLogCard}
                 logsInitialLoading={logsInitialLoading}
                 logsRefreshLoading={pullRefreshRefreshing}
@@ -3061,6 +3066,7 @@ export default function HomeClient() {
             setStickerPickerLogId(null);
           }}
           onPickSticker={pickSticker}
+          canRemove={!!selectedStickerLogOwnSticker}
         />
       )}
 
