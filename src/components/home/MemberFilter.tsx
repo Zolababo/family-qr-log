@@ -26,11 +26,11 @@ type MemberFilterProps = {
 
 const CHIP_HEIGHT = 78;
 const AVATAR_SIZE = 58;
-/** 선택 링 두께. 바깥 링 크기는 항상 고정해 이름 줄 위치가 흔들리지 않게 한다. */
-const RING_WIDTH = 2;
+/** 그라데이션 링 두께(예전 6px). 바깥 링 70×70 고정으로 선택 여부와 무관하게 이름 줄 높이 유지 */
+const RING_WIDTH = 6;
 const AVATAR_RING_OUTER = AVATAR_SIZE + RING_WIDTH * 2;
-/** 선택·비선택 동일 — 아바타+링이 들어갈 고정 슬롯 (이름 줄 세로 위치 맞춤) */
-const AVATAR_SLOT_SIZE = 70;
+/** 70 = 58 + 6×2 — 링·슬롯 동일 크기 */
+const AVATAR_SLOT_SIZE = AVATAR_RING_OUTER;
 
 export function MemberFilter({
   user,
@@ -104,7 +104,7 @@ export function MemberFilter({
     boxSizing: 'border-box',
   };
 
-  /** 62×62 고정 — 선택 시에만 기존의 포근한 그라데이션 링을 보여 준다. */
+  /** 70×70 고정 — 선택 시에만 그라데이션 링(패딩 6px), 비선택은 투명 패딩으로 동일 외곽 */
   const avatarRingOuterStyle = (selected: boolean): CSSProperties => ({
     width: AVATAR_RING_OUTER,
     height: AVATAR_RING_OUTER,
