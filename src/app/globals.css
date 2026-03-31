@@ -313,10 +313,10 @@ body {
   padding-top: var(--space-1);
 }
 
-/* 하단 탭 내비: 세이프 에어리어 + 터치 여유 (화면 효율과 답답함 사이 균형) */
+/* 하단 탭 내비: 탭 행 위·아래 기본 여백을 동일하게 두고, 홈 인디케이터만 하단에 추가 */
 .bottom-tab-nav {
-  padding-top: var(--space-1);
-  padding-bottom: max(var(--space-2), env(safe-area-inset-bottom));
+  padding-top: var(--space-2);
+  padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
 }
 
 /* 상단 홈 영역: 뷰포트 풀폭 (내부 max-width 컨테이너에서 돌출) */
