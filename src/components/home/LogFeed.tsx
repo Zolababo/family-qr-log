@@ -400,34 +400,56 @@ export function LogFeed({
                                 </button>
                                 );
                               })()}
-                              {imageUrls.map((url, i) => (
-                                <button
-                                  key={i}
-                                  type="button"
-                                  onClick={() => openMediaPage('image', url, imageUrls, i)}
+                              {imageUrls.length > 0 && (
+                                <div
+                                  className={imageUrls.length > 1 ? 'log-album-stack' : undefined}
                                   style={{
-                                    display: 'block',
-                                    width: '100%',
-                                    overflow: 'hidden',
-                                    border: 'none',
-                                    background: 'transparent',
-                                    padding: 0,
-                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: imageUrls.length > 1 ? 0 : 8,
                                   }}
                                 >
-                                  <img
-                                    src={url}
-                                    alt=""
-                                    style={{
-                                      width: '100%',
-                                      maxHeight: 320,
-                                      objectFit: 'cover',
-                                      display: 'block',
-                                      background: 'var(--bg-subtle)',
-                                    }}
-                                  />
-                                </button>
-                              ))}
+                                  {imageUrls.map((url, i) => (
+                                    <div key={i} className={imageUrls.length > 1 ? 'log-album-photo-wrap' : undefined}>
+                                      {imageUrls.length > 1 && i > 0 && (
+                                        <div className="log-album-knot" aria-hidden>
+                                          <span className="log-album-knot-loop" />
+                                          <span className="log-album-knot-center" />
+                                          <span className="log-album-knot-loop" />
+                                        </div>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => openMediaPage('image', url, imageUrls, i)}
+                                        className={imageUrls.length > 1 ? 'log-album-photo-btn' : undefined}
+                                        style={{
+                                          display: 'block',
+                                          width: '100%',
+                                          overflow: 'hidden',
+                                          border: 'none',
+                                          background: 'transparent',
+                                          padding: 0,
+                                          cursor: 'pointer',
+                                          position: 'relative',
+                                          zIndex: imageUrls.length > 1 ? imageUrls.length - i : undefined,
+                                        }}
+                                      >
+                                        <img
+                                          src={url}
+                                          alt=""
+                                          style={{
+                                            width: '100%',
+                                            maxHeight: 320,
+                                            objectFit: 'cover',
+                                            display: 'block',
+                                            background: 'var(--bg-subtle)',
+                                          }}
+                                        />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                               {videoUrl && (
                                 <div
                                   style={{
