@@ -635,6 +635,74 @@ export default function HomeClient() {
     };
   }, [householdId, canApplyIncomingSharedMemo]);
 
+  const persistSharedMemos = useCallback(async () => {
+    if (!householdId || !user) {
+      return { ok: false as const, mode: 'skipped' as const, errorMessage: '로그인이 필요합니다.' };
+    }
+
+    const full = {
+      household_id: householdId,
+      content: memoContent,
+      family_notice: familyNotice,
+      shopping_list: shoppingList,
+    };
+
+    let mode: 'table' | 'content-only' | 'log-fallback' = 'table';
+    let { data: upsertRow, error } = await supabase
+      .from('household_memos')
+      .upsert(full, { onConflict: 'household_id' })
+      .select('updated_at')
+      .maybeSingle();
+
+    if (error && /family_notice|shopping_list|schema|column/i.test(error.message ?? '')) {
+      mode = 'content-only';
+      const res = await supabase
+        .from('household_memos')
+        .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' })
+        .select('updated_at')
+        .maybeSingle();
+      upsertRow = res.data;
+      error = res.error;
+    }
+
+    const savedAt =
+      upsertRow && typeof (upsertRow as { updated_at?: string }).updated_at === 'string'
+        ? new Date((upsertRow as { updated_at: string }).updated_at).getTime()
+        : 0;
+    if (!error && savedAt > 0) {
+      lastAppliedRemoteMemoAtMsRef.current = savedAt;
+    }
+
+    if (error && /relation|does not exist|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
+      mode = 'log-fallback';
+      const snapshotAction = composeSharedMemoSnapshot({
+        content: memoContent,
+        family_notice: familyNotice,
+        shopping_list: shoppingList,
+      });
+      if (snapshotAction === lastSavedSharedMemoSnapshotActionRef.current) {
+        return { ok: true as const, mode };
+      }
+      const res = await supabase.from('logs').insert({
+        household_id: householdId,
+        place_slug: LOG_SLUG.general,
+        action: snapshotAction,
+        actor_user_id: user.id,
+      });
+      error = res.error;
+      if (!error) {
+        lastSavedSharedMemoSnapshotActionRef.current = snapshotAction;
+        lastAppliedRemoteMemoAtMsRef.current = Date.now();
+      }
+    }
+
+    if (error) {
+      return { ok: false as const, mode, errorMessage: error.message };
+    }
+
+    return { ok: true as const, mode };
+  }, [householdId, user, memoContent, familyNotice, shoppingList]);
+
   useEffect(() => {
     try {
       localStorage.setItem(MEMO_KEY, memoContent);
@@ -646,59 +714,23 @@ export default function HomeClient() {
     if (!householdId || !user) return;
     if (memoSaveTimerRef.current) clearTimeout(memoSaveTimerRef.current);
     memoSaveTimerRef.current = setTimeout(async () => {
-      const full = {
-        household_id: householdId,
-        content: memoContent,
-        family_notice: familyNotice,
-        shopping_list: shoppingList,
-      };
-      let { data: upsertRow, error } = await supabase
-        .from('household_memos')
-        .upsert(full, { onConflict: 'household_id' })
-        .select('updated_at')
-        .maybeSingle();
-      if (error && /family_notice|shopping_list|schema|column/i.test(error.message ?? '')) {
-        const res = await supabase
-          .from('household_memos')
-          .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' })
-          .select('updated_at')
-          .maybeSingle();
-        upsertRow = res.data;
-        error = res.error;
+      const result = await persistSharedMemos();
+      if (!result.ok) {
+        setAppStatus(`메모 저장 실패: ${result.errorMessage}`, 'error');
+        return;
       }
-      const savedAt = upsertRow && typeof (upsertRow as { updated_at?: string }).updated_at === 'string'
-        ? new Date((upsertRow as { updated_at: string }).updated_at).getTime()
-        : 0;
-      if (!error && savedAt > 0) {
-        lastAppliedRemoteMemoAtMsRef.current = savedAt;
+      if (result.mode === 'content-only') {
+        setAppStatus('가족 공지/장보기 메모는 서버 컬럼이 없어 완전히 저장되지 않았습니다. Supabase 컬럼 설정을 확인해 주세요.', 'error');
+        return;
       }
-      if (error && /relation|does not exist|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
-        const snapshotAction = composeSharedMemoSnapshot({
-          content: memoContent,
-          family_notice: familyNotice,
-          shopping_list: shoppingList,
-        });
-        if (snapshotAction === lastSavedSharedMemoSnapshotActionRef.current) return;
-        const res = await supabase.from('logs').insert({
-          household_id: householdId,
-          place_slug: LOG_SLUG.general,
-          action: snapshotAction,
-          actor_user_id: user.id,
-        });
-        error = res.error;
-        if (!error) {
-          lastSavedSharedMemoSnapshotActionRef.current = snapshotAction;
-          lastAppliedRemoteMemoAtMsRef.current = Date.now();
-        }
-      }
-      if (error) {
-        setAppStatus(`메모 저장 실패: ${error.message}`, 'error');
+      if (result.mode === 'log-fallback') {
+        setAppStatus('가족 메모가 예비 방식으로 저장되었습니다. 앱 재설치 전 Supabase 메모 테이블 설정을 확인해 주세요.', 'error');
       }
     }, 900);
     return () => {
       if (memoSaveTimerRef.current) clearTimeout(memoSaveTimerRef.current);
     };
-  }, [memoContent, familyNotice, shoppingList, householdId, user]);
+  }, [memoContent, familyNotice, shoppingList, householdId, user, persistSharedMemos]);
 
   useEffect(() => {
     if (!status) return;
@@ -1747,63 +1779,22 @@ export default function HomeClient() {
   const saveSharedMemos = useCallback(async () => {
     if (!householdId || !user) return;
     setMemoSaving(true);
-    const full = {
-      household_id: householdId,
-      content: memoContent,
-      family_notice: familyNotice,
-      shopping_list: shoppingList,
-    };
-    let { data: upsertRow, error } = await supabase
-      .from('household_memos')
-      .upsert(full, { onConflict: 'household_id' })
-      .select('updated_at')
-      .maybeSingle();
-    if (error && /family_notice|shopping_list|schema|column/i.test(error.message ?? '')) {
-      const res = await supabase
-        .from('household_memos')
-        .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' })
-        .select('updated_at')
-        .maybeSingle();
-      upsertRow = res.data;
-      error = res.error;
-    }
-    const savedAt =
-      upsertRow && typeof (upsertRow as { updated_at?: string }).updated_at === 'string'
-        ? new Date((upsertRow as { updated_at: string }).updated_at).getTime()
-        : 0;
-    if (!error && savedAt > 0) {
-      lastAppliedRemoteMemoAtMsRef.current = savedAt;
-    }
-    if (error && /relation|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
-      const snapshotAction = composeSharedMemoSnapshot({
-        content: memoContent,
-        family_notice: familyNotice,
-        shopping_list: shoppingList,
-      });
-      if (snapshotAction === lastSavedSharedMemoSnapshotActionRef.current) {
-        setMemoSaving(false);
-        setAppStatus('가족 메모가 저장되었습니다.', 'success');
-        return;
-      }
-      const res = await supabase.from('logs').insert({
-        household_id: householdId,
-        place_slug: LOG_SLUG.general,
-        action: snapshotAction,
-        actor_user_id: user.id,
-      });
-      error = res.error;
-      if (!error) {
-        lastSavedSharedMemoSnapshotActionRef.current = snapshotAction;
-        lastAppliedRemoteMemoAtMsRef.current = Date.now();
-      }
-    }
+    const result = await persistSharedMemos();
     setMemoSaving(false);
-    if (error) {
-      setAppStatus(`메모 저장 실패: ${error.message}`, 'error');
+    if (!result.ok) {
+      setAppStatus(`메모 저장 실패: ${result.errorMessage}`, 'error');
+      return;
+    }
+    if (result.mode === 'content-only') {
+      setAppStatus('가족 공지/장보기 메모는 서버 컬럼이 없어 완전히 저장되지 않았습니다. Supabase 컬럼 설정을 확인해 주세요.', 'error');
+      return;
+    }
+    if (result.mode === 'log-fallback') {
+      setAppStatus('가족 메모가 예비 방식으로 저장되었습니다. 앱 재설치 전 Supabase 메모 테이블 설정을 확인해 주세요.', 'error');
       return;
     }
     setAppStatus('가족 메모가 저장되었습니다.', 'success');
-  }, [householdId, user, memoContent, familyNotice, shoppingList]);
+  }, [householdId, user, persistSharedMemos]);
 
   const theme = {
     bg: highContrast ? '#0f0f0f' : 'var(--bg-base)',
