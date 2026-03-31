@@ -1675,26 +1675,66 @@ export default function HomeClient() {
     return map;
   }, [todoTasks]);
   const todoCompletedGroups = useMemo(() => {
-    const grouped: Record<string, TodoTask[]> = {};
+    const weekdayLabel = ['일', '월', '화', '수', '목', '금', '토'];
+    const formatDateLabel = (date: Date) => {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}(${weekdayLabel[date.getDay()]})`;
+    };
+    const formatDateKey = (date: Date) => {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const grouped = new Map<string, { label: string; sortKey: string; tasks: TodoTask[] }>();
     const done = todoTasks.filter((task) => task.done && task.completedAt);
+    const today = new Date();
+
     done.forEach((task) => {
       const d = new Date(task.completedAt as string);
-      let key = '';
-      if (todoCompletedPeriod === 'day') key = d.toISOString().slice(0, 10);
-      else if (todoCompletedPeriod === 'month') key = d.toISOString().slice(0, 7);
-      else {
+      let groupId = '';
+      let label = '';
+      let sortKey = '';
+
+      if (todoCompletedPeriod === 'day') {
+        groupId = formatDateKey(d);
+        label = groupId;
+        sortKey = groupId;
+      } else if (todoCompletedPeriod === 'month') {
+        groupId = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        label = groupId;
+        sortKey = groupId;
+      } else {
         const day = d.getDay();
         const diff = (day + 6) % 7;
         const weekStart = new Date(d);
+        weekStart.setHours(0, 0, 0, 0);
         weekStart.setDate(d.getDate() - diff);
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        key = `${weekStart.toISOString().slice(0, 10)} ~ ${weekEnd.toISOString().slice(0, 10)}`;
+
+        const nominalWeekEnd = new Date(weekStart);
+        nominalWeekEnd.setDate(weekStart.getDate() + 6);
+        nominalWeekEnd.setHours(23, 59, 59, 999);
+
+        const isCurrentWeek = today >= weekStart && today <= nominalWeekEnd;
+        const weekEndForLabel = isCurrentWeek ? today : nominalWeekEnd;
+
+        groupId = formatDateKey(weekStart);
+        label = `${formatDateLabel(weekStart)} ~ ${formatDateLabel(weekEndForLabel)}`;
+        sortKey = formatDateKey(weekStart);
       }
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(task);
+
+      if (!grouped.has(groupId)) {
+        grouped.set(groupId, { label, sortKey, tasks: [] });
+      }
+      grouped.get(groupId)!.tasks.push(task);
     });
-    return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
+
+    return Array.from(grouped.values())
+      .sort((a, b) => b.sortKey.localeCompare(a.sortKey))
+      .map((entry) => [entry.label, entry.tasks] as [string, TodoTask[]]);
   }, [todoTasks, todoCompletedPeriod]);
   const growthCutoffMs = useMemo(() => {
     const now = new Date();
