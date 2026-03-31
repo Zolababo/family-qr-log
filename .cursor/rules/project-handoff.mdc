@@ -12,3 +12,5 @@ alwaysApply: true
   - `public/manifest.webmanifest`
   - `src/app/layout.tsx`
 - Main branch is used for deployment. After requested UI/asset changes, verify with `npm run build`, then commit and push `main`.
+- **Session / handoff continuity**: Keep product context connected across new chats or editor windows by maintaining `MIGRATION.md` (project memo) and this rule; do not rely on ad-hoc “migration” outside documented deploy + SQL steps.
+- **Fullscreen media (`/media`)**: Download prefers `fetch` → blob → save; on success the app shows a completion toast. If the browser blocks blob download and opens the file in a new tab instead, the fallback toast explains long-press save / share—behavior is browser-dependent, not a separate migration step.

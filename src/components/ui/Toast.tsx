@@ -15,7 +15,7 @@ export function inferToastVariant(message: string): 'success' | 'error' | 'info'
     message.includes('이름이 저장되었습니다') ||
     message.includes('프로필 사진이 변경되었습니다') ||
     message.includes('로그가 추가되었습니다') ||
-    message.includes('삭제되었습니다')
+    message.includes('다운로드가 완료되었습니다')
   ) {
     return 'success';
   }

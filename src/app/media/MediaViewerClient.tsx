@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Share2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { sanitizeMediaUrl } from '@/lib/safeUrl';
+import { Toast } from '@/components/ui/Toast';
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 4;
@@ -71,6 +72,36 @@ export default function MediaViewerClient() {
   const pinchScaleStartRef = useRef(1);
   const panStartRef = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
 
+  const [downloadToast, setDownloadToast] = useState<{ message: string; variant: 'success' | 'info' } | null>(null);
+  const [downloadToastFading, setDownloadToastFading] = useState(false);
+  const [highContrast, setHighContrast] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem('family_qr_log_accessibility') : null;
+      if (raw) {
+        const p = JSON.parse(raw) as { highContrast?: boolean };
+        setHighContrast(!!p.highContrast);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!downloadToast) return;
+    setDownloadToastFading(false);
+    const fadeTimer = window.setTimeout(() => setDownloadToastFading(true), 1600);
+    const clearTimer = window.setTimeout(() => {
+      setDownloadToast(null);
+      setDownloadToastFading(false);
+    }, 2400);
+    return () => {
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [downloadToast]);
+
   useEffect(() => {
     setCurrentIndex(initialIndex);
   }, [initialIndex]);
@@ -108,6 +139,7 @@ export default function MediaViewerClient() {
       a.click();
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      setDownloadToast({ message: '다운로드가 완료되었습니다.', variant: 'success' });
     } catch {
       // Fallback for browsers/storage responses that block fetch-to-blob downloads.
       const a = document.createElement('a');
@@ -117,6 +149,10 @@ export default function MediaViewerClient() {
       document.body.appendChild(a);
       a.click();
       a.remove();
+      setDownloadToast({
+        message: '브라우저에서 파일이 열렸다면 길게 눌러 저장하거나, 공유 메뉴를 이용해 주세요.',
+        variant: 'info',
+      });
     }
   };
 
@@ -321,6 +357,15 @@ export default function MediaViewerClient() {
           <Download size={18} strokeWidth={2} aria-hidden />
         </button>
       </div>
+      {downloadToast ? (
+        <Toast
+          message={downloadToast.message}
+          variant={downloadToast.variant}
+          fading={downloadToastFading}
+          highContrast={highContrast}
+          liftAboveTabBar={false}
+        />
+      ) : null}
     </main>
   );
 }
