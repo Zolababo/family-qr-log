@@ -83,17 +83,41 @@ export default function MediaViewerClient() {
     panStartRef.current = null;
   }, [activeImageUrl]);
 
-  const downloadMedia = (src: string) => {
+  const downloadMedia = async (src: string) => {
     if (typeof window === 'undefined') return;
     const confirmed = window.confirm(type === 'video' ? '이 영상을 다운로드할까요?' : '이 사진을 다운로드할까요?');
     if (!confirmed) return;
-    const a = document.createElement('a');
-    a.href = src;
-    a.download = '';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    try {
+      const response = await fetch(src, { mode: 'cors' });
+      if (!response.ok) throw new Error(`download failed: ${response.status}`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const fallbackName = type === 'video' ? 'family-log-video' : 'family-log-photo';
+      const urlPath = (() => {
+        try {
+          return new URL(src).pathname.split('/').pop() ?? fallbackName;
+        } catch {
+          return fallbackName;
+        }
+      })();
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = urlPath || fallbackName;
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch {
+      // Fallback for browsers/storage responses that block fetch-to-blob downloads.
+      const a = document.createElement('a');
+      a.href = src;
+      a.download = '';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
   };
 
   const shareMedia = async (src: string) => {
@@ -278,7 +302,7 @@ export default function MediaViewerClient() {
         </button>
         <button
           type="button"
-          onClick={() => downloadMedia(type === 'image' ? activeImageUrl : safePrimaryUrl)}
+          onClick={() => void downloadMedia(type === 'image' ? activeImageUrl : safePrimaryUrl)}
           aria-label="Download"
           title="Download"
           style={{
