@@ -798,7 +798,8 @@ export default function HomeClient() {
 
     recomputeEnabled();
 
-    const TOP_HIDE_GUARD_PX = 18;
+    // 상단 끝과 근접한 구간에서는 관성/바운스로 흔들리기 쉬워 넉넉하게 가드
+    const TOP_HIDE_GUARD_PX = 24;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -822,7 +823,8 @@ export default function HomeClient() {
       {
         root,
         threshold: 0,
-        rootMargin: '-50px 0px 0px 0px',
+        // 너무 이른 선행 노출은 줄이고, 프로필이 거의 사라질 때 자연스럽게 준비
+        rootMargin: '-36px 0px 0px 0px',
       }
     );
     observer.observe(sentinel);
@@ -846,10 +848,12 @@ export default function HomeClient() {
         }
         return;
       }
-      if (delta >= 8 && stickyHeaderVisibleRef.current) {
+      // 아래로 내릴 때는 조금 더 확실한 의도가 있을 때만 숨김
+      if (delta >= 10 && stickyHeaderVisibleRef.current) {
         stickyHeaderVisibleRef.current = false;
         setStickyHeaderVisible(false);
-      } else if (delta <= -6 && !stickyHeaderVisibleRef.current) {
+      // 위로 올릴 때는 조금 더 빨리 드러나게
+      } else if (delta <= -4 && !stickyHeaderVisibleRef.current) {
         stickyHeaderVisibleRef.current = true;
         setStickyHeaderVisible(true);
       }
