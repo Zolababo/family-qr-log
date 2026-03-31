@@ -798,6 +798,8 @@ export default function HomeClient() {
 
     recomputeEnabled();
 
+    const TOP_HIDE_GUARD_PX = 18;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         const nextPassed = !entry.isIntersecting;
@@ -808,8 +810,13 @@ export default function HomeClient() {
           setStickyHeaderVisible(false);
         } else {
           lastHomeScrollTopRef.current = root.scrollTop;
-          stickyHeaderVisibleRef.current = true;
-          setStickyHeaderVisible(true);
+          if (root.scrollTop > TOP_HIDE_GUARD_PX) {
+            stickyHeaderVisibleRef.current = true;
+            setStickyHeaderVisible(true);
+          } else {
+            stickyHeaderVisibleRef.current = false;
+            setStickyHeaderVisible(false);
+          }
         }
       },
       {
@@ -824,6 +831,14 @@ export default function HomeClient() {
       const current = root.scrollTop;
       const delta = current - lastHomeScrollTopRef.current;
       lastHomeScrollTopRef.current = current;
+      // 상단 끝(바운스/관성)에서는 스티키를 강제로 숨겨 마지막 떨림을 방지
+      if (current <= TOP_HIDE_GUARD_PX) {
+        if (stickyHeaderVisibleRef.current) {
+          stickyHeaderVisibleRef.current = false;
+          setStickyHeaderVisible(false);
+        }
+        return;
+      }
       if (!stickyHeaderEnabledRef.current || !passedProfileSectionRef.current) {
         if (stickyHeaderVisibleRef.current) {
           stickyHeaderVisibleRef.current = false;
