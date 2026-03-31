@@ -61,7 +61,7 @@ export function BottomTabBar({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    padding: '5px 4px 8px',
+    padding: '6px 4px',
     border: 'none',
     background: isActive ? 'var(--accent-light)' : 'transparent',
     color: isActive ? 'var(--accent)' : 'var(--text-caption)',
