@@ -412,10 +412,10 @@ export function LogFeed({
                                   {imageUrls.map((url, i) => (
                                     <div key={i} className={imageUrls.length > 1 ? 'log-album-photo-wrap' : undefined}>
                                       {imageUrls.length > 1 && i > 0 && (
-                                        <div className="log-album-knot" aria-hidden>
-                                          <span className="log-album-knot-loop" />
-                                          <span className="log-album-knot-center" />
-                                          <span className="log-album-knot-loop" />
+                                        <div className="log-album-tape-bridge" aria-hidden>
+                                          <span className="log-album-tape log-album-tape-left" />
+                                          <span className="log-album-tape-knot" />
+                                          <span className="log-album-tape log-album-tape-right" />
                                         </div>
                                       )}
                                       <button
