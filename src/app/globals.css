@@ -229,8 +229,17 @@ body {
 }
 
 [data-accessibility-root]:not([data-high-contrast="true"]) .member-filter-scroll button:hover:not(:disabled),
-[data-accessibility-root]:not([data-high-contrast="true"]) .member-filter-scroll .profile-chip-btn:hover {
+[data-accessibility-root]:not([data-high-contrast="true"]) .member-filter-scroll .profile-chip-btn:hover,
+[data-accessibility-root]:not([data-high-contrast="true"]) .member-filter-scroll .profile-chip-btn:active {
   transform: none !important;
+  box-shadow: none !important;
+}
+
+/* 멤버 필터: 전역 [role=button] 호버 그림자·들림이 칩에 닿지 않도록 (선택은 아바타 링+이름색만) */
+[data-accessibility-root] .member-filter-scroll .profile-chip-btn {
+  box-shadow: none !important;
+}
+[data-accessibility-root]:not([data-high-contrast="true"]) .member-filter-scroll .profile-chip-btn:focus:not(:focus-visible) {
   box-shadow: none !important;
 }
 

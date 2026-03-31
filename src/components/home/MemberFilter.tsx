@@ -26,7 +26,11 @@ type MemberFilterProps = {
 
 const CHIP_HEIGHT = 78;
 const AVATAR_SIZE = 58;
-const AVATAR_RING_PAD = 6;
+/** 링 테두리(선택 시에만 색). 투명 border로 비선택도 동일 외곽 크기 유지 */
+const RING_WIDTH = 2;
+const AVATAR_RING_OUTER = AVATAR_SIZE + RING_WIDTH * 2;
+/** 선택·비선택 동일 — 아바타+링이 들어갈 고정 슬롯 (이름 줄 세로 위치 맞춤) */
+const AVATAR_SLOT_SIZE = 70;
 
 export function MemberFilter({
   user,
@@ -57,7 +61,7 @@ export function MemberFilter({
     display: 'inline-flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 8,
     minHeight: CHIP_HEIGHT,
     padding: '4px 8px 6px',
@@ -74,7 +78,7 @@ export function MemberFilter({
     boxShadow: 'none',
   } as const;
 
-const avatarInnerWrap = {
+  const avatarInnerWrap = {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: '50%',
@@ -89,16 +93,44 @@ const avatarInnerWrap = {
     color: '#fff',
   };
 
-  const avatarRingStyle = (selected: boolean): CSSProperties => ({
-    width: selected ? AVATAR_SIZE + AVATAR_RING_PAD * 2 : AVATAR_SIZE,
-    height: selected ? AVATAR_SIZE + AVATAR_RING_PAD * 2 : AVATAR_SIZE,
+  const avatarSlotStyle: CSSProperties = {
+    width: AVATAR_SLOT_SIZE,
+    height: AVATAR_SLOT_SIZE,
     borderRadius: 999,
-    padding: selected ? AVATAR_RING_PAD : 0,
-    background: selected ? 'linear-gradient(135deg, var(--accent), var(--accent-light))' : 'transparent',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
     boxSizing: 'border-box',
+  };
+
+  /** 62×62 고정 — 비선택은 투명 border로 링 자리만 확보 */
+  const avatarRingOuterStyle = (selected: boolean): CSSProperties => ({
+    width: AVATAR_RING_OUTER,
+    height: AVATAR_RING_OUTER,
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    boxSizing: 'border-box',
+    border: `${RING_WIDTH}px solid ${selected ? 'var(--accent)' : 'transparent'}`,
+  });
+
+  const memberLabelStyle = (selected: boolean): CSSProperties => ({
+    fontSize: 12,
+    lineHeight: 1.25,
+    minHeight: 16,
+    maxHeight: 16,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+    width: '100%',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    color: selected ? 'var(--accent)' : 'var(--text-secondary)',
   });
 
   return (
@@ -129,25 +161,23 @@ const avatarInnerWrap = {
         aria-pressed={isSelected('all')}
         style={{
           ...chipBase,
-          color: isSelected('all') ? 'var(--accent)' : 'var(--text-primary)',
           border: 'none',
         }}
       >
-        <span
-          aria-hidden
-          style={avatarRingStyle(isSelected('all'))}
-        >
-          <span
-            style={{
-              ...avatarInnerWrap,
-              background: 'var(--bg-subtle)',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            <Users size={20} strokeWidth={1.5} aria-hidden />
+        <span aria-hidden style={avatarSlotStyle}>
+          <span style={avatarRingOuterStyle(isSelected('all'))}>
+            <span
+              style={{
+                ...avatarInnerWrap,
+                background: 'var(--bg-subtle)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <Users size={20} strokeWidth={1.5} aria-hidden />
+            </span>
           </span>
         </span>
-        <span style={{ fontSize: 12, lineHeight: 1.1 }}>{t('allMembers')}</span>
+        <span style={memberLabelStyle(isSelected('all'))}>{t('allMembers')}</span>
       </div>
 
       {/* 나 */}
@@ -160,19 +190,19 @@ const avatarInnerWrap = {
         aria-pressed={isSelected('me')}
         style={{
           ...chipBase,
-          color: isSelected('me') ? 'var(--accent)' : 'var(--text-primary)',
           border: 'none',
         }}
       >
-        <span style={avatarRingStyle(isSelected('me'))}>
-          <span
-            style={{
-              ...avatarInnerWrap,
-              background: profileAvatarUrl && !profileAvatarLoadFailed ? 'transparent' : 'var(--accent)',
-              color: profileAvatarUrl && !profileAvatarLoadFailed ? undefined : '#fff',
-              cursor: profileAvatarUrl && !profileAvatarLoadFailed ? 'pointer' : undefined,
-            }}
-          >
+        <span style={avatarSlotStyle}>
+          <span style={avatarRingOuterStyle(isSelected('me'))}>
+            <span
+              style={{
+                ...avatarInnerWrap,
+                background: profileAvatarUrl && !profileAvatarLoadFailed ? 'transparent' : 'var(--accent)',
+                color: profileAvatarUrl && !profileAvatarLoadFailed ? undefined : '#fff',
+                cursor: profileAvatarUrl && !profileAvatarLoadFailed ? 'pointer' : undefined,
+              }}
+            >
             {profileAvatarUrl && !profileAvatarLoadFailed ? (
               <img
                 src={profileAvatarUrl}
@@ -187,23 +217,10 @@ const avatarInnerWrap = {
             ) : (
               (meDisplayName || t('me')).slice(0, 1).toUpperCase()
             )}
+            </span>
           </span>
         </span>
-        <span
-          style={{
-            fontSize: 12,
-            lineHeight: 1.1,
-            minHeight: 16,
-            display: 'block',
-            textAlign: 'center',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            color: isSelected('me') ? 'var(--accent)' : 'var(--text-secondary)',
-          }}
-        >
-          {meDisplayName}
-        </span>
+        <span style={memberLabelStyle(isSelected('me'))}>{meDisplayName}</span>
       </div>
 
       {members
@@ -225,19 +242,19 @@ const avatarInnerWrap = {
               aria-pressed={active}
               style={{
                 ...chipBase,
-                color: active ? 'var(--accent)' : 'var(--text-primary)',
                 border: 'none',
               }}
             >
-              <span style={avatarRingStyle(active)}>
-                <span
-                  style={{
-                    ...avatarInnerWrap,
-                    background: showAvatar ? 'transparent' : 'var(--accent)',
-                    color: showAvatar ? undefined : '#fff',
-                    cursor: showAvatar ? 'pointer' : undefined,
-                  }}
-                >
+              <span style={avatarSlotStyle}>
+                <span style={avatarRingOuterStyle(active)}>
+                  <span
+                    style={{
+                      ...avatarInnerWrap,
+                      background: showAvatar ? 'transparent' : 'var(--accent)',
+                      color: showAvatar ? undefined : '#fff',
+                      cursor: showAvatar ? 'pointer' : undefined,
+                    }}
+                  >
                   {showAvatar ? (
                     <img
                       src={avatarUrl!}
@@ -252,23 +269,10 @@ const avatarInnerWrap = {
                   ) : (
                     name.slice(0, 1)
                   )}
+                  </span>
                 </span>
               </span>
-              <span
-                style={{
-                  fontSize: 12,
-                  lineHeight: 1.1,
-                  minHeight: 16,
-                  display: 'block',
-                  textAlign: 'center',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  color: active ? 'var(--accent)' : 'var(--text-secondary)',
-                }}
-              >
-                {name}
-              </span>
+              <span style={memberLabelStyle(active)}>{name}</span>
             </div>
           );
         })}
