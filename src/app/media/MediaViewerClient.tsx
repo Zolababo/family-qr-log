@@ -85,6 +85,8 @@ export default function MediaViewerClient() {
 
   const downloadMedia = (src: string) => {
     if (typeof window === 'undefined') return;
+    const confirmed = window.confirm(type === 'video' ? '이 영상을 다운로드할까요?' : '이 사진을 다운로드할까요?');
+    if (!confirmed) return;
     const a = document.createElement('a');
     a.href = src;
     a.download = '';
