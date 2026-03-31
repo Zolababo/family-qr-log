@@ -1,0 +1,14 @@
+---
+description: Persist core product context and deployment workflow
+alwaysApply: true
+---
+
+# Project Handoff
+
+- This app's public-facing product name is `밤톨이네 이야기`.
+- PWA/home-screen title should stay aligned with `manifest.webmanifest` and `src/app/layout.tsx`.
+- PWA icons are generated from `scripts/pwa-icon-source.png` via `npm run icons`.
+- When changing icons, also bump the cache-busting version in:
+  - `public/manifest.webmanifest`
+  - `src/app/layout.tsx`
+- Main branch is used for deployment. After requested UI/asset changes, verify with `npm run build`, then commit and push `main`.

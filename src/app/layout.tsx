@@ -19,13 +19,13 @@ const appTitle = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Family Log",
+  title: "밤톨이네 이야기",
   description: "가족과 함께 장소별 로그를 공유하세요",
-  manifest: "/manifest.webmanifest?v=2",
+  manifest: "/manifest.webmanifest?v=3",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Family Log",
+    title: "밤톨이네 이야기",
   },
 };
 
@@ -45,8 +45,8 @@ export default function RootLayout({
     <html lang="ko">
       <head>
         <meta name="theme-color" content="#f5efe6" />
-        <link rel="icon" href="/icon-192.png?v=2" type="image/png" sizes="192x192" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" sizes="180x180" />
+        <link rel="icon" href="/icon-192.png?v=3" type="image/png" sizes="192x192" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" sizes="180x180" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${appTitle.variable} antialiased`}

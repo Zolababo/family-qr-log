@@ -1,7 +1,7 @@
 /**
  * scripts/pwa-icon-source.png → public/ PWA 아이콘 (정확한 픽셀 크기)
  * - any: 192 / 512 (manifest, 홈 화면)
- * - maskable: 512, 본문은 캔버스의 80% 안에 배치 (원형·둥근 사각 마스크 대비)
+ * - maskable: 512, 본문은 캔버스의 88% 안에 배치 (원형·둥근 사각 마스크 대비)
  * - apple-touch-icon: 180×180
  */
 import sharp from 'sharp';
@@ -23,7 +23,7 @@ function squareIcon(size) {
 }
 
 async function writeMaskable512(outPath) {
-  const safe = Math.floor(512 * 0.8);
+  const safe = Math.floor(512 * 0.88);
   const inner = await sharp(src).resize(safe, safe, { fit: 'inside', background: BG }).toBuffer();
   await sharp({
     create: { width: 512, height: 512, channels: 4, background: BG },
