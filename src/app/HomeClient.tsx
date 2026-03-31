@@ -287,10 +287,18 @@ export default function HomeClient() {
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
+  const profileSectionRef = useRef<HTMLDivElement | null>(null);
+  const profileSentinelRef = useRef<HTMLDivElement | null>(null);
   const pullRefreshBusyRef = useRef(false);
   const pullRafRef = useRef<number | null>(null);
   const [pullRefreshOffset, setPullRefreshOffset] = useState(0);
   const [pullRefreshRefreshing, setPullRefreshRefreshing] = useState(false);
+  const [stickyHeaderEnabled, setStickyHeaderEnabled] = useState(false);
+  const [passedProfileSection, setPassedProfileSection] = useState(false);
+  const [stickyHeaderVisible, setStickyHeaderVisible] = useState(false);
+  const stickyHeaderEnabledRef = useRef(false);
+  const passedProfileSectionRef = useRef(false);
+  const lastHomeScrollTopRef = useRef(0);
   const sharedMemoTypingUntilRef = useRef(0);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
@@ -753,6 +761,84 @@ export default function HomeClient() {
       window.clearTimeout(clearTimer);
     };
   }, [status]);
+
+  useEffect(() => {
+    const root = homeScrollRef.current;
+    const sentinel = profileSentinelRef.current;
+    const profileSection = profileSectionRef.current;
+    if (!root || !sentinel || !profileSection || activeTab !== 'home') {
+      setStickyHeaderEnabled(false);
+      setPassedProfileSection(false);
+      setStickyHeaderVisible(false);
+      return;
+    }
+
+    let rafId: number | null = null;
+    const recomputeEnabled = () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const scrollable = root.scrollHeight - root.clientHeight;
+        const profileHeight = profileSection.getBoundingClientRect().height;
+        const minScrollable = Math.max(120, Math.round(profileHeight * 0.5));
+        const enabled = scrollable > minScrollable;
+        stickyHeaderEnabledRef.current = enabled;
+        setStickyHeaderEnabled(enabled);
+        if (!enabled) {
+          passedProfileSectionRef.current = false;
+          setPassedProfileSection(false);
+          setStickyHeaderVisible(false);
+        }
+      });
+    };
+
+    recomputeEnabled();
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const nextPassed = !entry.isIntersecting;
+        passedProfileSectionRef.current = nextPassed;
+        setPassedProfileSection(nextPassed);
+        if (!nextPassed) {
+          // 프로필 영역이 다시 보이면 스티키는 즉시 제거
+          setStickyHeaderVisible(false);
+        } else {
+          // 프로필이 완전히 사라지는 시점에 1회 노출
+          setStickyHeaderVisible(true);
+        }
+      },
+      {
+        root,
+        threshold: 0,
+        rootMargin: '-50px 0px 0px 0px',
+      }
+    );
+    observer.observe(sentinel);
+
+    const onScroll = () => {
+      const current = root.scrollTop;
+      const delta = current - lastHomeScrollTopRef.current;
+      lastHomeScrollTopRef.current = current;
+      if (!stickyHeaderEnabledRef.current || !passedProfileSectionRef.current) {
+        setStickyHeaderVisible(false);
+        return;
+      }
+      if (delta >= 6) setStickyHeaderVisible(false);
+      else if (delta <= -4) setStickyHeaderVisible(true);
+    };
+
+    root.addEventListener('scroll', onScroll, { passive: true });
+    const resizeObserver = new ResizeObserver(() => recomputeEnabled());
+    resizeObserver.observe(root);
+    resizeObserver.observe(profileSection);
+
+    return () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+      observer.disconnect();
+      root.removeEventListener('scroll', onScroll);
+      resizeObserver.disconnect();
+    };
+  }, [activeTab]);
 
   useEffect(() => {
     if (commentTarget) {
@@ -1933,6 +2019,31 @@ export default function HomeClient() {
             background: 'transparent',
           }}
         >
+        {user && householdId && activeTab === 'home' && stickyHeaderEnabled ? (
+          <div
+            aria-hidden={!stickyHeaderVisible}
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 36,
+              pointerEvents: stickyHeaderVisible ? 'auto' : 'none',
+              opacity: stickyHeaderVisible ? 1 : 0,
+              transform: stickyHeaderVisible ? 'translateY(0)' : 'translateY(-14px)',
+              transition: 'opacity 180ms ease, transform 220ms ease',
+            }}
+          >
+            <div
+              className="home-top-bleed"
+              style={{
+                marginBottom: 4,
+                borderBottom: highContrast ? '1px solid #333' : '1px solid color-mix(in srgb, var(--divider) 78%, transparent 22%)',
+                backdropFilter: 'saturate(1.05)',
+              }}
+            >
+              <AppHeader t={t} />
+            </div>
+          </div>
+        ) : null}
         {user && householdId ? (
           <div
             aria-live="polite"
@@ -1970,7 +2081,7 @@ export default function HomeClient() {
           aria-hidden
         />
         {user && householdId ? (
-          <div className="home-top-bleed" style={{ marginBottom: 6 }}>
+          <div ref={profileSectionRef} className="home-top-bleed" style={{ marginBottom: 6 }}>
             <AppHeader t={t} />
             <MemberFilter
               user={user}
@@ -2178,6 +2289,7 @@ export default function HomeClient() {
             <AppHeader t={t} />
           </div>
         )}
+        {user && householdId ? <div ref={profileSentinelRef} aria-hidden style={{ height: 1, opacity: 0, pointerEvents: 'none' }} /> : null}
 
         {status && (
           <Toast
