@@ -2086,6 +2086,7 @@ export default function HomeClient() {
                 avatarFailedUserIds={avatarFailedUserIds}
                 onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
                 onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
+                interactive={stickyHeaderVisible}
               />
             </div>
           </div>
@@ -2143,6 +2144,7 @@ export default function HomeClient() {
                 avatarFailedUserIds={avatarFailedUserIds}
                 onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
                 onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
+                interactive={!stickyHeaderVisible}
               />
             </div>
             {activeTab === 'home' ? (

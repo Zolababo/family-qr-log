@@ -22,6 +22,7 @@ type MemberFilterProps = {
   avatarFailedUserIds: Set<string>;
   onProfileAvatarError: () => void;
   onMemberAvatarError: (userId: string) => void;
+  interactive?: boolean;
 };
 
 const CHIP_HEIGHT = 72;
@@ -45,6 +46,7 @@ export function MemberFilter({
   avatarFailedUserIds,
   onProfileAvatarError,
   onMemberAvatarError,
+  interactive = true,
 }: MemberFilterProps) {
   const isSelected = (id: string) => selectedMemberId === id;
 
@@ -155,11 +157,12 @@ export function MemberFilter({
       {/* 전체 — iOS 가로 스크롤 안의 <button> 탭 누락 이슈 회피용 div+role */}
       <div
         role="button"
-        tabIndex={0}
+        tabIndex={interactive ? 0 : -1}
         className="profile-chip-btn"
-        onClick={() => onSelectMember('all')}
-        onKeyDown={chipKeyActivate('all')}
+        onClick={interactive ? () => onSelectMember('all') : undefined}
+        onKeyDown={interactive ? chipKeyActivate('all') : undefined}
         aria-pressed={isSelected('all')}
+        aria-hidden={!interactive}
         style={{
           ...chipBase,
           border: 'none',
@@ -184,11 +187,12 @@ export function MemberFilter({
       {/* 나 */}
       <div
         role="button"
-        tabIndex={0}
+        tabIndex={interactive ? 0 : -1}
         className="profile-chip-btn"
-        onClick={() => onSelectMember('me')}
-        onKeyDown={chipKeyActivate('me')}
+        onClick={interactive ? () => onSelectMember('me') : undefined}
+        onKeyDown={interactive ? chipKeyActivate('me') : undefined}
         aria-pressed={isSelected('me')}
+        aria-hidden={!interactive}
         style={{
           ...chipBase,
           border: 'none',
@@ -235,12 +239,13 @@ export function MemberFilter({
           return (
             <div
               role="button"
-              tabIndex={0}
+              tabIndex={interactive ? 0 : -1}
               className="profile-chip-btn"
               key={m.user_id}
-              onClick={() => onSelectMember(m.user_id)}
-              onKeyDown={chipKeyActivate(m.user_id)}
+              onClick={interactive ? () => onSelectMember(m.user_id) : undefined}
+              onKeyDown={interactive ? chipKeyActivate(m.user_id) : undefined}
               aria-pressed={active}
+              aria-hidden={!interactive}
               style={{
                 ...chipBase,
                 border: 'none',
