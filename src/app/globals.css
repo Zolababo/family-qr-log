@@ -459,20 +459,20 @@ body {
 .log-tag-chip.ttol_morning { background: #fee2e2; color: #991b1b; }
 .log-tag-chip.todo { background: var(--accent-light); color: var(--accent); }
 
-/* 목록에서 보기: 접기 패널 — summary 포커스 시 녹색 링 제거 */
+/* 태그로 보기 등: 접기 패널 — summary 포커스 시 녹색 링 제거 */
 .feed-filter-disclosure.feed-filter-disclosure {
   border: 1px solid var(--divider);
   border-radius: var(--radius-md);
   background: var(--bg-card);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .feed-filter-summary {
   list-style: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 8px 10px;
   cursor: pointer;
   user-select: none;
 }

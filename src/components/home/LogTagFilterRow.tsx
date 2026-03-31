@@ -24,7 +24,7 @@ const chip = (active: boolean, highContrast: boolean) => ({
 /** 피드 상단: 전체 / 로그 태그 슬러그별 필터 칩 */
 export function LogTagFilterRow({ filter, setFilter, options, t: _t, highContrast }: LogTagFilterRowProps) {
   return (
-    <div style={{ marginTop: 4, marginBottom: 6, width: '100%' }}>
+    <div style={{ marginTop: 0, marginBottom: 4, width: '100%' }}>
       <div
         className="horizontal-scroll-hide"
         style={{

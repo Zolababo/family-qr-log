@@ -1974,7 +1974,7 @@ export default function HomeClient() {
                   open={familyNotesEditing}
                   onToggle={(e) => setFamilyNotesEditing(e.currentTarget.open)}
                   style={{
-                    marginBottom: 10,
+                    marginBottom: 8,
                     borderRadius: theme.radiusLg,
                     border: theme.border,
                     background: theme.card,
@@ -2120,7 +2120,7 @@ export default function HomeClient() {
                       }}
                     />
                   </summary>
-                  <div style={{ paddingLeft: 2, paddingRight: 2, paddingBottom: 8 }}>
+                  <div style={{ padding: '4px 6px 6px' }}>
                     <LogTagFilterRow
                       filter={feedTagFilter}
                       setFilter={onFeedTagSelect}
