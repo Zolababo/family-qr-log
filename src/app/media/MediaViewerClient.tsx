@@ -10,6 +10,16 @@ const MAX_SCALE = 4;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+const clampTranslate = (next: { x: number; y: number }, scale: number) => {
+  if (typeof window === 'undefined' || scale <= 1) return { x: 0, y: 0 };
+  const maxX = ((window.innerWidth * scale) - window.innerWidth) / 2;
+  const maxY = ((window.innerHeight * scale) - window.innerHeight) / 2;
+  return {
+    x: clamp(next.x, -maxX, maxX),
+    y: clamp(next.y, -maxY, maxY),
+  };
+};
+
 const distanceBetweenTouches = (touches: { length: number; [index: number]: { clientX: number; clientY: number } | undefined }) => {
   if (touches.length < 2) return 0;
   const [a, b] = [touches[0], touches[1]];
@@ -163,6 +173,8 @@ export default function MediaViewerClient() {
               setZoomScale(nextScale);
               if (nextScale <= 1.01) {
                 setTranslate({ x: 0, y: 0 });
+              } else {
+                setTranslate((prev) => clampTranslate(prev, nextScale));
               }
               e.preventDefault();
               return;
@@ -173,7 +185,7 @@ export default function MediaViewerClient() {
               if (!touch) return;
               const nextX = panStartRef.current.originX + (touch.clientX - panStartRef.current.x);
               const nextY = panStartRef.current.originY + (touch.clientY - panStartRef.current.y);
-              setTranslate({ x: nextX, y: nextY });
+              setTranslate(clampTranslate({ x: nextX, y: nextY }, zoomScale));
               e.preventDefault();
             }
           }}
@@ -206,7 +218,9 @@ export default function MediaViewerClient() {
               setZoomScale(1);
               setTranslate({ x: 0, y: 0 });
             } else {
-              setZoomScale(2);
+              const nextScale = 2.5;
+              setZoomScale(nextScale);
+              setTranslate(clampTranslate({ x: 0, y: 0 }, nextScale));
             }
           }}
         />
