@@ -874,34 +874,34 @@ export default function WriteLogClient() {
           />
           <div
             style={{
-              display: 'flex',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
               gap: 10,
               marginBottom: 10,
-              flexWrap: 'nowrap',
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              paddingBottom: 4,
-              WebkitOverflowScrolling: 'touch',
-              scrollbarWidth: 'thin',
+              alignItems: 'stretch',
             }}
           >
             <label
               htmlFor={mediaBusy ? undefined : 'write-log-camera-input'}
               aria-label={t('takePhoto')}
               style={{
-                display: 'inline-flex',
+                display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: 6,
-                padding: '10px 14px',
+                minHeight: 44,
+                padding: '10px 12px',
                 borderRadius: 12,
                 border: '1px solid var(--divider)',
                 background: mediaBusy ? 'var(--divider)' : 'var(--bg-subtle)',
                 color: mediaBusy ? 'var(--text-caption)' : 'var(--text-secondary)',
                 fontSize: 13,
+                fontWeight: 600,
                 cursor: mediaBusy ? 'wait' : 'pointer',
                 pointerEvents: mediaBusy ? 'none' : 'auto',
-                flexShrink: 0,
                 whiteSpace: 'nowrap',
+                boxSizing: 'border-box',
+                width: '100%',
               }}
             >
               <Camera size={20} strokeWidth={1.5} aria-hidden />
@@ -911,19 +911,23 @@ export default function WriteLogClient() {
               htmlFor={mediaBusy ? undefined : 'write-log-gallery-input'}
               aria-label={t('fromAlbum')}
               style={{
-                display: 'inline-flex',
+                display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: 6,
-                padding: '10px 14px',
+                minHeight: 44,
+                padding: '10px 12px',
                 borderRadius: 12,
                 border: '1px solid var(--divider)',
                 background: mediaBusy ? 'var(--divider)' : 'var(--bg-subtle)',
                 color: mediaBusy ? 'var(--text-caption)' : 'var(--text-secondary)',
                 fontSize: 13,
+                fontWeight: 600,
                 cursor: mediaBusy ? 'wait' : 'pointer',
                 pointerEvents: mediaBusy ? 'none' : 'auto',
-                flexShrink: 0,
                 whiteSpace: 'nowrap',
+                boxSizing: 'border-box',
+                width: '100%',
               }}
             >
               <ImageIcon size={20} strokeWidth={1.5} aria-hidden />
@@ -933,18 +937,22 @@ export default function WriteLogClient() {
               type="button"
               onClick={() => setShowDrawModal(true)}
               style={{
-                display: 'inline-flex',
+                display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: 6,
-                padding: '10px 14px',
+                minHeight: 44,
+                padding: '10px 12px',
                 borderRadius: 12,
                 border: '1px solid var(--divider)',
                 background: 'var(--bg-subtle)',
                 color: 'var(--text-secondary)',
                 fontSize: 13,
+                fontWeight: 600,
                 cursor: 'pointer',
-                flexShrink: 0,
                 whiteSpace: 'nowrap',
+                boxSizing: 'border-box',
+                width: '100%',
               }}
             >
               {t('writeSketch')}
