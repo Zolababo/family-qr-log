@@ -299,6 +299,7 @@ export default function HomeClient() {
   const [stickyHeaderVisible, setStickyHeaderVisible] = useState(false);
   const stickyHeaderEnabledRef = useRef(false);
   const passedProfileSectionRef = useRef(false);
+  const stickyHeaderVisibleRef = useRef(false);
   const lastHomeScrollTopRef = useRef(0);
   const sharedMemoTypingUntilRef = useRef(0);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -788,6 +789,7 @@ export default function HomeClient() {
         setStickyHeaderEnabled(enabled);
         if (!enabled) {
           passedProfileSectionRef.current = false;
+          stickyHeaderVisibleRef.current = false;
           setPassedProfileSection(false);
           setStickyHeaderVisible(false);
         }
@@ -802,9 +804,11 @@ export default function HomeClient() {
         passedProfileSectionRef.current = nextPassed;
         setPassedProfileSection(nextPassed);
         if (!nextPassed) {
+          stickyHeaderVisibleRef.current = false;
           setStickyHeaderVisible(false);
         } else {
           lastHomeScrollTopRef.current = root.scrollTop;
+          stickyHeaderVisibleRef.current = true;
           setStickyHeaderVisible(true);
         }
       },
@@ -821,11 +825,19 @@ export default function HomeClient() {
       const delta = current - lastHomeScrollTopRef.current;
       lastHomeScrollTopRef.current = current;
       if (!stickyHeaderEnabledRef.current || !passedProfileSectionRef.current) {
-        setStickyHeaderVisible(false);
+        if (stickyHeaderVisibleRef.current) {
+          stickyHeaderVisibleRef.current = false;
+          setStickyHeaderVisible(false);
+        }
         return;
       }
-      if (delta >= 6) setStickyHeaderVisible(false);
-      else if (delta <= -4) setStickyHeaderVisible(true);
+      if (delta >= 8 && stickyHeaderVisibleRef.current) {
+        stickyHeaderVisibleRef.current = false;
+        setStickyHeaderVisible(false);
+      } else if (delta <= -6 && !stickyHeaderVisibleRef.current) {
+        stickyHeaderVisibleRef.current = true;
+        setStickyHeaderVisible(true);
+      }
     };
 
     root.addEventListener('scroll', onScroll, { passive: true });
@@ -2025,23 +2037,24 @@ export default function HomeClient() {
             aria-hidden={!stickyHeaderVisible}
             style={{
               position: 'sticky',
-              top: 0,
+              top: -4,
               zIndex: 36,
-              pointerEvents: stickyHeaderVisible ? 'auto' : 'none',
-              maxHeight: stickyHeaderVisible ? 560 : 0,
-              overflow: 'hidden',
-              opacity: stickyHeaderVisible ? 1 : 0,
-              transform: stickyHeaderVisible ? 'translateY(0)' : 'translateY(-10px)',
-              transition: 'opacity 180ms ease, transform 220ms ease, max-height 200ms ease',
+              height: 0,
+              overflow: 'visible',
             }}
           >
             <div
               className="home-top-bleed"
               style={{
-                marginBottom: 4,
+                pointerEvents: stickyHeaderVisible ? 'auto' : 'none',
+                marginBottom: 0,
                 borderBottom: highContrast ? '1px solid #333' : '1px solid color-mix(in srgb, var(--divider) 78%, transparent 22%)',
                 backdropFilter: 'saturate(1.05)',
-                background: highContrast ? '#0f0f0f' : 'color-mix(in srgb, var(--bg-base) 92%, white 8%)',
+                background: highContrast ? '#0f0f0f' : 'var(--bg-base)',
+                boxShadow: stickyHeaderVisible ? '0 8px 18px rgba(67, 50, 33, 0.08)' : 'none',
+                opacity: stickyHeaderVisible ? 1 : 0,
+                transform: stickyHeaderVisible ? 'translateY(0)' : 'translateY(-14px)',
+                transition: 'opacity 180ms ease, transform 220ms ease, box-shadow 220ms ease',
               }}
             >
               <AppHeader t={t} />
