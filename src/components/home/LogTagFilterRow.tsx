@@ -8,19 +8,14 @@ type LogTagFilterRowProps = {
   highContrast: boolean;
 };
 
-const chip = (
-  active: boolean,
-  border: string,
-  bg: string,
-  color: string,
-  highContrast: boolean
-) => ({
-  padding: '5px 10px',
-  borderRadius: 10,
-  border: `1px solid ${active ? border : '#e2e8f0'}`,
-  background: active ? bg : highContrast ? '#1e1e1e' : '#f8fafc',
-  color: active ? color : highContrast ? '#94a3b8' : '#64748b',
-  fontSize: 11,
+const chip = (active: boolean, highContrast: boolean) => ({
+  flexShrink: 0,
+  padding: '6px 12px',
+  borderRadius: 999,
+  border: active ? '1px solid var(--accent)' : '1px solid var(--divider)',
+  background: active ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+  color: active ? 'var(--accent)' : highContrast ? '#94a3b8' : 'var(--text-secondary)',
+  fontSize: 12,
   fontWeight: active ? 600 : 400,
   cursor: 'pointer',
   whiteSpace: 'nowrap' as const,
@@ -49,7 +44,7 @@ export function LogTagFilterRow({ filter, setFilter, options, t: _t, highContras
             type="button"
             className="log-filter-btn"
             onClick={() => setFilter(tag.key)}
-            style={chip(filter === tag.key, 'var(--accent)', 'var(--accent-light)', 'var(--accent)', highContrast)}
+            style={chip(filter === tag.key, highContrast)}
           >
             {tag.label}
           </button>

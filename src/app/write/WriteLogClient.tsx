@@ -615,6 +615,7 @@ export default function WriteLogClient() {
             <button
               key={tag.label}
               type="button"
+              className="log-filter-btn"
               onClick={() => {
                 hasUserSelectedTagRef.current = true;
                 setSelectedLogTag(tag.value);
@@ -623,7 +624,7 @@ export default function WriteLogClient() {
                 flexShrink: 0,
                 padding: '6px 12px',
                 borderRadius: 999,
-                border: '1px solid var(--divider)',
+                border: selectedLogTag === tag.value ? '1px solid var(--accent)' : '1px solid var(--divider)',
                 background: selectedLogTag === tag.value ? 'var(--accent-light)' : highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
                 color: selectedLogTag === tag.value ? 'var(--accent)' : highContrast ? '#94a3b8' : 'var(--text-secondary)',
                 fontSize: 12,
