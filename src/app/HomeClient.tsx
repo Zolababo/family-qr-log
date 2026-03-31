@@ -1889,7 +1889,7 @@ export default function HomeClient() {
             overscrollBehaviorY: 'contain',
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-y',
-            paddingBottom: 'max(88px, calc(56px + env(safe-area-inset-bottom, 0px)))',
+            paddingBottom: 'max(80px, calc(52px + env(safe-area-inset-bottom, 0px)))',
             background: 'transparent',
           }}
         >
@@ -1930,7 +1930,7 @@ export default function HomeClient() {
           aria-hidden
         />
         {user && householdId ? (
-          <div className="home-top-bleed" style={{ marginBottom: 8 }}>
+          <div className="home-top-bleed" style={{ marginBottom: 6 }}>
             <AppHeader t={t} />
             <MemberFilter
               user={user}
@@ -2134,7 +2134,7 @@ export default function HomeClient() {
             )}
           </div>
         ) : (
-          <div className="home-top-bleed" style={{ marginBottom: 8 }}>
+          <div className="home-top-bleed" style={{ marginBottom: 6 }}>
             <AppHeader t={t} />
           </div>
         )}

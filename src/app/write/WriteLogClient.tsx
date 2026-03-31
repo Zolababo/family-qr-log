@@ -552,7 +552,7 @@ export default function WriteLogClient() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'stretch',
-        padding: '0 0 88px',
+        padding: '0 0 80px',
         background: theme.bg,
         color: theme.text,
         fontFamily: 'var(--font-geist-sans), system-ui, sans-serif',

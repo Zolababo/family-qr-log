@@ -61,7 +61,7 @@ export function BottomTabBar({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    padding: '6px 4px 10px',
+    padding: '5px 4px 8px',
     border: 'none',
     background: isActive ? 'var(--accent-light)' : 'transparent',
     color: isActive ? 'var(--accent)' : 'var(--text-caption)',
@@ -109,7 +109,7 @@ export function BottomTabBar({
             style={{
               position: 'absolute',
               right: 12,
-              top: -56,
+              top: -52,
               width: 48,
               height: 48,
               borderRadius: '50%',

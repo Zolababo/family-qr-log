@@ -24,7 +24,7 @@ type MemberFilterProps = {
   onMemberAvatarError: (userId: string) => void;
 };
 
-const CHIP_HEIGHT = 78;
+const CHIP_HEIGHT = 72;
 const AVATAR_SIZE = 58;
 /** 그라데이션 링 두께(예전 6px). 바깥 링 70×70 고정으로 선택 여부와 무관하게 이름 줄 높이 유지 */
 const RING_WIDTH = 6;
@@ -62,9 +62,9 @@ export function MemberFilter({
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    gap: 8,
+    gap: 6,
     minHeight: CHIP_HEIGHT,
-    padding: '4px 8px 6px',
+    padding: '2px 6px 4px',
     borderRadius: 999,
     border: 'none',
     background: 'transparent',
@@ -142,7 +142,7 @@ export function MemberFilter({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        marginTop: 4,
+        marginTop: 2,
         width: '100%',
         minHeight: CHIP_HEIGHT,
         paddingTop: 0,

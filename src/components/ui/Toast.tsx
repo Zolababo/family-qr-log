@@ -66,7 +66,7 @@ export function Toast({ message, fading, highContrast, liftAboveTabBar, variant:
         left: '50%',
         transform: 'translateX(-50%)',
         bottom: liftAboveTabBar
-          ? 'max(88px, calc(56px + env(safe-area-inset-bottom, 0px) + 24px))'
+          ? 'max(80px, calc(52px + env(safe-area-inset-bottom, 0px) + 24px))'
           : 'max(20px, env(safe-area-inset-bottom, 0px))',
         width: 'min(480px, calc(100vw - 32px))',
         maxWidth: 'min(480px, calc(100vw - 32px))',
