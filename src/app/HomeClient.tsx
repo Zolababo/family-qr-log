@@ -287,7 +287,8 @@ export default function HomeClient() {
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
-  const profileSectionRef = useRef<HTMLDivElement | null>(null);
+  /** 타이틀 + 멤버 필터만 — 스크롤·스티키 기준 높이 */
+  const profileBlockRef = useRef<HTMLDivElement | null>(null);
   const profileSentinelRef = useRef<HTMLDivElement | null>(null);
   const pullRefreshBusyRef = useRef(false);
   const pullRafRef = useRef<number | null>(null);
@@ -765,8 +766,8 @@ export default function HomeClient() {
   useEffect(() => {
     const root = homeScrollRef.current;
     const sentinel = profileSentinelRef.current;
-    const profileSection = profileSectionRef.current;
-    if (!root || !sentinel || !profileSection || activeTab !== 'home') {
+    const profileBlock = profileBlockRef.current;
+    if (!root || !sentinel || !profileBlock || activeTab !== 'home') {
       setStickyHeaderEnabled(false);
       setPassedProfileSection(false);
       setStickyHeaderVisible(false);
@@ -779,9 +780,10 @@ export default function HomeClient() {
       rafId = requestAnimationFrame(() => {
         rafId = null;
         const scrollable = root.scrollHeight - root.clientHeight;
-        const profileHeight = profileSection.getBoundingClientRect().height;
-        const minScrollable = Math.max(120, Math.round(profileHeight * 0.5));
-        const enabled = scrollable > minScrollable;
+        const blockH = Math.max(1, profileBlock.offsetHeight);
+        /** 타이틀+프로필을 지나갈 만큼 스크롤 여유가 있을 때만 (가족메모/태그 블록 높이는 제외) */
+        const minScrollable = Math.max(120, Math.round(blockH + 32));
+        const enabled = scrollable >= minScrollable;
         stickyHeaderEnabledRef.current = enabled;
         setStickyHeaderEnabled(enabled);
         if (!enabled) {
@@ -800,10 +802,9 @@ export default function HomeClient() {
         passedProfileSectionRef.current = nextPassed;
         setPassedProfileSection(nextPassed);
         if (!nextPassed) {
-          // 프로필 영역이 다시 보이면 스티키는 즉시 제거
           setStickyHeaderVisible(false);
         } else {
-          // 프로필이 완전히 사라지는 시점에 1회 노출
+          lastHomeScrollTopRef.current = root.scrollTop;
           setStickyHeaderVisible(true);
         }
       },
@@ -830,7 +831,7 @@ export default function HomeClient() {
     root.addEventListener('scroll', onScroll, { passive: true });
     const resizeObserver = new ResizeObserver(() => recomputeEnabled());
     resizeObserver.observe(root);
-    resizeObserver.observe(profileSection);
+    resizeObserver.observe(profileBlock);
 
     return () => {
       if (rafId != null) cancelAnimationFrame(rafId);
@@ -838,7 +839,7 @@ export default function HomeClient() {
       root.removeEventListener('scroll', onScroll);
       resizeObserver.disconnect();
     };
-  }, [activeTab]);
+  }, [activeTab, logs.length, members.length]);
 
   useEffect(() => {
     if (commentTarget) {
@@ -2027,9 +2028,11 @@ export default function HomeClient() {
               top: 0,
               zIndex: 36,
               pointerEvents: stickyHeaderVisible ? 'auto' : 'none',
+              maxHeight: stickyHeaderVisible ? 560 : 0,
+              overflow: 'hidden',
               opacity: stickyHeaderVisible ? 1 : 0,
-              transform: stickyHeaderVisible ? 'translateY(0)' : 'translateY(-14px)',
-              transition: 'opacity 180ms ease, transform 220ms ease',
+              transform: stickyHeaderVisible ? 'translateY(0)' : 'translateY(-10px)',
+              transition: 'opacity 180ms ease, transform 220ms ease, max-height 200ms ease',
             }}
           >
             <div
@@ -2038,9 +2041,24 @@ export default function HomeClient() {
                 marginBottom: 4,
                 borderBottom: highContrast ? '1px solid #333' : '1px solid color-mix(in srgb, var(--divider) 78%, transparent 22%)',
                 backdropFilter: 'saturate(1.05)',
+                background: highContrast ? '#0f0f0f' : 'color-mix(in srgb, var(--bg-base) 92%, white 8%)',
               }}
             >
               <AppHeader t={t} />
+              <MemberFilter
+                user={user}
+                members={members}
+                selectedMemberId={selectedMemberId}
+                onSelectMember={setSelectedMemberId}
+                t={t}
+                meDisplayName={meDisplayName}
+                profileAvatarUrl={profileAvatarUrl}
+                profileAvatarLoadFailed={profileAvatarLoadFailed}
+                onEnlargeAvatar={setEnlargedAvatarUrl}
+                avatarFailedUserIds={avatarFailedUserIds}
+                onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
+                onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
+              />
             </div>
           </div>
         ) : null}
@@ -2081,22 +2099,27 @@ export default function HomeClient() {
           aria-hidden
         />
         {user && householdId ? (
-          <div ref={profileSectionRef} className="home-top-bleed" style={{ marginBottom: 6 }}>
-            <AppHeader t={t} />
-            <MemberFilter
-              user={user}
-              members={members}
-              selectedMemberId={selectedMemberId}
-              onSelectMember={setSelectedMemberId}
-              t={t}
-              meDisplayName={meDisplayName}
-              profileAvatarUrl={profileAvatarUrl}
-              profileAvatarLoadFailed={profileAvatarLoadFailed}
-              onEnlargeAvatar={setEnlargedAvatarUrl}
-              avatarFailedUserIds={avatarFailedUserIds}
-              onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
-              onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
-            />
+          <div className="home-top-bleed" style={{ marginBottom: 6 }}>
+            <div ref={profileBlockRef}>
+              <AppHeader t={t} />
+              <MemberFilter
+                user={user}
+                members={members}
+                selectedMemberId={selectedMemberId}
+                onSelectMember={setSelectedMemberId}
+                t={t}
+                meDisplayName={meDisplayName}
+                profileAvatarUrl={profileAvatarUrl}
+                profileAvatarLoadFailed={profileAvatarLoadFailed}
+                onEnlargeAvatar={setEnlargedAvatarUrl}
+                avatarFailedUserIds={avatarFailedUserIds}
+                onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
+                onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
+              />
+            </div>
+            {activeTab === 'home' ? (
+              <div ref={profileSentinelRef} aria-hidden style={{ height: 1, width: '100%', opacity: 0, pointerEvents: 'none' }} />
+            ) : null}
             {activeTab === 'search' && (
               <input
                 type="search"
@@ -2289,7 +2312,6 @@ export default function HomeClient() {
             <AppHeader t={t} />
           </div>
         )}
-        {user && householdId ? <div ref={profileSentinelRef} aria-hidden style={{ height: 1, opacity: 0, pointerEvents: 'none' }} /> : null}
 
         {status && (
           <Toast
