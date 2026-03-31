@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Check, CheckSquare2, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { CheckSquare2, Plus, RotateCcw, Trash2 } from 'lucide-react';
 
 export type TodoPriorityKey = 'urgentImportant' | 'notUrgentImportant' | 'urgentNotImportant' | 'notUrgentNotImportant';
 export type TodoTask = {
@@ -33,7 +33,6 @@ type TodoBoardProps = {
   addTodoTask: (key: TodoPriorityKey, text: string) => void;
   toggleTodoTaskDone: (id: number) => void;
   removeTodoTask: (id: number) => void;
-  updateTodoTaskText: (id: number, nextText: string) => void;
 };
 
 const emptyDrafts = (): Record<TodoPriorityKey, string> => ({
@@ -52,11 +51,8 @@ export function TodoBoard({
   addTodoTask,
   toggleTodoTaskDone,
   removeTodoTask,
-  updateTodoTaskText,
 }: TodoBoardProps) {
   const [draftByKey, setDraftByKey] = useState<Record<TodoPriorityKey, string>>(emptyDrafts);
-  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
-  const [editingText, setEditingText] = useState('');
 
   const commitDraft = useCallback(
     (key: TodoPriorityKey) => {
@@ -67,25 +63,6 @@ export function TodoBoard({
     },
     [addTodoTask, draftByKey]
   );
-
-  const startEditTask = useCallback((task: TodoTask) => {
-    setEditingTaskId(task.id);
-    setEditingText(task.text);
-  }, []);
-
-  const cancelEditTask = useCallback(() => {
-    setEditingTaskId(null);
-    setEditingText('');
-  }, []);
-
-  const commitEditTask = useCallback(() => {
-    if (editingTaskId == null) return;
-    const trimmed = editingText.trim();
-    if (!trimmed) return;
-    updateTodoTaskText(editingTaskId, trimmed);
-    setEditingTaskId(null);
-    setEditingText('');
-  }, [editingTaskId, editingText, updateTodoTaskText]);
 
   const renderQuadrant = (meta: (typeof MATRIX)[number]) => {
     const { key, title, accent } = meta;
@@ -126,78 +103,28 @@ export function TodoBoard({
           {tasks.length === 0 ? (
             <div style={{ fontSize: 11, color: highContrast ? '#94a3b8' : 'var(--text-caption)', padding: '4px 0' }}>항목 없음</div>
           ) : (
-            tasks.map((task, idx) => {
-              const isEditing = editingTaskId === task.id;
-              return (
-                <div
-                  key={task.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '6px 0',
-                    borderBottom: idx < tasks.length - 1 ? (highContrast ? '1px solid #333' : '1px solid var(--divider)') : 'none',
-                    fontSize: 12,
-                    color: highContrast ? '#e2e8f0' : 'var(--text-primary)',
-                  }}
-                >
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={editingText}
-                      onChange={(e) => setEditingText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          commitEditTask();
-                        }
-                        if (e.key === 'Escape') {
-                          e.preventDefault();
-                          cancelEditTask();
-                        }
-                      }}
-                      autoFocus
-                      aria-label="할 일 수정 입력"
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        borderRadius: 8,
-                        border: highContrast ? '1px solid #555' : '1px solid var(--divider)',
-                        padding: '6px 8px',
-                        fontSize: 12,
-                        background: highContrast ? '#0c0c0c' : 'var(--bg-subtle)',
-                        color: highContrast ? '#fff' : 'var(--text-primary)',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  ) : (
-                    <span style={{ flex: 1, minWidth: 0, lineHeight: 1.35, wordBreak: 'break-word' }}>{task.text}</span>
-                  )}
-                  {isEditing ? (
-                    <>
-                      <button type="button" onClick={commitEditTask} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#86efac' : '#16a34a', flexShrink: 0 }} aria-label="수정 저장">
-                        <Check size={16} strokeWidth={1.8} aria-hidden />
-                      </button>
-                      <button type="button" onClick={cancelEditTask} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#fca5a5' : '#ef4444', flexShrink: 0 }} aria-label="수정 취소">
-                        <X size={16} strokeWidth={1.8} aria-hidden />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button type="button" onClick={() => startEditTask(task)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#e2e8f0' : 'var(--text-secondary)', flexShrink: 0 }} aria-label="수정">
-                        <Pencil size={15} strokeWidth={1.8} aria-hidden />
-                      </button>
-                      <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#16a34a', flexShrink: 0 }} aria-label="완료">
-                        <CheckSquare2 size={16} strokeWidth={1.75} aria-hidden />
-                      </button>
-                      <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444', flexShrink: 0 }} aria-label="삭제">
-                        <Trash2 size={16} strokeWidth={1.75} aria-hidden />
-                      </button>
-                    </>
-                  )}
-                </div>
-              );
-            })
+            tasks.map((task, idx) => (
+              <div
+                key={task.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 0',
+                  borderBottom: idx < tasks.length - 1 ? (highContrast ? '1px solid #333' : '1px solid var(--divider)') : 'none',
+                  fontSize: 12,
+                  color: highContrast ? '#e2e8f0' : 'var(--text-primary)',
+                }}
+              >
+                <span style={{ flex: 1, minWidth: 0, lineHeight: 1.35, wordBreak: 'break-word' }}>{task.text}</span>
+                <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#16a34a', flexShrink: 0 }} aria-label="완료">
+                  <CheckSquare2 size={16} strokeWidth={1.75} aria-hidden />
+                </button>
+                <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444', flexShrink: 0 }} aria-label="삭제">
+                  <Trash2 size={16} strokeWidth={1.75} aria-hidden />
+                </button>
+              </div>
+            ))
           )}
         </div>
         <form
@@ -292,60 +219,13 @@ export function TodoBoard({
                 <div style={{ fontSize: 11, fontWeight: 700, color: highContrast ? '#e5e7eb' : 'var(--text-secondary)', marginBottom: 3 }}>{label}</div>
                 {tasks.map((task) => (
                   <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0' }}>
-                    {editingTaskId === task.id ? (
-                      <input
-                        type="text"
-                        value={editingText}
-                        onChange={(e) => setEditingText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            commitEditTask();
-                          }
-                          if (e.key === 'Escape') {
-                            e.preventDefault();
-                            cancelEditTask();
-                          }
-                        }}
-                        autoFocus
-                        aria-label="완료 항목 수정 입력"
-                        style={{
-                          flex: 1,
-                          minWidth: 0,
-                          borderRadius: 8,
-                          border: highContrast ? '1px solid #555' : '1px solid var(--divider)',
-                          padding: '6px 8px',
-                          fontSize: 12,
-                          background: highContrast ? '#0c0c0c' : 'var(--bg-card)',
-                          color: highContrast ? '#fff' : 'var(--text-primary)',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-                    ) : (
-                      <span style={{ flex: 1, fontSize: 12, color: highContrast ? '#d1d5db' : 'var(--text-secondary)' }}>{task.text}</span>
-                    )}
-                    {editingTaskId === task.id ? (
-                      <>
-                        <button type="button" onClick={commitEditTask} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#86efac' : '#16a34a' }} aria-label="수정 저장">
-                          <Check size={15} strokeWidth={1.8} aria-hidden />
-                        </button>
-                        <button type="button" onClick={cancelEditTask} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#fca5a5' : '#ef4444' }} aria-label="수정 취소">
-                          <X size={15} strokeWidth={1.8} aria-hidden />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button type="button" onClick={() => startEditTask(task)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#e2e8f0' : 'var(--text-secondary)' }} aria-label="수정">
-                          <Pencil size={14} strokeWidth={1.8} aria-hidden />
-                        </button>
-                        <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : 'var(--accent)' }} aria-label="복원">
-                          <RotateCcw size={15} strokeWidth={1.75} aria-hidden />
-                        </button>
-                        <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444' }} aria-label="삭제">
-                          <Trash2 size={15} strokeWidth={1.75} aria-hidden />
-                        </button>
-                      </>
-                    )}
+                    <span style={{ flex: 1, fontSize: 12, color: highContrast ? '#d1d5db' : 'var(--text-secondary)' }}>{task.text}</span>
+                    <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : 'var(--accent)' }} aria-label="복원">
+                      <RotateCcw size={15} strokeWidth={1.75} aria-hidden />
+                    </button>
+                    <button type="button" onClick={() => removeTodoTask(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#f87171' : '#ef4444' }} aria-label="삭제">
+                      <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -356,4 +236,3 @@ export function TodoBoard({
     </section>
   );
 }
-
