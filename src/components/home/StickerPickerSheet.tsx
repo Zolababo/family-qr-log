@@ -76,6 +76,22 @@ const FUN_TEXT_OPTIONS = [
   '아자아자',
 ];
 
+const FAMILY_TEXT_OPTIONS = [
+  '밤토라~♥',
+  '귀요미~♥',
+  '러블리~♥',
+  '우꼰쥬~♥',
+  '차야~',
+  '서방님',
+  '낭군님',
+  '완쟈',
+  '똘마야~',
+  '똥깡쥐',
+  '동고야',
+  '꼰쥬',
+  '나?',
+];
+
 type StickerPickerSheetProps = {
   highContrast: boolean;
   onClose: () => void;
@@ -85,13 +101,20 @@ type StickerPickerSheetProps = {
 
 /** 로그 카드 스티커 선택 하단 시트 — `onPickSticker`는 부모에서 `applyStickerToLog` 등과 연결 */
 export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: StickerPickerSheetProps) {
-  const [category, setCategory] = useState<'emoji' | 'feeling' | 'fun'>('emoji');
+  const [category, setCategory] = useState<'emoji' | 'feeling' | 'fun' | 'family'>('emoji');
   const handleRef = useRef<HTMLDivElement | null>(null);
   const startYRef = useRef<number | null>(null);
   const dragYRef = useRef(0);
   const [translateY, setTranslateY] = useState(0);
   const DRAG_CLOSE_THRESHOLD = 90;
-  const visibleOptions = category === 'emoji' ? EMOJI_OPTIONS : category === 'feeling' ? FEELING_TEXT_OPTIONS : FUN_TEXT_OPTIONS;
+  const visibleOptions =
+    category === 'emoji'
+      ? EMOJI_OPTIONS
+      : category === 'feeling'
+        ? FEELING_TEXT_OPTIONS
+        : category === 'fun'
+          ? FUN_TEXT_OPTIONS
+          : FAMILY_TEXT_OPTIONS;
 
   useEffect(() => {
     const html = document.documentElement;
@@ -195,7 +218,7 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
           <div style={{ fontSize: 14, fontWeight: 800, color: highContrast ? '#fff' : '#0f172a', marginBottom: 10 }}>
             스티커 선택
           </div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
             <button
               type="button"
               onClick={() => setCategory('emoji')}
@@ -243,6 +266,24 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker }: Sti
               }}
             >
               재미 멘트
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategory('family')}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 999,
+                border: '1px solid var(--divider)',
+                background: category === 'family' ? 'var(--accent-light)' : 'transparent',
+                color: category === 'family' ? 'var(--accent)' : highContrast ? '#94a3b8' : 'var(--text-secondary)',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              가족 멘트
             </button>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
