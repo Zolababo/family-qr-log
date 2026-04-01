@@ -271,6 +271,15 @@ body {
   box-shadow: none !important;
 }
 
+/* 로그 롱프레스 액션 시트: 첫 버튼에 남는 터치/호버 잔상 방지 */
+[data-accessibility-root] .log-action-sheet-btn,
+[data-accessibility-root] .log-action-sheet-btn:hover,
+[data-accessibility-root] .log-action-sheet-btn:active,
+[data-accessibility-root] .log-action-sheet-btn:focus:not(:focus-visible) {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 /* 마이크로 인터랙션: 모션 감소 시 버튼 호버·전환 끔 (WCAG) */
 @media (prefers-reduced-motion: reduce) {
   [data-accessibility-root]:not([data-high-contrast="true"]) button,

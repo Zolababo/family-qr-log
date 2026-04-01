@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
+
 type LogActionSheetProps = {
   /** 목록에 없으면 버튼 영역은 비움(기존 HomeClient 동작과 동일) */
   log: { id: string } | null;
@@ -12,10 +14,21 @@ type LogActionSheetProps = {
 
 /** 로그 카드 롱프레스 후 하단 수정·삭제 액션 — 라우팅·삭제는 부모 */
 export function LogActionSheet({ log, highContrast, t, onDismiss, onEdit, onDelete }: LogActionSheetProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const activeEl = document.activeElement;
+    if (activeEl instanceof HTMLElement) activeEl.blur();
+    dialogRef.current?.focus({ preventScroll: true });
+  }, []);
+
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 50 }} onClick={onDismiss}>
       <div
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
+        aria-modal="true"
         style={{
           position: 'fixed',
           left: '50%',
@@ -34,6 +47,7 @@ export function LogActionSheet({ log, highContrast, t, onDismiss, onEdit, onDele
         {log ? (
           <>
             <button
+              className="log-action-sheet-btn"
               type="button"
               onClick={() => onEdit(log.id)}
               style={{
@@ -51,6 +65,7 @@ export function LogActionSheet({ log, highContrast, t, onDismiss, onEdit, onDele
               {t('edit')}
             </button>
             <button
+              className="log-action-sheet-btn"
               type="button"
               onClick={() => onDelete(log.id)}
               style={{
