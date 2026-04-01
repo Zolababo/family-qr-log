@@ -29,6 +29,7 @@ import { Toast } from '../components/ui/Toast';
 import { Empty } from '../components/ui/Empty';
 import { LogTagBadge } from '../components/ui/Badge';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
+import { useHouseholdMembers } from '../features/members/useHouseholdMembers';
 
 type Log = {
   id: string;
@@ -41,12 +42,6 @@ type Log = {
   image_url?: string | null;
   image_urls?: string | string[] | null;
   video_url?: string | null;
-};
-
-type Member = {
-  user_id: string;
-  display_name: string | null;
-  avatar_url?: string | null;
 };
 
 type LogComment = {
@@ -216,7 +211,6 @@ export default function HomeClient() {
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [logsInitialLoading, setLogsInitialLoading] = useState(false);
   const [logs, setLogs] = useState<Log[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<'all' | 'me' | string>('all');
   const [feedTagFilter, setFeedTagFilter] = useState<'all' | LogSlug>('all');
@@ -235,13 +229,23 @@ export default function HomeClient() {
     if (msg === null) setStatusToastTone(null);
     else setStatusToastTone(tone !== undefined ? tone : null);
   }, []);
-
-  const [profileName, setProfileName] = useState('');
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
+  const {
+    members,
+    setMembers,
+    profileName,
+    setProfileName,
+    profileAvatarUrl,
+    setProfileAvatarUrl,
+    profileAvatarLoadFailed,
+    setProfileAvatarLoadFailed,
+    avatarFailedUserIds,
+    setAvatarFailedUserIds,
+    reloadMembersList,
+    applyOwnDisplayName,
+    applyOwnAvatarUrl,
+  } = useHouseholdMembers();
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileAvatarUploading, setProfileAvatarUploading] = useState(false);
-  const [profileAvatarLoadFailed, setProfileAvatarLoadFailed] = useState(false);
-  const [avatarFailedUserIds, setAvatarFailedUserIds] = useState<Set<string>>(new Set());
   const [enlargedAvatarUrl, setEnlargedAvatarUrl] = useState<string | null>(null);
   const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   const [showNameEditModal, setShowNameEditModal] = useState(false);
@@ -1257,21 +1261,10 @@ export default function HomeClient() {
     void loadLogs(householdId, undefined, undefined);
   }, [householdId, user, loadLogs]);
 
-  const reloadMembersList = useCallback(async () => {
-    if (!householdId) return;
-    const allRes = await supabase.from('members').select('user_id, display_name, avatar_url').eq('household_id', householdId);
-    if (allRes.error && /avatar_url|does not exist|column/i.test(allRes.error.message ?? '')) {
-      const fb = await supabase.from('members').select('user_id, display_name').eq('household_id', householdId);
-      if (!fb.error && fb.data) setMembers(fb.data);
-      return;
-    }
-    if (!allRes.error && allRes.data) setMembers(allRes.data);
-  }, [householdId]);
-
   const performPullRefresh = useCallback(async () => {
     if (!householdId || !user) return;
     await loadLogs(householdId, undefined, undefined);
-    await reloadMembersList();
+    await reloadMembersList(householdId);
 
     const { data: todoData } = await supabase
       .from('logs')
@@ -1481,9 +1474,7 @@ export default function HomeClient() {
       return;
     }
 
-    setMembers((prev) =>
-      prev.map((m) => (m.user_id === user.id ? { ...m, display_name: trimmed } : m))
-    );
+    applyOwnDisplayName(user.id, trimmed);
     setAppStatus('이름이 저장되었습니다.', 'success');
     setProfileSaving(false);
   };
@@ -1564,13 +1555,11 @@ export default function HomeClient() {
       }
       setProfileAvatarUrl(publicUrl + (publicUrl.includes('?') ? '&' : '?') + 't=' + Date.now());
       setProfileAvatarLoadFailed(false);
-      setMembers((prev) =>
-        prev.map((m) => (m.user_id === user.id ? { ...m, avatar_url: publicUrl } : m))
-      );
+      applyOwnAvatarUrl(user.id, publicUrl);
       setAppStatus('프로필 사진이 변경되었습니다.', 'success');
       setProfileAvatarUploading(false);
     },
-    [user, householdId]
+    [user, householdId, applyOwnAvatarUrl]
   );
 
   const getMemberName = (userId: string) => {
