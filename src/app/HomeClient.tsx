@@ -222,10 +222,14 @@ export default function HomeClient() {
   const reportStatus = useCallback((message: string, tone?: 'success' | 'error' | 'info') => {
     setAppStatus(message, tone);
   }, [setAppStatus]);
+  const excludedLogPrefixes = useMemo(
+    () => [TODO_SNAPSHOT_PREFIX, SHARED_MEMO_LOG_PREFIX],
+    []
+  );
   const { logs, setLogs, logsInitialLoading, loadLogs, refreshLogs } = useHouseholdLogs({
     householdId,
     userId: user?.id,
-    excludedActionPrefixes: [TODO_SNAPSHOT_PREFIX, SHARED_MEMO_LOG_PREFIX],
+    excludedActionPrefixes: excludedLogPrefixes,
     onError: reportErrorStatus,
   });
   const {
