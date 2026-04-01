@@ -11,8 +11,13 @@ type UsePullToRefreshArgs = {
 export function usePullToRefresh({ scrollRef, enabled, onRefresh }: UsePullToRefreshArgs) {
   const pullRefreshBusyRef = useRef(false);
   const pullRafRef = useRef<number | null>(null);
+  const onRefreshRef = useRef(onRefresh);
   const [pullRefreshOffset, setPullRefreshOffset] = useState(0);
   const [pullRefreshRefreshing, setPullRefreshRefreshing] = useState(false);
+
+  useEffect(() => {
+    onRefreshRef.current = onRefresh;
+  }, [onRefresh]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -35,7 +40,8 @@ export function usePullToRefresh({ scrollRef, enabled, onRefresh }: UsePullToRef
       if (pullRefreshBusyRef.current) return;
       if (el.scrollTop > 2) return;
       const node = e.target;
-      if (node instanceof Element && node.closest('.member-filter-scroll')) {
+      // 프로필 칩 자체 탭은 보존하되, 상단 영역의 빈 공간에서 당김은 허용
+      if (node instanceof Element && node.closest('.profile-chip-btn')) {
         return;
       }
       startY = e.touches[0].clientY;
@@ -86,7 +92,7 @@ export function usePullToRefresh({ scrollRef, enabled, onRefresh }: UsePullToRef
       flushOffset();
       void (async () => {
         try {
-          await onRefresh();
+          await onRefreshRef.current();
         } finally {
           pullRefreshBusyRef.current = false;
           setPullRefreshRefreshing(false);
@@ -107,7 +113,7 @@ export function usePullToRefresh({ scrollRef, enabled, onRefresh }: UsePullToRef
       el.removeEventListener('touchend', endPull);
       el.removeEventListener('touchcancel', endPull);
     };
-  }, [scrollRef, enabled, onRefresh]);
+  }, [scrollRef, enabled]);
 
   return {
     pullRefreshOffset,
