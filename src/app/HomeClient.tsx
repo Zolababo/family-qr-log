@@ -213,11 +213,20 @@ export default function HomeClient() {
     if (msg === null) setStatusToastTone(null);
     else setStatusToastTone(tone !== undefined ? tone : null);
   }, []);
+  const reportErrorStatus = useCallback((message: string) => {
+    setAppStatus(message, 'error');
+  }, [setAppStatus]);
+  const clearAppStatus = useCallback(() => {
+    setAppStatus(null);
+  }, [setAppStatus]);
+  const reportStatus = useCallback((message: string, tone?: 'success' | 'error' | 'info') => {
+    setAppStatus(message, tone);
+  }, [setAppStatus]);
   const { logs, setLogs, logsInitialLoading, loadLogs, refreshLogs } = useHouseholdLogs({
     householdId,
     userId: user?.id,
     excludedActionPrefixes: [TODO_SNAPSHOT_PREFIX, SHARED_MEMO_LOG_PREFIX],
-    onError: (message) => setAppStatus(message, 'error'),
+    onError: reportErrorStatus,
   });
   const {
     members,
@@ -272,7 +281,7 @@ export default function HomeClient() {
     sharedMemoLogPrefix: SHARED_MEMO_LOG_PREFIX,
     parseSharedMemoSnapshot,
     composeSharedMemoSnapshot,
-    onError: (message) => setAppStatus(message, 'error'),
+    onError: reportErrorStatus,
   });
   const {
     profileSaving,
@@ -288,7 +297,7 @@ export default function HomeClient() {
     setProfileAvatarLoadFailed,
     applyOwnDisplayName,
     applyOwnAvatarUrl,
-    onStatus: (message, tone) => setAppStatus(message, tone),
+    onStatus: reportStatus,
   });
   const [todoTasks, setTodoTasks] = useState<TodoTask[]>([]);
   const { markTodoDirty, refreshTodoSnapshot } = useTodoSnapshots({
@@ -337,8 +346,8 @@ export default function HomeClient() {
     setProfileAvatarUrl,
     setProfileAvatarLoadFailed,
     setMembers,
-    onError: (message) => setAppStatus(message, 'error'),
-    onStart: () => setAppStatus(null),
+    onError: reportErrorStatus,
+    onStart: clearAppStatus,
   });
 
   useEffect(() => {
@@ -529,7 +538,7 @@ export default function HomeClient() {
     onReloadLogs: async (hid) => {
       await loadLogs(hid, undefined, undefined);
     },
-    onError: (message) => setAppStatus(message, 'error'),
+    onError: reportErrorStatus,
   });
   const {
     commentsByLogId,
@@ -556,7 +565,7 @@ export default function HomeClient() {
   } = useLogComments({
     logIds: [...new Set(logs.map((l) => l.id))],
     userId: user?.id,
-    onError: (message) => setAppStatus(message, 'error'),
+    onError: reportErrorStatus,
     onSuccess: (message) => setAppStatus(message, 'success'),
   });
 
