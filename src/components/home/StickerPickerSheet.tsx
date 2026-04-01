@@ -142,6 +142,7 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
   const dragYRef = useRef(0);
   const [translateY, setTranslateY] = useState(0);
   const DRAG_CLOSE_THRESHOLD = 90;
+  const textOptionBackground = highContrast ? 'rgba(255,255,255,0.06)' : 'rgba(99,102,241,0.08)';
   const visibleOptions =
     category === 'emoji'
       ? EMOJI_OPTIONS
@@ -235,11 +236,17 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
           borderTopLeftRadius: 18,
           borderTopRightRadius: 18,
           boxShadow: '0 -10px 28px rgba(67,50,33,0.16)',
-          paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+          height: 'calc(50dvh + env(safe-area-inset-bottom))',
+          minHeight: 'calc(50vh + env(safe-area-inset-bottom))',
+          maxHeight: 'calc(50dvh + env(safe-area-inset-bottom))',
+          paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
           paddingTop: 8,
           transform: `translateY(${translateY}px)`,
           transition: translateY > 0 ? 'none' : 'transform 0.18s ease-out',
           touchAction: 'pan-y',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -249,7 +256,7 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
         >
           <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--divider)' }} aria-hidden />
         </div>
-        <div style={{ padding: '0 16px 12px' }}>
+        <div style={{ padding: '0 16px 12px', display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: highContrast ? '#fff' : '#0f172a', marginBottom: 10 }}>
             스티커 선택
           </div>
@@ -277,19 +284,36 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
               </button>
             </div>
           ) : null}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              marginBottom: 10,
+              overflowX: 'auto',
+              overflowY: 'visible',
+              paddingTop: 4,
+              paddingBottom: 4,
+              paddingLeft: 1,
+              paddingRight: 1,
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
             <button
               type="button"
               onClick={() => setCategory('emoji')}
               style={{
                 padding: '8px 12px',
                 borderRadius: 999,
-                border: '1px solid var(--divider)',
+                border: '1px solid transparent',
                 background: category === 'emoji' ? 'var(--accent-light)' : 'transparent',
                 color: category === 'emoji' ? 'var(--accent)' : highContrast ? '#94a3b8' : 'var(--text-secondary)',
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: 'pointer',
+                boxShadow: category === 'emoji' ? '0 0 0 1px rgba(99,102,241,0.16)' : 'inset 0 0 0 1px var(--divider)',
+                transform: category === 'emoji' ? 'translateY(-1px)' : 'none',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
               }}
             >
               이모지
@@ -300,12 +324,16 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
               style={{
                 padding: '8px 12px',
                 borderRadius: 999,
-                border: '1px solid var(--divider)',
+                border: '1px solid transparent',
                 background: category === 'feeling' ? 'var(--accent-light)' : 'transparent',
                 color: category === 'feeling' ? 'var(--accent)' : highContrast ? '#94a3b8' : '#64748b',
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: 'pointer',
+                boxShadow: category === 'feeling' ? '0 0 0 1px rgba(99,102,241,0.16)' : 'inset 0 0 0 1px var(--divider)',
+                transform: category === 'feeling' ? 'translateY(-1px)' : 'none',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
               }}
             >
               감정 멘트
@@ -316,12 +344,16 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
               style={{
                 padding: '8px 12px',
                 borderRadius: 999,
-                border: '1px solid var(--divider)',
+                border: '1px solid transparent',
                 background: category === 'fun' ? 'var(--accent-light)' : 'transparent',
                 color: category === 'fun' ? 'var(--accent)' : highContrast ? '#94a3b8' : 'var(--text-secondary)',
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: 'pointer',
+                boxShadow: category === 'fun' ? '0 0 0 1px rgba(99,102,241,0.16)' : 'inset 0 0 0 1px var(--divider)',
+                transform: category === 'fun' ? 'translateY(-1px)' : 'none',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
               }}
             >
               재미 멘트
@@ -332,12 +364,14 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
               style={{
                 padding: '8px 12px',
                 borderRadius: 999,
-                border: '1px solid var(--divider)',
+                border: '1px solid transparent',
                 background: category === 'family' ? 'var(--accent-light)' : 'transparent',
                 color: category === 'family' ? 'var(--accent)' : highContrast ? '#94a3b8' : 'var(--text-secondary)',
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: 'pointer',
+                boxShadow: category === 'family' ? '0 0 0 1px rgba(99,102,241,0.16)' : 'inset 0 0 0 1px var(--divider)',
+                transform: category === 'family' ? 'translateY(-1px)' : 'none',
                 flexShrink: 0,
                 whiteSpace: 'nowrap',
               }}
@@ -345,7 +379,20 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
               가족 멘트
             </button>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 10,
+              alignContent: 'flex-start',
+              overflowY: 'auto',
+              minHeight: 0,
+              flex: 1,
+              paddingTop: 4,
+              paddingBottom: 4,
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
             {visibleOptions.map((s) => (
               <button
                 key={s}
@@ -356,7 +403,12 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
                   padding: '10px 14px',
                   borderRadius: 999,
                   border: '1px solid var(--divider)',
-                  background: highContrast ? 'rgba(255,255,255,0.04)' : 'var(--bg-subtle)',
+                  background:
+                    category === 'emoji'
+                      ? highContrast
+                        ? 'rgba(255,255,255,0.04)'
+                        : 'var(--bg-subtle)'
+                      : textOptionBackground,
                   color: highContrast ? '#fff' : 'var(--text-primary)',
                   fontSize: s.length <= 2 ? 20 : 13,
                   cursor: saving ? 'wait' : 'pointer',
