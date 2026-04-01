@@ -168,7 +168,7 @@ export function useLogDerivedViews({
   }, [logs, growthCutoffMs, getLogMedia]);
 
   const growthTimelineView = useMemo(() => {
-    const visible = growthTimelineLogs.slice(0, 12);
+    const visible = growthTimelineLogs;
     const swipeImageUrls: string[] = [];
     const imageIndexByLogId: Record<string, number> = {};
     visible.forEach((log) => {
