@@ -8,9 +8,8 @@ import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
 import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, Baby, History, MapPin, ExternalLink, Sparkles, Plus, Loader2 } from 'lucide-react';
 import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug, type LogSlug } from '../lib/logTags';
-import { parseLogMeta, composeActionWithMeta, type LogMeta } from '../lib/logActionMeta';
+import { parseLogMeta } from '../lib/logActionMeta';
 import { getLogMedia } from '../lib/logMedia';
-import { compressImageFile } from '../lib/imageCompress';
 import { formatDateTime } from '../lib/formatDateTime';
 import { FONT_STEPS, type FontScaleStep } from '../lib/accessibilityFont';
 import { AppHeader } from '../components/layout/AppHeader';
@@ -29,29 +28,18 @@ import { Toast } from '../components/ui/Toast';
 import { Empty } from '../components/ui/Empty';
 import { LogTagBadge } from '../components/ui/Badge';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
+import { usePullToRefresh } from '../features/home/usePullToRefresh';
+import { useHouseholdBootstrap } from '../features/members/useHouseholdBootstrap';
 import { useHouseholdMembers } from '../features/members/useHouseholdMembers';
-
-type Log = {
-  id: string;
-  household_id: string;
-  /** DB 컬럼명(레거시). 저장 값은 로그 태그 슬러그(`LogSlug`). */
-  place_slug: string;
-  action: string;
-  actor_user_id: string;
-  created_at: string;
-  image_url?: string | null;
-  image_urls?: string | string[] | null;
-  video_url?: string | null;
-};
-
-type LogComment = {
-  id: string;
-  log_id: string;
-  parent_id: string | null;
-  user_id: string;
-  content: string;
-  created_at: string;
-};
+import { useProfileEditor } from '../features/members/useProfileEditor';
+import { getEffectiveLogSlug, getParsedLog } from '../features/logs/logDerived';
+import { useLogComments } from '../features/logs/useLogComments';
+import { useLogDerivedViews } from '../features/logs/useLogDerivedViews';
+import { useHouseholdLogs } from '../features/logs/useHouseholdLogs';
+import { useLogStickers } from '../features/logs/useLogStickers';
+import { useHouseholdMemos } from '../features/memos/useHouseholdMemos';
+import { useTodoSnapshots } from '../features/todos/useTodoSnapshots';
+import type { Log } from '../features/logs/logTypes';
 
 const SHARED_MEMO_LOG_PREFIX = '[[HOUSEHOLD_MEMO_V1]]';
 const TODO_SNAPSHOT_PREFIX = '[[TODO_SNAPSHOT_V1]]';
@@ -209,14 +197,10 @@ export default function HomeClient() {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [householdId, setHouseholdId] = useState<string | null>(null);
-  const [logsInitialLoading, setLogsInitialLoading] = useState(false);
-  const [logs, setLogs] = useState<Log[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<'all' | 'me' | string>('all');
   const [feedTagFilter, setFeedTagFilter] = useState<'all' | LogSlug>('all');
   const [familyNotesEditing, setFamilyNotesEditing] = useState(false);
-  const [familyNotice, setFamilyNotice] = useState('');
-  const [shoppingList, setShoppingList] = useState('');
   const [feedFilterOpen, setFeedFilterOpen] = useState(false);
 
   const [status, setStatusInternal] = useState<string | null>(null);
@@ -229,6 +213,12 @@ export default function HomeClient() {
     if (msg === null) setStatusToastTone(null);
     else setStatusToastTone(tone !== undefined ? tone : null);
   }, []);
+  const { logs, setLogs, logsInitialLoading, loadLogs, refreshLogs } = useHouseholdLogs({
+    householdId,
+    userId: user?.id,
+    excludedActionPrefixes: [TODO_SNAPSHOT_PREFIX, SHARED_MEMO_LOG_PREFIX],
+    onError: (message) => setAppStatus(message, 'error'),
+  });
   const {
     members,
     setMembers,
@@ -244,10 +234,7 @@ export default function HomeClient() {
     applyOwnDisplayName,
     applyOwnAvatarUrl,
   } = useHouseholdMembers();
-  const [profileSaving, setProfileSaving] = useState(false);
-  const [profileAvatarUploading, setProfileAvatarUploading] = useState(false);
   const [enlargedAvatarUrl, setEnlargedAvatarUrl] = useState<string | null>(null);
-  const profileAvatarInputRef = useRef<HTMLInputElement>(null);
   const [showNameEditModal, setShowNameEditModal] = useState(false);
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
@@ -263,10 +250,56 @@ export default function HomeClient() {
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [searchShuffleSeed, setSearchShuffleSeed] = useState(() => Date.now());
   const [searchQuery, setSearchQuery] = useState('');
-  const [memoContent, setMemoContent] = useState('');
-  const [memoSaving, setMemoSaving] = useState(false);
   const [showMemoPanel, setShowMemoPanel] = useState(false);
+  const {
+    memoContent,
+    setMemoContent,
+    familyNotice,
+    setFamilyNotice,
+    shoppingList,
+    setShoppingList,
+    memoSaving,
+    sharedMemoTypingUntilRef,
+    canApplyIncomingSharedMemo,
+    saveSharedMemos: persistSharedMemosNow,
+    refreshSharedMemos,
+  } = useHouseholdMemos({
+    householdId,
+    userId: user?.id,
+    familyNotesEditing,
+    showMemoPanel,
+    memoKey: MEMO_KEY,
+    sharedMemoLogPrefix: SHARED_MEMO_LOG_PREFIX,
+    parseSharedMemoSnapshot,
+    composeSharedMemoSnapshot,
+    onError: (message) => setAppStatus(message, 'error'),
+  });
+  const {
+    profileSaving,
+    profileAvatarUploading,
+    profileAvatarInputRef,
+    handleProfileSave,
+    handleProfileAvatarChange,
+  } = useProfileEditor({
+    userId: user?.id,
+    householdId,
+    profileName,
+    setProfileAvatarUrl,
+    setProfileAvatarLoadFailed,
+    applyOwnDisplayName,
+    applyOwnAvatarUrl,
+    onStatus: (message, tone) => setAppStatus(message, tone),
+  });
   const [todoTasks, setTodoTasks] = useState<TodoTask[]>([]);
+  const { markTodoDirty, refreshTodoSnapshot } = useTodoSnapshots({
+    householdId,
+    userId: user?.id,
+    todoTasks,
+    setTodoTasks,
+    todoSnapshotPrefix: TODO_SNAPSHOT_PREFIX,
+    parseTodoSnapshot,
+    composeTodoSnapshot,
+  });
   const [todoCompletedPeriod, setTodoCompletedPeriod] = useState<TodoPeriod>('day');
   const [calendarYearMonth, setCalendarYearMonth] = useState(() => {
     const d = new Date();
@@ -274,30 +307,12 @@ export default function HomeClient() {
   });
   const [calendarTagFilter, setCalendarTagFilter] = useState<'all' | LogSlug>('all');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
-  const [commentsByLogId, setCommentsByLogId] = useState<Record<string, LogComment[]>>({});
-  const [replyingTo, setReplyingTo] = useState<{ logId: string; commentId: string } | null>(null);
-  const [commentTarget, setCommentTarget] = useState<{ logId: string; parentId: string | null } | null>(null);
-  const [commentSheetAnimated, setCommentSheetAnimated] = useState(false);
-  const [commentSheetDragY, setCommentSheetDragY] = useState(0);
-  const [commentSheetDragActive, setCommentSheetDragActive] = useState(false);
-  const commentSheetHeaderRef = useRef<HTMLDivElement | null>(null);
-  const commentSheetDragYRef = useRef(0);
-  const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
-  const [commentSending, setCommentSending] = useState(false);
-  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-  const [editingCommentValue, setEditingCommentValue] = useState('');
-  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
-  const [stickerPickerLogId, setStickerPickerLogId] = useState<string | null>(null);
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
   /** 타이틀 + 멤버 필터만 — 스크롤·스티키 기준 높이 */
   const profileBlockRef = useRef<HTMLDivElement | null>(null);
   const profileSentinelRef = useRef<HTMLDivElement | null>(null);
-  const pullRefreshBusyRef = useRef(false);
-  const pullRafRef = useRef<number | null>(null);
-  const [pullRefreshOffset, setPullRefreshOffset] = useState(0);
-  const [pullRefreshRefreshing, setPullRefreshRefreshing] = useState(false);
   const [stickyHeaderEnabled, setStickyHeaderEnabled] = useState(false);
   const [passedProfileSection, setPassedProfileSection] = useState(false);
   const [stickyHeaderVisible, setStickyHeaderVisible] = useState(false);
@@ -305,446 +320,26 @@ export default function HomeClient() {
   const passedProfileSectionRef = useRef(false);
   const stickyHeaderVisibleRef = useRef(false);
   const lastHomeScrollTopRef = useRef(0);
-  const sharedMemoTypingUntilRef = useRef(0);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
-  const memoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const loadLogsReqSeqRef = useRef(0);
-  const initialLogsLoadGenRef = useRef(0);
-  const todoSnapshotHydratedRef = useRef(false);
-  const lastLoadedTodoSnapshotActionRef = useRef('');
-  const lastSavedTodoSnapshotActionRef = useRef('');
-  const lastSavedSharedMemoSnapshotActionRef = useRef('');
-  /** 로컬 할일 변경 직후 원격 스냅샷이 덮어쓰지 않도록 */
-  const todoDirtyRef = useRef(false);
-  /** household_memos.updated_at 기준으로 원격 덮어쓰기 순서 제어 */
-  const lastAppliedRemoteMemoAtMsRef = useRef(0);
-
   const fontScale = FONT_STEPS[fontScaleStep];
-  const canApplyIncomingSharedMemo = useCallback(() => {
-    const typing = Date.now() < sharedMemoTypingUntilRef.current;
-    return !typing && !familyNotesEditing && !showMemoPanel;
-  }, [familyNotesEditing, showMemoPanel]);
 
   useEffect(() => {
     const el = homeScrollRef.current;
     if (el) el.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activeTab]);
 
-  useEffect(() => {
-    const init = async () => {
-      setAppStatus(null);
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        setAppStatus('로그인이 필요합니다.', 'error');
-        return;
-      }
-
-      setUser(user);
-
-      let myMembers: { household_id: string; display_name: string | null; user_id: string; avatar_url?: string | null; role?: string }[] | null = null;
-      let memberError: { message: string } | null = null;
-
-      const res = await supabase
-        .from('members')
-        .select('household_id, display_name, user_id, avatar_url, role')
-        .eq('user_id', user.id)
-        .limit(1);
-
-      myMembers = res.data;
-      memberError = res.error;
-
-      if (memberError && /avatar_url|role|does not exist|column/i.test(memberError.message)) {
-        const fallback = await supabase
-          .from('members')
-          .select('household_id, display_name, user_id')
-          .eq('user_id', user.id)
-          .limit(1);
-        myMembers = fallback.data;
-        memberError = fallback.error;
-      }
-
-      if (memberError) {
-        setAppStatus(`members 조회 실패: ${memberError.message}`, 'error');
-        return;
-      }
-
-      const myMember = myMembers?.[0];
-      if (!myMember) {
-        setAppStatus('members 조회 실패: row 없음 (members 테이블에 user_id 확인)', 'error');
-        return;
-      }
-
-      setHouseholdId(myMember.household_id);
-      setIsAdmin((myMember as { role?: string }).role === 'master');
-
-      const baseName =
-        (myMember.display_name && myMember.display_name.trim()) ||
-        (user.email ? user.email.split('@')[0] : '나');
-      setProfileName(baseName);
-      const initialAvatar = 'avatar_url' in myMember ? (myMember.avatar_url ?? null) : null;
-      setProfileAvatarUrl(initialAvatar);
-      setProfileAvatarLoadFailed(false);
-
-      let allMembers: { user_id: string; display_name: string | null; avatar_url?: string | null }[] | null = null;
-      let allMembersError: { message: string } | null = null;
-
-      const allRes = await supabase
-        .from('members')
-        .select('user_id, display_name, avatar_url')
-        .eq('household_id', myMember.household_id);
-
-      allMembers = allRes.data;
-      allMembersError = allRes.error;
-
-      if (allMembersError && /avatar_url|does not exist|column/i.test(allMembersError.message)) {
-        const fallbackAll = await supabase
-          .from('members')
-          .select('user_id, display_name')
-          .eq('household_id', myMember.household_id);
-        allMembers = fallbackAll.data;
-        allMembersError = fallbackAll.error;
-      }
-
-      if (!allMembersError && allMembers) {
-        setMembers(allMembers);
-      }
-    };
-
-    init();
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(MEMO_KEY);
-      if (raw != null) setMemoContent(raw);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (!householdId || !user) return;
-    let cancelled = false;
-    const loadTodo = async () => {
-      const { data } = await supabase
-        .from('logs')
-        .select('action, created_at')
-        .eq('household_id', householdId)
-        .eq('actor_user_id', user.id)
-        .like('action', `${TODO_SNAPSHOT_PREFIX}%`)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (cancelled) return;
-      const latestAction = typeof data?.[0]?.action === 'string' ? data[0].action : '';
-      todoSnapshotHydratedRef.current = true;
-      if (!latestAction || latestAction === lastLoadedTodoSnapshotActionRef.current) return;
-      const parsed = parseTodoSnapshot(latestAction);
-      if (!parsed) return;
-      if (todoDirtyRef.current) return;
-      lastLoadedTodoSnapshotActionRef.current = latestAction;
-      lastSavedTodoSnapshotActionRef.current = latestAction;
-      setTodoTasks(parsed);
-    };
-    void loadTodo();
-    const timer = window.setInterval(() => {
-      void loadTodo();
-    }, 7000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [householdId, user]);
-
-  useEffect(() => {
-    if (!householdId || !user) return;
-    if (!todoSnapshotHydratedRef.current) return;
-    const action = composeTodoSnapshot(todoTasks);
-    if (action === lastSavedTodoSnapshotActionRef.current) return;
-    const timer = window.setTimeout(async () => {
-      const { error } = await supabase.from('logs').insert({
-        household_id: householdId,
-        place_slug: LOG_SLUG.todo,
-        action,
-        actor_user_id: user.id,
-      });
-      if (!error) {
-        lastSavedTodoSnapshotActionRef.current = action;
-        todoDirtyRef.current = false;
-      }
-    }, 600);
-    return () => window.clearTimeout(timer);
-  }, [todoTasks, householdId, user]);
-
-  useEffect(() => {
-    if (!householdId || !user) return;
-    let cancelled = false;
-    (async () => {
-      const loadFromSharedMemoLog = async () => {
-        const { data: fallbackLogs } = await supabase
-          .from('logs')
-          .select('action, created_at')
-          .eq('household_id', householdId)
-          .like('action', `${SHARED_MEMO_LOG_PREFIX}%`)
-          .order('created_at', { ascending: false })
-          .limit(1);
-        const latest = fallbackLogs?.[0];
-        const parsed = parseSharedMemoSnapshot(latest?.action);
-        if (!parsed || cancelled || !canApplyIncomingSharedMemo()) return;
-        if (typeof parsed.content === 'string') setMemoContent(parsed.content);
-        if (typeof parsed.family_notice === 'string') setFamilyNotice(parsed.family_notice);
-        if (typeof parsed.shopping_list === 'string') setShoppingList(parsed.shopping_list);
-      };
-      const { data, error } = await supabase
-        .from('household_memos')
-        .select('content, family_notice, shopping_list, updated_at')
-        .eq('household_id', householdId)
-        .maybeSingle();
-      if (cancelled) return;
-      if (error) {
-        if (/relation|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
-          await loadFromSharedMemoLog();
-          return;
-        }
-        const { data: fallback } = await supabase.from('household_memos').select('content').eq('household_id', householdId).maybeSingle();
-        if (!cancelled && fallback && typeof fallback.content === 'string') {
-          setMemoContent(fallback.content);
-          try {
-            localStorage.setItem(MEMO_KEY, fallback.content);
-          } catch {}
-        }
-        try {
-          const n = localStorage.getItem('family_qr_log_notice');
-          const s = localStorage.getItem('family_qr_log_shopping');
-          if (n) setFamilyNotice(n);
-          if (s) setShoppingList(s);
-        } catch {}
-        return;
-      }
-      if (data) {
-        const row = data as {
-          content?: string;
-          family_notice?: string;
-          shopping_list?: string;
-          updated_at?: string;
-        };
-        const remoteMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
-        if (remoteMs > 0 && remoteMs <= lastAppliedRemoteMemoAtMsRef.current) {
-          return;
-        }
-        if (!canApplyIncomingSharedMemo()) {
-          return;
-        }
-        if (typeof row.content === 'string') {
-          setMemoContent(row.content);
-          try {
-            localStorage.setItem(MEMO_KEY, row.content);
-          } catch {}
-        }
-        if (typeof row.family_notice === 'string') {
-          setFamilyNotice(row.family_notice);
-        } else {
-          try {
-            const n = localStorage.getItem('family_qr_log_notice');
-            if (n) setFamilyNotice(n);
-          } catch {}
-        }
-        if (typeof row.shopping_list === 'string') {
-          setShoppingList(row.shopping_list);
-        } else {
-          try {
-            const s = localStorage.getItem('family_qr_log_shopping');
-            if (s) setShoppingList(s);
-          } catch {}
-        }
-        const appliedMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
-        if (appliedMs > 0) {
-          lastAppliedRemoteMemoAtMsRef.current = appliedMs;
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [householdId, user, canApplyIncomingSharedMemo]);
-
-  useEffect(() => {
-    if (!householdId) return;
-    const pull = async () => {
-      const { data } = await supabase
-        .from('household_memos')
-        .select('content, family_notice, shopping_list, updated_at')
-        .eq('household_id', householdId)
-        .maybeSingle();
-      if (!data) return;
-      const row = data as {
-        content?: string;
-        family_notice?: string;
-        shopping_list?: string;
-        updated_at?: string;
-      };
-      const remoteMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
-      if (remoteMs > 0 && remoteMs <= lastAppliedRemoteMemoAtMsRef.current) return;
-      if (!canApplyIncomingSharedMemo()) return;
-      if (typeof row.content === 'string') setMemoContent(row.content);
-      if (typeof row.family_notice === 'string') setFamilyNotice(row.family_notice);
-      if (typeof row.shopping_list === 'string') setShoppingList(row.shopping_list);
-      const appliedMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
-      if (appliedMs > 0) lastAppliedRemoteMemoAtMsRef.current = appliedMs;
-    };
-    const pullFromSharedMemoLog = async () => {
-      const { data } = await supabase
-        .from('logs')
-        .select('action, created_at')
-        .eq('household_id', householdId)
-        .like('action', `${SHARED_MEMO_LOG_PREFIX}%`)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      const latest = data?.[0];
-      const logMs = latest?.created_at ? new Date(latest.created_at).getTime() : 0;
-      if (logMs > 0 && logMs <= lastAppliedRemoteMemoAtMsRef.current) return;
-      const parsed = parseSharedMemoSnapshot(latest?.action);
-      if (!parsed || !canApplyIncomingSharedMemo()) return;
-      if (typeof latest?.action === 'string') {
-        lastSavedSharedMemoSnapshotActionRef.current = latest.action;
-      }
-      if (typeof parsed.content === 'string') setMemoContent(parsed.content);
-      if (typeof parsed.family_notice === 'string') setFamilyNotice(parsed.family_notice);
-      if (typeof parsed.shopping_list === 'string') setShoppingList(parsed.shopping_list);
-      if (logMs > 0) lastAppliedRemoteMemoAtMsRef.current = logMs;
-    };
-    const channel = supabase
-      .channel(`household-memos-${householdId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'household_memos', filter: `household_id=eq.${householdId}` },
-        (payload) => {
-          const next = payload.new as {
-            content?: string;
-            family_notice?: string;
-            shopping_list?: string;
-            updated_at?: string;
-          } | null;
-          if (!next) return;
-          const nextMs = next.updated_at ? new Date(next.updated_at).getTime() : 0;
-          if (nextMs > 0 && nextMs <= lastAppliedRemoteMemoAtMsRef.current) return;
-          if (!canApplyIncomingSharedMemo()) return;
-          if (typeof next.content === 'string') setMemoContent(next.content);
-          if (typeof next.family_notice === 'string') setFamilyNotice(next.family_notice);
-          if (typeof next.shopping_list === 'string') setShoppingList(next.shopping_list);
-          if (nextMs > 0) lastAppliedRemoteMemoAtMsRef.current = nextMs;
-        }
-      )
-      .subscribe();
-    const timer = window.setInterval(() => {
-      void pull();
-      void pullFromSharedMemoLog();
-    }, 5000);
-    return () => {
-      window.clearInterval(timer);
-      void supabase.removeChannel(channel);
-    };
-  }, [householdId, canApplyIncomingSharedMemo]);
-
-  const persistSharedMemos = useCallback(async () => {
-    if (!householdId || !user) {
-      return { ok: false as const, mode: 'skipped' as const, errorMessage: '로그인이 필요합니다.' };
-    }
-
-    const full = {
-      household_id: householdId,
-      content: memoContent,
-      family_notice: familyNotice,
-      shopping_list: shoppingList,
-    };
-
-    let mode: 'table' | 'content-only' | 'log-fallback' = 'table';
-    let { data: upsertRow, error } = await supabase
-      .from('household_memos')
-      .upsert(full, { onConflict: 'household_id' })
-      .select('updated_at')
-      .maybeSingle();
-
-    if (error && /family_notice|shopping_list|schema|column/i.test(error.message ?? '')) {
-      mode = 'content-only';
-      const res = await supabase
-        .from('household_memos')
-        .upsert({ household_id: householdId, content: memoContent }, { onConflict: 'household_id' })
-        .select('updated_at')
-        .maybeSingle();
-      upsertRow = res.data;
-      error = res.error;
-    }
-
-    const savedAt =
-      upsertRow && typeof (upsertRow as { updated_at?: string }).updated_at === 'string'
-        ? new Date((upsertRow as { updated_at: string }).updated_at).getTime()
-        : 0;
-    if (!error && savedAt > 0) {
-      lastAppliedRemoteMemoAtMsRef.current = savedAt;
-    }
-
-    if (error && /relation|does not exist|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
-      mode = 'log-fallback';
-      const snapshotAction = composeSharedMemoSnapshot({
-        content: memoContent,
-        family_notice: familyNotice,
-        shopping_list: shoppingList,
-      });
-      if (snapshotAction === lastSavedSharedMemoSnapshotActionRef.current) {
-        return { ok: true as const, mode };
-      }
-      const res = await supabase.from('logs').insert({
-        household_id: householdId,
-        place_slug: LOG_SLUG.general,
-        action: snapshotAction,
-        actor_user_id: user.id,
-      });
-      error = res.error;
-      if (!error) {
-        lastSavedSharedMemoSnapshotActionRef.current = snapshotAction;
-        lastAppliedRemoteMemoAtMsRef.current = Date.now();
-      }
-    }
-
-    if (error) {
-      return { ok: false as const, mode, errorMessage: error.message };
-    }
-
-    return { ok: true as const, mode };
-  }, [householdId, user, memoContent, familyNotice, shoppingList]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(MEMO_KEY, memoContent);
-    } catch {}
-    try {
-      localStorage.setItem('family_qr_log_notice', familyNotice);
-      localStorage.setItem('family_qr_log_shopping', shoppingList);
-    } catch {}
-    if (!householdId || !user) return;
-    if (memoSaveTimerRef.current) clearTimeout(memoSaveTimerRef.current);
-    memoSaveTimerRef.current = setTimeout(async () => {
-      const result = await persistSharedMemos();
-      if (!result.ok) {
-        setAppStatus(`메모 저장 실패: ${result.errorMessage}`, 'error');
-        return;
-      }
-      if (result.mode === 'content-only') {
-        setAppStatus('가족 공지/장보기 메모는 서버 컬럼이 없어 완전히 저장되지 않았습니다. Supabase 컬럼 설정을 확인해 주세요.', 'error');
-        return;
-      }
-      if (result.mode === 'log-fallback') {
-        setAppStatus('가족 메모가 예비 방식으로 저장되었습니다. 앱 재설치 전 Supabase 메모 테이블 설정을 확인해 주세요.', 'error');
-      }
-    }, 900);
-    return () => {
-      if (memoSaveTimerRef.current) clearTimeout(memoSaveTimerRef.current);
-    };
-  }, [memoContent, familyNotice, shoppingList, householdId, user, persistSharedMemos]);
+  useHouseholdBootstrap({
+    setUser,
+    setHouseholdId,
+    setIsAdmin,
+    setProfileName,
+    setProfileAvatarUrl,
+    setProfileAvatarLoadFailed,
+    setMembers,
+    onError: (message) => setAppStatus(message, 'error'),
+    onStart: () => setAppStatus(null),
+  });
 
   useEffect(() => {
     if (!status) return;
@@ -877,22 +472,6 @@ export default function HomeClient() {
   }, [activeTab, logs.length, members.length]);
 
   useEffect(() => {
-    if (commentTarget) {
-      setCommentSheetDragActive(false);
-      setCommentSheetDragY(0);
-      commentSheetDragYRef.current = 0;
-      setCommentSheetAnimated(false);
-      const id = requestAnimationFrame(() => setCommentSheetAnimated(true));
-      return () => cancelAnimationFrame(id);
-    } else {
-      setCommentSheetAnimated(false);
-      setCommentSheetDragActive(false);
-      setCommentSheetDragY(0);
-      commentSheetDragYRef.current = 0;
-    }
-  }, [commentTarget]);
-
-  useEffect(() => {
     if (showMemoPanel) {
       setMemoPanelAnimated(false);
       const id = requestAnimationFrame(() => setMemoPanelAnimated(true));
@@ -934,91 +513,52 @@ export default function HomeClient() {
 
   const t = useMemo(() => getT(language), [language]);
 
-  const loadLogs = useCallback(
-    async (hid: string, slug: string | undefined, actorUserId?: string) => {
-      const reqSeq = ++loadLogsReqSeqRef.current;
-      let query = supabase
-        .from('logs')
-        .select('*')
-        .eq('household_id', hid)
-        .not('action', 'like', `${TODO_SNAPSHOT_PREFIX}%`)
-        .not('action', 'like', `${SHARED_MEMO_LOG_PREFIX}%`)
-        .order('created_at', { ascending: false })
-        .limit(5000);
-      // 서버에서 place_slug로 한 번 더 거르면,
-      // 태그 값이 한 번이라도 달라진 시점부터 “기존 로그가 통째로 사라지는” 문제가 생길 수 있어
-      // 여기서는 항상 전체 로그를 가져오고, 필터는 클라이언트에서 처리합니다.
-
-      if (actorUserId) {
-        query = query.eq('actor_user_id', actorUserId);
-      }
-
-      const { data, error } = await query;
-      if (reqSeq !== loadLogsReqSeqRef.current) return;
-
-      if (error) {
-        setAppStatus(`logs 조회 실패: ${error.message}`, 'error');
-        return;
-      }
-
-      const rows = (data ?? []).map((row) => ({
-        ...(row as Log),
-        place_slug: normalizeLogSlug((row as Log).place_slug),
-      }));
-      // [안정성 격리] 홈에서 과거 로그/미디어가 갑자기 줄어드는 현상이 있어,
-      // 우선 “스냅샷 제외” 로직을 꺼서 서버 rows가 실제로 온 것인지 확인합니다.
-      // (이 상태에서 과거 로그가 보이면, 다음 단계에서 제외 기준만 안전하게 재설계할게요.)
-      setLogs(rows as Log[]);
+  const {
+    stickerPickerOpen,
+    stickerPickerLogId,
+    stickerSaving,
+    openStickerPicker,
+    closeStickerPicker,
+    pickSticker,
+    selectedStickerLogOwnSticker,
+  } = useLogStickers({
+    userId: user?.id,
+    householdId,
+    logs,
+    setLogs,
+    onReloadLogs: async (hid) => {
+      await loadLogs(hid, undefined, undefined);
     },
-    []
-  );
-
-  const loadComments = useCallback(async (logIds: string[]) => {
-    if (logIds.length === 0) return;
-    const { data, error } = await supabase
-      .from('log_comments')
-      .select('*')
-      .in('log_id', logIds)
-      .order('created_at', { ascending: true });
-    if (error) return;
-    const byLog: Record<string, LogComment[]> = {};
-    (data ?? []).forEach((c: LogComment) => {
-      if (!byLog[c.log_id]) byLog[c.log_id] = [];
-      byLog[c.log_id].push(c);
-    });
-    setCommentsByLogId((prev) => ({ ...prev, ...byLog }));
-  }, []);
-
-  useEffect(() => {
-    const ids = [...new Set(logs.map((l) => l.id))];
-    if (ids.length > 0) loadComments(ids);
-  }, [logs, loadComments]);
-
-  const addComment = useCallback(
-    async (logId: string, content: string, parentId: string | null) => {
-      if (!user || !content.trim() || commentSending) return;
-      setCommentSending(true);
-      const { error } = await supabase.from('log_comments').insert({
-        log_id: logId,
-        parent_id: parentId,
-        user_id: user.id,
-        content: content.trim(),
-      });
-      setCommentSending(false);
-      if (error) {
-        setAppStatus(`댓글 저장 실패: ${error.message}`, 'error');
-        return;
-      }
-      await loadComments([logId]);
-      setCommentDraft((prev) => {
-        const next = { ...prev, [logId]: '' };
-        if (parentId) next[`${logId}_reply_${parentId}`] = '';
-        return next;
-      });
-      setReplyingTo(null);
-    },
-    [user, commentSending, loadComments]
-  );
+    onError: (message) => setAppStatus(message, 'error'),
+  });
+  const {
+    commentsByLogId,
+    replyingTo,
+    setReplyingTo,
+    commentTarget,
+    setCommentTarget,
+    commentSheetAnimated,
+    commentSheetDragY,
+    commentSheetDragActive,
+    commentSheetHeaderRef,
+    commentDraft,
+    setCommentDraft,
+    commentSending,
+    editingCommentId,
+    setEditingCommentId,
+    editingCommentValue,
+    setEditingCommentValue,
+    addComment,
+    updateComment,
+    deleteComment,
+    closeCommentSheet,
+    currentSheetComments,
+  } = useLogComments({
+    logIds: [...new Set(logs.map((l) => l.id))],
+    userId: user?.id,
+    onError: (message) => setAppStatus(message, 'error'),
+    onSuccess: (message) => setAppStatus(message, 'success'),
+  });
 
   const normalizeUserIdForCompare = useCallback((v: string | null | undefined) => {
     return String(v ?? '')
@@ -1027,208 +567,6 @@ export default function HomeClient() {
       .replace(/[^a-z0-9]/g, '');
   }, []);
 
-  const updateComment = useCallback(
-    async (commentId: string, logId: string, content: string, commentUserId?: string) => {
-      if (!user || !content.trim()) return;
-      const { data, error } = await supabase
-        .from('log_comments')
-        .update({ content: content.trim() })
-        .eq('id', commentId)
-        .select('id')
-        .maybeSingle();
-      if (error) {
-        const hint = /policy|row-level|rls|permission|not allowed|forbidden/i.test(error.message ?? '')
-          ? ' (DB RLS 정책 점검 필요: scripts/enable-log-comments-rls-policies.sql 실행)'
-          : '';
-        setAppStatus(`댓글 수정 실패: ${error.message}${hint}`, 'error');
-        return;
-      }
-      if (!data) {
-        setAppStatus('댓글 수정 실패: 권한 또는 정책 문제로 반영되지 않았습니다. (RLS 정책 확인)', 'error');
-        return;
-      }
-      await loadComments([logId]);
-      setEditingCommentId(null);
-      setEditingCommentValue('');
-    },
-    [user, loadComments]
-  );
-
-  const deleteComment = useCallback(
-    async (commentId: string, logId: string, commentUserId?: string) => {
-      if (!user) return;
-      if (typeof window !== 'undefined' && !window.confirm('댓글을 삭제할까요?')) return;
-      const { data: delRows, error } = await supabase
-        .from('log_comments')
-        .delete()
-        .eq('id', commentId)
-        .select('id');
-      const deleted = Array.isArray(delRows) ? delRows[0] : delRows;
-      if (error) {
-        const msg = String(error.message ?? '');
-        const isFkBlocked =
-          error.code === '23503' ||
-          /foreign key|constraint|violates/i.test(msg);
-        // 답글이 달린 댓글은 FK로 물리 삭제가 막힐 수 있어, 소프트 삭제로 안전하게 대체합니다.
-        if (isFkBlocked) {
-          const fallback = await supabase
-            .from('log_comments')
-            .update({ content: '삭제된 댓글입니다.' })
-            .eq('id', commentId)
-            .select('id');
-          const fb = Array.isArray(fallback.data) ? fallback.data[0] : fallback.data;
-          if (!fallback.error && fb) {
-            await loadComments([logId]);
-            if (editingCommentId === commentId) {
-              setEditingCommentId(null);
-              setEditingCommentValue('');
-            }
-            setAppStatus('답글이 있어 댓글 내용만 삭제되었습니다.', 'success');
-            return;
-          }
-        }
-        const hint = /policy|row-level|rls|permission|not allowed|forbidden/i.test(error.message ?? '')
-          ? ' (DB RLS 정책 점검 필요: scripts/enable-log-comments-rls-policies.sql 실행)'
-          : '';
-        setAppStatus(`댓글 삭제 실패: ${error.message}${hint}`, 'error');
-        return;
-      }
-      if (!deleted) {
-        setAppStatus(
-          '댓글 삭제 실패: 반영된 행이 없습니다. Supabase SQL Editor에서 scripts/enable-log-comments-rls-policies.sql 을 다시 실행해 주세요.',
-          'error',
-        );
-        return;
-      }
-      await loadComments([logId]);
-      if (editingCommentId === commentId) {
-        setEditingCommentId(null);
-        setEditingCommentValue('');
-      }
-    },
-    [user, loadComments, editingCommentId]
-  );
-
-  const closeCommentSheet = useCallback(() => {
-    setCommentSheetDragActive(false);
-    setCommentSheetDragY(0);
-    commentSheetDragYRef.current = 0;
-    setCommentSheetAnimated(false);
-    window.setTimeout(() => {
-      setCommentTarget(null);
-      setReplyingTo(null);
-    }, 250);
-  }, []);
-
-  useEffect(() => {
-    const el = commentSheetHeaderRef.current;
-    if (!el || !commentTarget) return;
-    let startY: number | null = null;
-    const onStart = (e: TouchEvent) => {
-      startY = e.touches[0].clientY;
-      setCommentSheetDragActive(true);
-    };
-    const onMove = (e: TouchEvent) => {
-      if (startY == null) return;
-      const dy = e.touches[0].clientY - startY;
-      if (dy > 0) {
-        e.preventDefault();
-        const capped = Math.min(dy, 240);
-        commentSheetDragYRef.current = capped;
-        setCommentSheetDragY(capped);
-      }
-    };
-    const onEnd = () => {
-      if (startY == null) return;
-      startY = null;
-      const d = commentSheetDragYRef.current;
-      if (d > 72) {
-        closeCommentSheet();
-      } else {
-        setCommentSheetDragActive(false);
-        commentSheetDragYRef.current = 0;
-        setCommentSheetDragY(0);
-      }
-    };
-    el.addEventListener('touchstart', onStart, { passive: true });
-    el.addEventListener('touchmove', onMove, { passive: false });
-    el.addEventListener('touchend', onEnd);
-    el.addEventListener('touchcancel', onEnd);
-    return () => {
-      el.removeEventListener('touchstart', onStart);
-      el.removeEventListener('touchmove', onMove);
-      el.removeEventListener('touchend', onEnd);
-      el.removeEventListener('touchcancel', onEnd);
-    };
-  }, [commentTarget, closeCommentSheet]);
-
-  const openStickerPicker = (logId: string | null) => {
-    setStickerPickerLogId(logId);
-    setStickerPickerOpen(true);
-  };
-
-  const applyStickerToLog = useCallback(
-    async (logId: string, sticker: string | null) => {
-      if (!user || !householdId) return;
-      const targetLog = logs.find((l) => l.id === logId);
-      if (!targetLog) return;
-
-      const parsed = parseLogMeta(targetLog.action);
-      const nextMeta: LogMeta = { ...parsed.meta };
-      const byUser = { ...(nextMeta.stickerByUser ?? {}) };
-      if (sticker) byUser[user.id] = sticker;
-      else delete byUser[user.id];
-      nextMeta.stickerByUser = Object.keys(byUser).length > 0 ? byUser : undefined;
-      // legacy field cleanup
-      delete nextMeta.stickers;
-      const nextAction = composeActionWithMeta(parsed.text, nextMeta);
-
-      const { error } = await supabase
-        .from('logs')
-        .update({ action: nextAction })
-        .eq('id', logId);
-
-      if (error) {
-        setAppStatus(`스티커 저장 실패: ${error.message}`, 'error');
-        return;
-      }
-
-      // 서버는 “전체 로그”를 다시 받아오고, 필터링은 클라이언트에서 처리합니다.
-      await loadLogs(householdId, undefined, undefined);
-      setStickerPickerOpen(false);
-      setStickerPickerLogId(null);
-    },
-    [user, householdId, logs, loadLogs]
-  );
-
-  const pickSticker = (sticker: string | null) => {
-    if (!stickerPickerLogId) return;
-    applyStickerToLog(stickerPickerLogId, sticker);
-  };
-
-  const selectedStickerLogOwnSticker = useMemo(() => {
-    if (!user || !stickerPickerLogId) return null;
-    const targetLog = logs.find((log) => log.id === stickerPickerLogId);
-    if (!targetLog) return null;
-    const { meta } = parseLogMeta(targetLog.action);
-    return meta.stickerByUser?.[user.id] ?? null;
-  }, [logs, stickerPickerLogId, user]);
-
-  useEffect(() => {
-    if (!householdId || !user) {
-      setLogsInitialLoading(false);
-      return;
-    }
-    const gen = ++initialLogsLoadGenRef.current;
-    setLogsInitialLoading(true);
-    void (async () => {
-      try {
-        await loadLogs(householdId, undefined, undefined);
-      } finally {
-        if (gen === initialLogsLoadGenRef.current) setLogsInitialLoading(false);
-      }
-    })();
-  }, [householdId, user, loadLogs]);
 
   useEffect(() => {
     // 홈에서는 “전체”만 보여주도록 강제합니다.
@@ -1256,181 +594,31 @@ export default function HomeClient() {
     }
   }, [activeTab]);
 
-  const refreshLogs = useCallback(() => {
-    if (!householdId || !user) return;
-    void loadLogs(householdId, undefined, undefined);
-  }, [householdId, user, loadLogs]);
-
   const performPullRefresh = useCallback(async () => {
     if (!householdId || !user) return;
     await loadLogs(householdId, undefined, undefined);
     await reloadMembersList(householdId);
-
-    const { data: todoData } = await supabase
-      .from('logs')
-      .select('action, created_at')
-      .eq('household_id', householdId)
-      .eq('actor_user_id', user.id)
-      .like('action', `${TODO_SNAPSHOT_PREFIX}%`)
-      .order('created_at', { ascending: false })
-      .limit(1);
-    const latestAction = typeof todoData?.[0]?.action === 'string' ? todoData[0].action : '';
-    if (latestAction && latestAction !== lastLoadedTodoSnapshotActionRef.current) {
-      const parsed = parseTodoSnapshot(latestAction);
-      if (parsed && !todoDirtyRef.current) {
-        lastLoadedTodoSnapshotActionRef.current = latestAction;
-        lastSavedTodoSnapshotActionRef.current = latestAction;
-        setTodoTasks(parsed);
-      }
-    }
+    await refreshTodoSnapshot();
 
     if (canApplyIncomingSharedMemo()) {
-      const { data, error } = await supabase
-        .from('household_memos')
-        .select('content, family_notice, shopping_list, updated_at')
-        .eq('household_id', householdId)
-        .maybeSingle();
-      if (!error && data) {
-        const row = data as {
-          content?: string;
-          family_notice?: string;
-          shopping_list?: string;
-          updated_at?: string;
-        };
-        if (typeof row.content === 'string') {
-          setMemoContent(row.content);
-          try {
-            localStorage.setItem(MEMO_KEY, row.content);
-          } catch {}
-        }
-        if (typeof row.family_notice === 'string') setFamilyNotice(row.family_notice);
-        if (typeof row.shopping_list === 'string') setShoppingList(row.shopping_list);
-        const appliedMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
-        if (appliedMs > 0) lastAppliedRemoteMemoAtMsRef.current = appliedMs;
-      } else if (error && /relation|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
-        const { data: fb } = await supabase
-          .from('logs')
-          .select('action, created_at')
-          .eq('household_id', householdId)
-          .like('action', `${SHARED_MEMO_LOG_PREFIX}%`)
-          .order('created_at', { ascending: false })
-          .limit(1);
-        const latest = fb?.[0];
-        const parsed = parseSharedMemoSnapshot(latest?.action);
-        if (parsed) {
-          if (typeof parsed.content === 'string') setMemoContent(parsed.content);
-          if (typeof parsed.family_notice === 'string') setFamilyNotice(parsed.family_notice);
-          if (typeof parsed.shopping_list === 'string') setShoppingList(parsed.shopping_list);
-          const logMs = latest?.created_at ? new Date(latest.created_at).getTime() : 0;
-          if (logMs > 0) lastAppliedRemoteMemoAtMsRef.current = logMs;
-        }
-      }
+      await refreshSharedMemos();
     }
-  }, [householdId, user, loadLogs, reloadMembersList, canApplyIncomingSharedMemo]);
-
-  useEffect(() => {
-    const el = homeScrollRef.current;
-    if (!el || !householdId || !user) return;
-
-    // 당김 거리는 guard 이후 구간만 반영하므로, 완화된 임계값으로 동작 유지
-    const THRESHOLD = 42;
-    let startY = 0;
-    let tracking = false;
-    let pendingOffset = 0;
-
-    const flushOffset = () => {
-      if (pullRafRef.current != null) cancelAnimationFrame(pullRafRef.current);
-      pullRafRef.current = requestAnimationFrame(() => {
-        pullRafRef.current = null;
-        setPullRefreshOffset(pendingOffset);
-      });
-    };
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (pullRefreshBusyRef.current) return;
-      if (el.scrollTop > 2) return;
-      const node = e.target;
-      // 가족 칩 가로줄에서는 당김 추적을 시작하지 않음 (pan-y 부모 + pull 리스너가 탭/클릭을 삼키는 경우 방지)
-      if (node instanceof Element && node.closest('.member-filter-scroll')) {
-        return;
-      }
-      startY = e.touches[0].clientY;
-      tracking = true;
-    };
-
-    // 모바일 탭은 1~몇 px 흔들림이 흔함. dy>0마다 preventDefault 하면 합성 click 이 취소되어
-    // 상단 멤버 칩·버튼이 “안 눌림”처럼 보임 → 명확히 아래로 당길 때만 막기.
-    const PULL_MOVE_GUARD_PX = 14;
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!tracking || pullRefreshBusyRef.current) return;
-      if (el.scrollTop > 2) {
-        tracking = false;
-        pendingOffset = 0;
-        flushOffset();
-        return;
-      }
-      const dy = e.touches[0].clientY - startY;
-      if (dy > PULL_MOVE_GUARD_PX) {
-        e.preventDefault();
-        pendingOffset = Math.min((dy - PULL_MOVE_GUARD_PX) * 0.48, 88);
-        flushOffset();
-      } else if (dy > 0) {
-        pendingOffset = 0;
-        flushOffset();
-      } else if (dy < -8) {
-        tracking = false;
-        pendingOffset = 0;
-        flushOffset();
-      }
-    };
-
-    const endPull = () => {
-      if (!tracking) return;
-      tracking = false;
-      const dist = pendingOffset;
-      pendingOffset = 0;
-      if (pullRefreshBusyRef.current) {
-        flushOffset();
-        return;
-      }
-      if (dist < THRESHOLD) {
-        flushOffset();
-        return;
-      }
-      pullRefreshBusyRef.current = true;
-      pendingOffset = 44;
-      setPullRefreshRefreshing(true);
-      flushOffset();
-      void (async () => {
-        try {
-          await performPullRefresh();
-        } finally {
-          pullRefreshBusyRef.current = false;
-          setPullRefreshRefreshing(false);
-          pendingOffset = 0;
-          setPullRefreshOffset(0);
-        }
-      })();
-    };
-
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('touchend', endPull);
-    el.addEventListener('touchcancel', endPull);
-    return () => {
-      if (pullRafRef.current != null) cancelAnimationFrame(pullRafRef.current);
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', endPull);
-      el.removeEventListener('touchcancel', endPull);
-    };
-  }, [householdId, user, performPullRefresh]);
+  }, [householdId, user, loadLogs, reloadMembersList, canApplyIncomingSharedMemo, refreshTodoSnapshot, refreshSharedMemos]);
+  const { pullRefreshOffset, pullRefreshRefreshing } = usePullToRefresh({
+    scrollRef: homeScrollRef,
+    enabled: !!householdId && !!user,
+    onRefresh: performPullRefresh,
+  });
 
   const handleUpdateLog = async (logId: string, newAction: string) => {
     if (!user || !householdId) return;
+    const prevLog = logs.find((log) => log.id === logId);
+    if (!prevLog) return;
+    const prevAction = prevLog.action;
+    setLogs((prev) => prev.map((log) => (log.id === logId ? { ...log, action: newAction } : log)));
     const { error } = await supabase.from('logs').update({ action: newAction }).eq('id', logId).eq('actor_user_id', user.id);
     if (error) {
+      setLogs((prev) => prev.map((log) => (log.id === logId ? { ...log, action: prevAction } : log)));
       setAppStatus(`수정 실패: ${error.message}`, 'error');
       return;
     }
@@ -1443,8 +631,11 @@ export default function HomeClient() {
   const handleDeleteLog = async (logId: string) => {
     if (!user || !householdId) return;
     if (!window.confirm(t('deleteConfirm'))) return;
+    const prevLogs = logs;
+    setLogs((prev) => prev.filter((log) => log.id !== logId));
     const { error } = await supabase.from('logs').delete().eq('id', logId).eq('actor_user_id', user.id);
     if (error) {
+      setLogs(prevLogs);
       setAppStatus(`삭제 실패: ${error.message}`, 'error');
       return;
     }
@@ -1452,115 +643,6 @@ export default function HomeClient() {
     setAppStatus('삭제되었습니다.', 'success');
     refreshLogs();
   };
-
-  const handleProfileSave = async () => {
-    if (!user || !householdId) return;
-    const trimmed = profileName.trim();
-    if (!trimmed) {
-      setAppStatus('이름을 입력하세요.', 'info');
-      return;
-    }
-
-    setProfileSaving(true);
-    const { error } = await supabase
-      .from('members')
-      .update({ display_name: trimmed })
-      .eq('household_id', householdId)
-      .eq('user_id', user.id);
-
-    if (error) {
-      setAppStatus(`프로필 저장 실패: ${error.message}`, 'error');
-      setProfileSaving(false);
-      return;
-    }
-
-    applyOwnDisplayName(user.id, trimmed);
-    setAppStatus('이름이 저장되었습니다.', 'success');
-    setProfileSaving(false);
-  };
-
-  const handleProfileAvatarChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = '';
-      if (!file) {
-        setAppStatus('파일이 선택되지 않았습니다. 다시 시도해 주세요.', 'info');
-        return;
-      }
-      if (!user || !householdId) {
-        setAppStatus('로그인 후 다시 시도해 주세요.', 'error');
-        return;
-      }
-      const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name);
-      const isImageType = file.type.startsWith('image/');
-      const isImageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'].includes(ext);
-      if (!isImageType && !isImageExt) {
-        setAppStatus('사진 파일만 선택해 주세요. (jpg, png, heic 등)', 'info');
-        return;
-      }
-      setProfileAvatarUploading(true);
-      setAppStatus('프로필 사진 업로드 중...', 'info');
-      let fileToUpload: File = file;
-      if (isHeic && typeof window !== 'undefined') {
-        try {
-          const heic2any = (await import('heic2any')).default;
-          const result = await heic2any({ blob: file, toType: 'image/jpeg' });
-          const blob = result instanceof Blob ? result : (Array.isArray(result) ? result[0] : result);
-          if (!blob) throw new Error('Conversion failed');
-          fileToUpload = new File([blob], file.name.replace(/\.[^.]+$/i, '.jpg'), { type: 'image/jpeg' });
-        } catch (err) {
-          setAppStatus('HEIC 변환에 실패했습니다. JPEG/PNG로 올려 주세요.', 'error');
-          setProfileAvatarUploading(false);
-          return;
-        }
-      }
-      try {
-        const compressed = await compressImageFile(fileToUpload, { maxSide: 640, quality: 0.78 });
-        fileToUpload = compressed.file;
-      } catch {
-        // Keep upload flow resilient: fall back to original converted/original file.
-      }
-      const uploadExt = fileToUpload.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const path = `${householdId}/${user.id}.${uploadExt}`;
-      const contentType = fileToUpload.type.startsWith('image/') ? fileToUpload.type : `image/${uploadExt === 'jpg' || uploadExt === 'jpeg' ? 'jpeg' : uploadExt === 'png' ? 'png' : uploadExt === 'gif' ? 'gif' : 'webp'}`;
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, fileToUpload, {
-        contentType,
-        upsert: true,
-      });
-      if (uploadError) {
-        const msg = uploadError.message || '';
-        const hint = /bucket|policy|row-level|RLS|storage/i.test(msg)
-          ? ' → Supabase Storage에 "avatars" 버킷을 만들고, DEPLOY.md 프로필 사진 ②·③을 했는지 확인해 주세요.'
-          : '';
-        setAppStatus(`프로필 사진 업로드 실패: ${msg}${hint}`, 'error');
-        setProfileAvatarUploading(false);
-        return;
-      }
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
-      const publicUrl = urlData.publicUrl;
-      const { error: updateError } = await supabase
-        .from('members')
-        .update({ avatar_url: publicUrl })
-        .eq('household_id', householdId)
-        .eq('user_id', user.id);
-      if (updateError) {
-        const msg = updateError.message || '';
-        const hint = /avatar_url|column|does not exist/i.test(msg)
-          ? ' → SQL Editor에서 실행: ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar_url TEXT;'
-          : '';
-        setAppStatus(`프로필 저장 실패: ${msg}${hint}`, 'error');
-        setProfileAvatarUploading(false);
-        return;
-      }
-      setProfileAvatarUrl(publicUrl + (publicUrl.includes('?') ? '&' : '?') + 't=' + Date.now());
-      setProfileAvatarLoadFailed(false);
-      applyOwnAvatarUrl(user.id, publicUrl);
-      setAppStatus('프로필 사진이 변경되었습니다.', 'success');
-      setProfileAvatarUploading(false);
-    },
-    [user, householdId, applyOwnAvatarUrl]
-  );
 
   const getMemberName = (userId: string) => {
     const m = members.find((mm) => mm.user_id === userId);
@@ -1605,51 +687,6 @@ export default function HomeClient() {
     return map[normalized] ?? 'logGeneral';
   };
 
-  const todayLogCount = useMemo(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth();
-    const d = now.getDate();
-    let list = feedTagFilter === 'all' ? logs : logs.filter((l) => l.place_slug === feedTagFilter);
-    if (activeTab === 'search' && searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      list = list.filter((l) => l.action.toLowerCase().includes(q));
-    }
-    list = filterLogsBySelectedMember(list);
-    return list.filter((l) => {
-      const dt = new Date(l.created_at);
-      return dt.getFullYear() === y && dt.getMonth() === m && dt.getDate() === d;
-    }).length;
-  }, [logs, feedTagFilter, activeTab, searchQuery, filterLogsBySelectedMember]);
-
-  const logsForList = useMemo(() => {
-    let list = feedTagFilter === 'all' ? logs : logs.filter((l) => l.place_slug === feedTagFilter);
-    if (activeTab === 'search' && searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      list = list.filter((l) => l.action.toLowerCase().includes(q));
-    }
-    return filterLogsBySelectedMember(list);
-  }, [logs, feedTagFilter, activeTab, searchQuery, filterLogsBySelectedMember]);
-  const logsByDate = logsForList.reduce<{ dateKey: string; dateLabel: string; items: Log[] }[]>((acc, log) => {
-    const d = new Date(log.created_at);
-    const dateKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-    const weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
-    const dateLabel = `${dateKey.slice(0, 4)}.${dateKey.slice(5, 7)}.${dateKey.slice(8, 10)} (${weekdayNames[d.getDay()]})`;
-    let group = acc.find((g) => g.dateKey === dateKey);
-    if (!group) {
-      group = { dateKey, dateLabel, items: [] };
-      acc.push(group);
-    }
-    group.items.push(log);
-    return acc;
-  }, []);
-
-  const hashStr = (s: string) => {
-    let h = 0;
-    for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    return h;
-  };
-
   const normalizeMediaUrl = useCallback((url: string | null | undefined) => {
     if (!url) return '';
     const trimmed = String(url)
@@ -1672,37 +709,6 @@ export default function HomeClient() {
     if (video) return { type: 'video', url: video };
     return null;
   }, [normalizeMediaUrl]);
-
-  const shuffledSearchLogs = useMemo(() => {
-    // 검색 탭 진입 시마다 seed를 바꿔, 매번 다른 배열처럼 보이게 합니다.
-    const arr = [...logsForList];
-    arr.sort((a, b) => hashStr(`${a.id}:${searchShuffleSeed}`) - hashStr(`${b.id}:${searchShuffleSeed}`));
-    return arr;
-  }, [logsForList, searchShuffleSeed]);
-
-  const { searchMediaLogs, searchTextOnlyLogs } = useMemo(() => {
-    const media: Log[] = [];
-    const textOnly: Log[] = [];
-    for (const log of shuffledSearchLogs) {
-      const primary = getPrimaryMedia(log);
-      if (primary) media.push(log);
-      else textOnly.push(log);
-    }
-    return { searchMediaLogs: media, searchTextOnlyLogs: textOnly };
-  }, [shuffledSearchLogs, getPrimaryMedia]);
-  const searchMediaView = useMemo(() => {
-    const visible = searchMediaLogs.slice(0, 120);
-    const swipeImageUrls: string[] = [];
-    const imageIndexByLogId: Record<string, number> = {};
-    visible.forEach((log) => {
-      const media = getPrimaryMedia(log);
-      if (media?.type === 'image') {
-        imageIndexByLogId[log.id] = swipeImageUrls.length;
-        swipeImageUrls.push(media.url);
-      }
-    });
-    return { visible, swipeImageUrls, imageIndexByLogId };
-  }, [searchMediaLogs, getPrimaryMedia]);
 
   const feedTagOptions = useMemo(() => {
     const topicLabels = ['밤톨대디', '밤톨맘', '밤톨이', '엄니아부지', '마더리빠더리'] as const;
@@ -1746,10 +752,6 @@ export default function HomeClient() {
     setFeedFilterOpen(true);
   }, [onFeedTagSelect]);
 
-  const logsForCalendar = useMemo(() => {
-    const base = calendarTagFilter === 'all' ? logs : logs.filter((l) => l.place_slug === calendarTagFilter);
-    return filterLogsBySelectedMember(base);
-  }, [logs, calendarTagFilter, filterLogsBySelectedMember]);
   const [calYear, calMonth] = calendarYearMonth.split('-').map(Number);
   const calendarFirstDay = new Date(calYear, calMonth - 1, 1);
   const calendarLastDay = new Date(calYear, calMonth, 0);
@@ -1759,21 +761,6 @@ export default function HomeClient() {
     const used = startWeekday + daysInMonth;
     return Math.ceil(used / 7) * 7;
   }, [startWeekday, daysInMonth]);
-  const calendarDayLogsMap = useMemo(() => {
-    const map: Record<string, Log[]> = {};
-    const prefix = `${calYear}-${String(calMonth).padStart(2, '0')}-`;
-    logsForCalendar.forEach((log) => {
-      const d = new Date(log.created_at);
-      if (d.getFullYear() !== calYear || d.getMonth() !== calMonth - 1) return;
-      const dateKey = `${prefix}${String(d.getDate()).padStart(2, '0')}`;
-      if (!map[dateKey]) map[dateKey] = [];
-      map[dateKey].push(log);
-    });
-    return map;
-  }, [logsForCalendar, calYear, calMonth]);
-  const selectedDayLogs = selectedCalendarDate ? (calendarDayLogsMap[selectedCalendarDate] || []).sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  ) : [];
   const todoActiveByGroup = useMemo(() => {
     const map: Record<TodoPriorityKey, TodoTask[]> = {
       urgentImportant: [],
@@ -1851,56 +838,31 @@ export default function HomeClient() {
       .sort((a, b) => b.sortKey.localeCompare(a.sortKey))
       .map((entry) => [entry.label, entry.tasks] as [string, TodoTask[]]);
   }, [todoTasks, todoCompletedPeriod]);
-  const growthCutoffMs = useMemo(() => {
-    const now = new Date();
-    const d = new Date(now);
-    if (growthRange === 'week') d.setDate(d.getDate() - 7);
-    else if (growthRange === 'month') d.setMonth(d.getMonth() - 1);
-    else if (growthRange === 'quarter') d.setMonth(d.getMonth() - 3);
-    else if (growthRange === 'half') d.setMonth(d.getMonth() - 6);
-    else if (growthRange === 'year') d.setFullYear(d.getFullYear() - 1);
-    else return 0;
-    return d.getTime();
-  }, [growthRange]);
-  const growthTimelineLogs = useMemo(() => {
-    return logs
-      .filter((log) => {
-        if (normalizeLogSlug(log.place_slug) !== LOG_SLUG.bamtoli) return false;
-        const { imageUrls, videoUrl } = getLogMedia(log);
-        if (imageUrls.length === 0 && !videoUrl) return false;
-        const ts = new Date(log.created_at).getTime();
-        return growthCutoffMs === 0 || ts >= growthCutoffMs;
-      })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [logs, growthCutoffMs]);
-  const growthTimelineView = useMemo(() => {
-    const visible = growthTimelineLogs.slice(0, 12);
-    const swipeImageUrls: string[] = [];
-    const imageIndexByLogId: Record<string, number> = {};
-    visible.forEach((log) => {
-      const media = getPrimaryMedia(log);
-      if (media?.type === 'image') {
-        imageIndexByLogId[log.id] = swipeImageUrls.length;
-        swipeImageUrls.push(media.url);
-      }
-    });
-    return { visible, swipeImageUrls, imageIndexByLogId };
-  }, [growthTimelineLogs, getPrimaryMedia]);
-
-  const todayMemoryLogs = useMemo(() => {
-    const now = new Date();
-    const month = now.getMonth();
-    const day = now.getDate();
-    const year = now.getFullYear();
-    return logs
-      .filter((log) => {
-        const d = new Date(log.created_at);
-        return d.getMonth() === month && d.getDate() === day && d.getFullYear() < year;
-      })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 12);
-  }, [logs]);
-  const currentSheetComments = commentTarget ? (commentsByLogId[commentTarget.logId] ?? []) : [];
+  const {
+    todayLogCount,
+    logsByDate,
+    searchMediaLogs,
+    searchTextOnlyLogs,
+    searchMediaView,
+    calendarDayLogsMap,
+    selectedDayLogs,
+    growthTimelineView,
+    todayMemoryLogs,
+  } = useLogDerivedViews({
+    logs,
+    feedTagFilter,
+    calendarTagFilter,
+    activeTab,
+    searchQuery,
+    searchShuffleSeed,
+    selectedCalendarDate,
+    calYear,
+    calMonth,
+    growthRange,
+    filterLogsBySelectedMember,
+    getPrimaryMedia,
+    getLogMedia,
+  });
   const closeMemoPanel = () => {
     setMemoPanelAnimated(false);
     setTimeout(() => setShowMemoPanel(false), 620);
@@ -1908,15 +870,15 @@ export default function HomeClient() {
   const addTodoTask = useCallback((key: TodoPriorityKey, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    todoDirtyRef.current = true;
+    markTodoDirty();
     setTodoTasks((prev) => [
       { id: Date.now(), text: trimmed, key, done: false, createdAt: new Date().toISOString(), completedAt: null },
       ...prev,
     ]);
-  }, []);
+  }, [markTodoDirty]);
 
   const toggleTodoTaskDone = useCallback((id: number) => {
-    todoDirtyRef.current = true;
+    markTodoDirty();
     setTodoTasks((prev) =>
       prev.map((task) =>
         task.id === id
@@ -1924,18 +886,16 @@ export default function HomeClient() {
           : task
       )
     );
-  }, []);
+  }, [markTodoDirty]);
 
   const removeTodoTask = useCallback((id: number) => {
-    todoDirtyRef.current = true;
+    markTodoDirty();
     setTodoTasks((prev) => prev.filter((task) => task.id !== id));
-  }, []);
+  }, [markTodoDirty]);
 
   const saveSharedMemos = useCallback(async () => {
     if (!householdId || !user) return;
-    setMemoSaving(true);
-    const result = await persistSharedMemos();
-    setMemoSaving(false);
+    const result = await persistSharedMemosNow();
     if (!result.ok) {
       setAppStatus(`메모 저장 실패: ${result.errorMessage}`, 'error');
       return;
@@ -1949,7 +909,7 @@ export default function HomeClient() {
       return;
     }
     setAppStatus('가족 메모가 저장되었습니다.', 'success');
-  }, [householdId, user, persistSharedMemos]);
+  }, [householdId, user, persistSharedMemosNow]);
 
   const theme = {
     bg: highContrast ? '#0f0f0f' : 'var(--bg-base)',
@@ -2611,6 +1571,7 @@ export default function HomeClient() {
                         <Empty message={t('calendarDayNoLogs')} captionColor={theme.textSecondary} />
                       ) : (
                         selectedDayLogs.map((log) => {
+                          const displaySlug = getEffectiveLogSlug(log);
                           const isMine = user && log.actor_user_id === user.id;
                           const isEditing = editingLogId === log.id;
                           return (
@@ -2620,18 +1581,18 @@ export default function HomeClient() {
                               style={highContrast ? { border: '1px solid #ffc107', background: '#2a2a2a' } : undefined}
                             >
                               <LogTagBadge
-                                slug={log.place_slug}
-                                onClick={() => applyTagFromLogCard(log.place_slug)}
-                                aria-label={`태그 ${t(getLogTagLabelKey(log.place_slug))} 필터`}
+                                slug={displaySlug}
+                                onClick={() => applyTagFromLogCard(displaySlug)}
+                                aria-label={`태그 ${t(getLogTagLabelKey(displaySlug))} 필터`}
                               >
-                                #{t(getLogTagLabelKey(log.place_slug))}
+                                #{t(getLogTagLabelKey(displaySlug))}
                               </LogTagBadge>
                               <div className="log-time" style={highContrast ? { color: '#94a3b8' } : undefined}>{formatDateTime(log.created_at)}</div>
                               <div className="log-content" style={highContrast ? { color: '#fff' } : undefined}>
-                                {parseLogMeta(log.action).text}
+                                {getParsedLog(log).text}
                               </div>
                               {(() => {
-                                const meta = parseLogMeta(log.action).meta;
+                                const meta = getParsedLog(log).meta;
                                 if (!meta.locationName && !meta.locationUrl) return null;
                                 return (
                                   <a
@@ -2720,7 +1681,7 @@ export default function HomeClient() {
                       const cleanVideo = normalizeMediaUrl(videoUrl);
                       const media = getPrimaryMedia(log);
                       const thumb = media?.url ?? '';
-                      const parsed = parseLogMeta(log.action);
+                      const parsed = getParsedLog(log);
                       return (
                         <button
                           key={`growth-${log.id}`}
@@ -2818,7 +1779,7 @@ export default function HomeClient() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {todayMemoryLogs.map((log) => {
                         const year = new Date(log.created_at).getFullYear();
-                        const parsed = parseLogMeta(log.action);
+                        const parsed = getParsedLog(log);
                         return (
                           <div key={`memory-${log.id}`} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--divider)', background: highContrast ? '#1e1e1e' : 'var(--bg-card)' }}>
                             <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#ffc107' : 'var(--text-secondary)', marginBottom: 4 }}>{year}년 오늘</div>
@@ -2980,6 +1941,7 @@ export default function HomeClient() {
                 ) : searchTextOnlyLogs.length > 0 ? (
                   <div style={{ padding: '0 2px' }}>
                     {searchTextOnlyLogs.slice(0, 80).map((log) => {
+                      const displaySlug = getEffectiveLogSlug(log);
                       const parsed = parseLogMeta(log.action);
                       return (
                         <div
@@ -2994,11 +1956,11 @@ export default function HomeClient() {
                         >
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
                             <LogTagBadge
-                              slug={log.place_slug}
-                              onClick={() => applyTagFromLogCard(log.place_slug)}
-                              aria-label={`태그 ${t(getLogTagLabelKey(log.place_slug))} 필터`}
+                              slug={displaySlug}
+                              onClick={() => applyTagFromLogCard(displaySlug)}
+                              aria-label={`태그 ${t(getLogTagLabelKey(displaySlug))} 필터`}
                             >
-                              #{t(getLogTagLabelKey(log.place_slug))}
+                              #{t(getLogTagLabelKey(displaySlug))}
                             </LogTagBadge>
                             <span style={{ fontSize: 11, color: highContrast ? '#94a3b8' : 'var(--text-caption)' }}>
                               {formatDateTime(log.created_at)}
@@ -3054,12 +2016,10 @@ export default function HomeClient() {
       {stickerPickerOpen && (
         <StickerPickerSheet
           highContrast={highContrast}
-          onClose={() => {
-            setStickerPickerOpen(false);
-            setStickerPickerLogId(null);
-          }}
+          onClose={closeStickerPicker}
           onPickSticker={pickSticker}
           canRemove={!!selectedStickerLogOwnSticker}
+          saving={stickerSaving}
         />
       )}
 

@@ -4,10 +4,11 @@ import { useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, MessageCircle, Play, MapPin, ExternalLink, Sparkles } from 'lucide-react';
-import { parseLogMeta } from '../../lib/logActionMeta';
 import { sanitizeExternalUrl } from '../../lib/safeUrl';
 import type { LogMediaResult } from '../../lib/logMedia';
 import { formatDateTime } from '../../lib/formatDateTime';
+import type { LogComment } from '../../features/logs/commentTypes';
+import { getEffectiveLogSlug, getLogStickerDisplay, getParsedLog } from '../../features/logs/logDerived';
 import { LogFeedSkeleton } from './LogFeedSkeleton';
 import { Empty } from '../ui/Empty';
 import { LogTagBadge } from '../ui/Badge';
@@ -23,15 +24,6 @@ export type Log = {
   image_url?: string | null;
   image_urls?: string | string[] | null;
   video_url?: string | null;
-};
-
-export type LogComment = {
-  id: string;
-  log_id: string;
-  parent_id: string | null;
-  user_id: string;
-  content: string;
-  created_at: string;
 };
 
 type LogGroup = { dateKey: string; dateLabel: string; items: Log[] };
@@ -80,6 +72,165 @@ type LogFeedProps = {
   /** 당겨서 새로고침 중(홈 피드 자리 표시) */
   logsRefreshLoading?: boolean;
 };
+
+function LogLocationLink({
+  log,
+  highContrast,
+}: {
+  log: Log;
+  highContrast: boolean;
+}) {
+  const { meta } = getParsedLog(log);
+  const safeHref = sanitizeExternalUrl(meta.locationUrl ?? '') || '#';
+  if (!meta.locationName && safeHref === '#') return null;
+
+  return (
+    <a
+      href={safeHref}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 4,
+        fontSize: 11,
+        color: highContrast ? '#ffc107' : 'var(--accent)',
+        textDecoration: 'none',
+      }}
+    >
+      <MapPin size={16} strokeWidth={1.5} aria-hidden />
+      {meta.locationName || '지도 보기'}
+      <ExternalLink size={16} strokeWidth={1.5} aria-hidden />
+    </a>
+  );
+}
+
+function LogStickerOverlay({
+  log,
+  getMemberName,
+  onPickSticker,
+}: {
+  log: Log;
+  getMemberName: (userId: string) => string;
+  onPickSticker?: (logId: string) => void;
+}) {
+  const { stickerEntries, fallbackStickers } = getLogStickerDisplay(log, getMemberName);
+
+  if (stickerEntries.length === 0 && fallbackStickers.length === 0) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onPickSticker?.(log.id);
+      }}
+      aria-label="스티커 보기 및 변경"
+      style={{
+        position: 'absolute',
+        top: 10,
+        left: 10,
+        zIndex: 3,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 6,
+        maxWidth: 'min(72%, 248px)',
+        padding: 0,
+        background: 'transparent',
+        border: 'none',
+        cursor: onPickSticker ? 'pointer' : 'default',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          gap: 6,
+          background: 'rgba(0,0,0,0.28)',
+          color: 'var(--bg-card)',
+          padding: '7px 8px',
+          borderRadius: 16,
+          lineHeight: 1.15,
+          fontFamily: 'inherit',
+          textAlign: 'left',
+          backdropFilter: 'blur(4px)',
+          boxShadow: '0 6px 14px rgba(0,0,0,0.14)',
+        }}
+      >
+        {stickerEntries.length > 0
+          ? stickerEntries.map(({ userId, sticker, author }) => (
+              <span
+                key={userId}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 5,
+                  flexWrap: 'wrap',
+                  maxWidth: '100%',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '2px 5px',
+                    borderRadius: 999,
+                    background: 'rgba(255,255,255,0.12)',
+                    fontSize: 9,
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    color: 'rgba(255,255,255,0.9)',
+                    letterSpacing: '0.01em',
+                    flexShrink: 0,
+                  }}
+                >
+                  {author}
+                </span>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    maxWidth: '100%',
+                    padding: sticker.length <= 2 ? '3px 7px' : '4px 8px',
+                    borderRadius: 11,
+                    background: 'rgba(255,255,255,0.16)',
+                    fontSize: sticker.length <= 2 ? 16 : 12,
+                    fontWeight: sticker.length <= 2 ? 500 : 700,
+                    color: 'var(--bg-card)',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {sticker}
+                </span>
+              </span>
+            ))
+          : fallbackStickers.map((sticker, idx) => (
+              <span
+                key={`${sticker}-${idx}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  maxWidth: '100%',
+                  padding: sticker.length <= 2 ? '3px 7px' : '4px 8px',
+                  borderRadius: 11,
+                  background: 'rgba(255,255,255,0.16)',
+                  fontSize: sticker.length <= 2 ? 16 : 12,
+                  fontWeight: sticker.length <= 2 ? 500 : 700,
+                  color: 'var(--bg-card)',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {sticker}
+              </span>
+            ))}
+      </div>
+    </button>
+  );
+}
 
 export function LogFeed({
   activeTab,
@@ -212,6 +363,7 @@ export function LogFeed({
               {group.items.map((log) => {
                 const isMine = user && log.actor_user_id === user.id;
                 const isEditing = editingLogId === log.id;
+                const displaySlug = getEffectiveLogSlug(log);
                 return (
                   <div
                     key={log.id}
@@ -301,14 +453,14 @@ export function LogFeed({
                       <>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                           <LogTagBadge
-                            slug={log.place_slug}
+                            slug={displaySlug}
                             onClick={(e) => {
                               e.stopPropagation();
-                              onTagClick?.(log.place_slug);
+                              onTagClick?.(displaySlug);
                             }}
-                            aria-label={`태그 ${t(getLogTagLabelKey(log.place_slug))} 필터`}
+                            aria-label={`태그 ${t(getLogTagLabelKey(displaySlug))} 필터`}
                           >
-                            #{t(getLogTagLabelKey(log.place_slug))}
+                            #{t(getLogTagLabelKey(displaySlug))}
                           </LogTagBadge>
                           <span style={{ fontSize: 12, color: highContrast ? '#94a3b8' : 'var(--text-caption)' }}>
                             {formatDateTime(log.created_at)}
@@ -318,33 +470,9 @@ export function LogFeed({
                           {getMemberName(log.actor_user_id)}
                         </div>
                         <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : 'var(--text-primary)', lineHeight: 1.25, marginBottom: 8 }}>
-                          {parseLogMeta(log.action).text}
+                          {getParsedLog(log).text}
                         </div>
-                        {(() => {
-                          const { meta } = parseLogMeta(log.action);
-                          const safeHref = sanitizeExternalUrl(meta.locationUrl ?? '') || '#';
-                          if (!meta.locationName && safeHref === '#') return null;
-                          return (
-                            <a
-                              href={safeHref}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                marginTop: 4,
-                                fontSize: 11,
-                                color: highContrast ? '#ffc107' : 'var(--accent)',
-                                textDecoration: 'none',
-                              }}
-                            >
-                              <MapPin size={16} strokeWidth={1.5} aria-hidden />
-                              {meta.locationName || '지도 보기'}
-                              <ExternalLink size={16} strokeWidth={1.5} aria-hidden />
-                            </a>
-                          );
-                        })()}
+                        <LogLocationLink log={log} highContrast={highContrast} />
                         {(() => {
                           const { imageUrls, videoUrl } = getLogMedia(log);
                           if (imageUrls.length === 0 && !videoUrl) return null;
@@ -359,133 +487,7 @@ export function LogFeed({
                                 maxWidth: '100%',
                               }}
                             >
-                              {(() => {
-                                const { meta } = parseLogMeta(log.action);
-                                const stickerMap = meta.stickerByUser ?? {};
-                                const ownSticker = user ? stickerMap[user.id] : undefined;
-                                const fallback = meta.stickers ?? [];
-                                const stickerEntries = Object.entries(stickerMap)
-                                  .filter(([, sticker]) => typeof sticker === 'string' && sticker.trim().length > 0)
-                                  .map(([userId, sticker]) => ({
-                                    userId,
-                                    sticker,
-                                    author: getMemberName(userId),
-                                  }));
-
-                                if (stickerEntries.length === 0 && fallback.length === 0) return null;
-
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      onPickSticker?.(log.id);
-                                    }}
-                                    aria-label="스티커 보기 및 변경"
-                                    style={{
-                                      position: 'absolute',
-                                      top: 10,
-                                      left: 10,
-                                      zIndex: 3,
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'flex-start',
-                                      gap: 6,
-                                      maxWidth: 'min(72%, 248px)',
-                                      padding: 0,
-                                      background: 'transparent',
-                                      border: 'none',
-                                      cursor: onPickSticker ? 'pointer' : 'default',
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'flex-start',
-                                        gap: 6,
-                                        background: 'rgba(0,0,0,0.28)',
-                                        color: 'var(--bg-card)',
-                                        padding: '7px 8px',
-                                        borderRadius: 16,
-                                        lineHeight: 1.15,
-                                        fontFamily: 'inherit',
-                                        textAlign: 'left',
-                                        backdropFilter: 'blur(4px)',
-                                        boxShadow: '0 6px 14px rgba(0,0,0,0.14)',
-                                      }}
-                                    >
-                                      {stickerEntries.length > 0
-                                        ? stickerEntries.map(({ userId, sticker, author }) => (
-                                            <span
-                                              key={userId}
-                                              style={{
-                                                display: 'flex',
-                                                alignItems: 'flex-start',
-                                                gap: 5,
-                                                flexWrap: 'wrap',
-                                                maxWidth: '100%',
-                                              }}
-                                            >
-                                              <span
-                                                style={{
-                                                  display: 'inline-flex',
-                                                  alignItems: 'center',
-                                                  padding: '2px 5px',
-                                                  borderRadius: 999,
-                                                  background: 'rgba(255,255,255,0.12)',
-                                                  fontSize: 9,
-                                                  fontWeight: 800,
-                                                  lineHeight: 1,
-                                                  color: 'rgba(255,255,255,0.9)',
-                                                  letterSpacing: '0.01em',
-                                                  flexShrink: 0,
-                                                }}
-                                              >
-                                                {author}
-                                              </span>
-                                              <span
-                                                style={{
-                                                  display: 'inline-flex',
-                                                  alignItems: 'center',
-                                                  maxWidth: '100%',
-                                                  padding: sticker.length <= 2 ? '3px 7px' : '4px 8px',
-                                                  borderRadius: 11,
-                                                  background: 'rgba(255,255,255,0.16)',
-                                                  fontSize: sticker.length <= 2 ? 16 : 12,
-                                                  fontWeight: sticker.length <= 2 ? 500 : 700,
-                                                  color: 'var(--bg-card)',
-                                                  wordBreak: 'break-word',
-                                                }}
-                                              >
-                                                {sticker}
-                                              </span>
-                                            </span>
-                                          ))
-                                        : fallback.map((sticker, idx) => (
-                                            <span
-                                              key={`${sticker}-${idx}`}
-                                              style={{
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              maxWidth: '100%',
-                                              padding: sticker.length <= 2 ? '3px 7px' : '4px 8px',
-                                              borderRadius: 11,
-                                              background: 'rgba(255,255,255,0.16)',
-                                                fontSize: sticker.length <= 2 ? 16 : 12,
-                                                fontWeight: sticker.length <= 2 ? 500 : 700,
-                                                color: 'var(--bg-card)',
-                                                wordBreak: 'break-word',
-                                              }}
-                                            >
-                                              {sticker}
-                                            </span>
-                                          ))}
-                                    </div>
-                                  </button>
-                                );
-                              })()}
+                              <LogStickerOverlay log={log} getMemberName={getMemberName} onPickSticker={onPickSticker} />
                               {imageUrls.length > 0 && (
                                 <div
                                   className={imageUrls.length > 1 ? 'log-album-stack' : undefined}

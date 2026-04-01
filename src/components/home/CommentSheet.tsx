@@ -2,10 +2,8 @@
 
 import type { RefObject, Dispatch, SetStateAction } from 'react';
 import type { User } from '@supabase/supabase-js';
-import type { LogComment } from './LogFeed';
+import type { CommentTarget, LogComment } from '../../features/logs/commentTypes';
 import { formatDateTime } from '../../lib/formatDateTime';
-
-export type CommentTarget = { logId: string; parentId: string | null };
 
 type CommentSheetProps = {
   commentTarget: CommentTarget;

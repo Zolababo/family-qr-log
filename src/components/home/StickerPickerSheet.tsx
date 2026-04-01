@@ -131,10 +131,11 @@ type StickerPickerSheetProps = {
   /** null = 스티커 제거 */
   onPickSticker: (sticker: string | null) => void;
   canRemove?: boolean;
+  saving?: boolean;
 };
 
 /** 로그 카드 스티커 선택 하단 시트 — `onPickSticker`는 부모에서 `applyStickerToLog` 등과 연결 */
-export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRemove = false }: StickerPickerSheetProps) {
+export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRemove = false, saving = false }: StickerPickerSheetProps) {
   const [category, setCategory] = useState<'emoji' | 'feeling' | 'fun' | 'family'>('emoji');
   const handleRef = useRef<HTMLDivElement | null>(null);
   const startYRef = useRef<number | null>(null);
@@ -257,6 +258,7 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
               <button
                 type="button"
                 onClick={() => onPickSticker(null)}
+                disabled={saving}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -267,7 +269,8 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
                   color: highContrast ? '#fff' : 'var(--text-secondary)',
                   fontSize: 12,
                   fontWeight: 700,
-                  cursor: 'pointer',
+                  cursor: saving ? 'wait' : 'pointer',
+                  opacity: saving ? 0.6 : 1,
                 }}
               >
                 내 스티커 지우기
@@ -348,6 +351,7 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
                 key={s}
                 type="button"
                 onClick={() => onPickSticker(s)}
+                disabled={saving}
                 style={{
                   padding: '10px 14px',
                   borderRadius: 999,
@@ -355,7 +359,8 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
                   background: highContrast ? 'rgba(255,255,255,0.04)' : 'var(--bg-subtle)',
                   color: highContrast ? '#fff' : 'var(--text-primary)',
                   fontSize: s.length <= 2 ? 20 : 13,
-                  cursor: 'pointer',
+                  cursor: saving ? 'wait' : 'pointer',
+                  opacity: saving ? 0.6 : 1,
                   lineHeight: s.length <= 2 ? 1 : 1.2,
                   fontWeight: s.length <= 2 ? 500 : 700,
                 }}

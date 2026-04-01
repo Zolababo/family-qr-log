@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { supabase } from '@/app/api/supabaseClient';
 import type { Member } from './memberTypes';
+import { mergeMembersPreferIncoming } from './memberUtils';
 
 type UseHouseholdMembersResult = {
   members: Member[];
@@ -26,16 +27,24 @@ export function useHouseholdMembers(): UseHouseholdMembersResult {
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
   const [profileAvatarLoadFailed, setProfileAvatarLoadFailed] = useState(false);
   const [avatarFailedUserIds, setAvatarFailedUserIds] = useState<Set<string>>(new Set());
+  const reloadReqSeqRef = useRef(0);
 
   const reloadMembersList = useCallback(async (householdId: string | null) => {
     if (!householdId) return;
+    const reqSeq = ++reloadReqSeqRef.current;
     const allRes = await supabase.from('members').select('user_id, display_name, avatar_url').eq('household_id', householdId);
+    if (reqSeq !== reloadReqSeqRef.current) return;
     if (allRes.error && /avatar_url|does not exist|column/i.test(allRes.error.message ?? '')) {
       const fb = await supabase.from('members').select('user_id, display_name').eq('household_id', householdId);
-      if (!fb.error && fb.data) setMembers(fb.data);
+      if (reqSeq !== reloadReqSeqRef.current) return;
+      if (!fb.error && fb.data.length > 0) {
+        setMembers((prev) => mergeMembersPreferIncoming(prev, fb.data));
+      }
       return;
     }
-    if (!allRes.error && allRes.data) setMembers(allRes.data);
+    if (!allRes.error && allRes.data.length > 0) {
+      setMembers((prev) => mergeMembersPreferIncoming(prev, allRes.data));
+    }
   }, []);
 
   const applyOwnDisplayName = useCallback((userId: string, displayName: string) => {
