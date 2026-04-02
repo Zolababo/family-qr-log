@@ -581,6 +581,7 @@ export default function HomeClient() {
     householdId,
     userId: user?.id,
     onError: reportErrorStatus,
+    t,
   });
   const { loadEntries: loadLedgerEntries } = householdLedger;
 

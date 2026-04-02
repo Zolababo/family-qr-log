@@ -94,6 +94,7 @@
 - 하단 탭 **가계부** → `LedgerPanel` + `useHouseholdLedger` (`src/features/ledger/`).
 - **프로덕션 DB에 반드시 적용:** `scripts/ledger-entries-migration.sql` (테이블 `ledger_entries` + RLS). Supabase SQL Editor에서 한 번 실행. 미적용 시 목록/저장 시 에러 메시지가 표시됨.
 - 금액은 **원 단위 정수**(`amount_krw`), 수입/지출(`direction`), 날짜(`occurred_on`), 동일 household 멤버만 접근.
+- 분류(`category`)는 **영문 slug**(`food`, `transport`, …)로 저장하고, UI만 언어별 번역. 예전 한글 프리셋 행은 표시 시 매핑. **연필**로 내역 수정, **휴지통**으로 삭제.
 
 ---
 

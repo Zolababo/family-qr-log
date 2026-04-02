@@ -1,8 +1,17 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Trash2 } from 'lucide-react';
-import { LEDGER_CATEGORY_PRESETS, useHouseholdLedger } from '@/features/ledger/useHouseholdLedger';
+import { useEffect, useMemo, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
+import {
+  LEDGER_CATEGORY_SLUGS,
+  useHouseholdLedger,
+} from '@/features/ledger/useHouseholdLedger';
+import {
+  LEDGER_CATEGORY_TKEY,
+  formatLedgerCategory,
+  normalizeLedgerCategory,
+} from '@/features/ledger/ledgerCategoryLabels';
+import type { LedgerCategorySlug } from '@/features/ledger/ledgerCategoryLabels';
 import type { LedgerDirection } from '@/features/ledger/ledgerTypes';
 
 type Theme = {
@@ -31,14 +40,37 @@ function todayIsoDate() {
 }
 
 export function LedgerPanel({ ledger, getMemberName, onError, t, theme, highContrast }: LedgerPanelProps) {
-  const { entries, loading, loadEntries, addEntry, deleteEntry, monthSummary } = ledger;
+  const { entries, loading, loadEntries, addEntry, updateEntry, deleteEntry, monthSummary } = ledger;
 
   const [occurredOn, setOccurredOn] = useState(todayIsoDate);
   const [direction, setDirection] = useState<LedgerDirection>('expense');
   const [amountRaw, setAmountRaw] = useState('');
-  const [category, setCategory] = useState<string>(LEDGER_CATEGORY_PRESETS[0] ?? '기타');
+  const [category, setCategory] = useState<LedgerCategorySlug>('food');
   const [memo, setMemo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (editingId && !entries.some((e) => e.id === editingId)) setEditingId(null);
+  }, [entries, editingId]);
+
+  const resetFormForNew = () => {
+    setOccurredOn(todayIsoDate());
+    setDirection('expense');
+    setAmountRaw('');
+    setCategory('food');
+    setMemo('');
+    setEditingId(null);
+  };
+
+  const startEdit = (e: (typeof entries)[number]) => {
+    setEditingId(e.id);
+    setOccurredOn(e.occurred_on);
+    setDirection(e.direction);
+    setAmountRaw(String(e.amount_krw));
+    setCategory(normalizeLedgerCategory(e.category));
+    setMemo(e.memo ?? '');
+  };
 
   const amountKrw = useMemo(() => {
     const n = parseInt(amountRaw.replace(/\D/g, ''), 10);
@@ -53,16 +85,23 @@ export function LedgerPanel({ ledger, getMemberName, onError, t, theme, highCont
     }
     setSubmitting(true);
     try {
-      const ok = await addEntry({
+      const payload = {
         occurred_on: occurredOn,
         direction,
         amount_krw: amountKrw,
         category,
         memo,
-      });
+      };
+      const ok = editingId
+        ? await updateEntry(editingId, payload)
+        : await addEntry(payload);
       if (ok) {
-        setAmountRaw('');
-        setMemo('');
+        if (editingId) {
+          resetFormForNew();
+        } else {
+          setAmountRaw('');
+          setMemo('');
+        }
       }
     } finally {
       setSubmitting(false);
@@ -220,22 +259,22 @@ export function LedgerPanel({ ledger, getMemberName, onError, t, theme, highCont
         <div style={{ marginBottom: 10 }}>
           <span style={{ display: 'block', fontSize: 12, color: theme.textSecondary, marginBottom: 6 }}>{t('ledgerCategory')}</span>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {LEDGER_CATEGORY_PRESETS.map((c) => (
+            {LEDGER_CATEGORY_SLUGS.map((slug) => (
               <button
-                key={c}
+                key={slug}
                 type="button"
-                onClick={() => setCategory(c)}
+                onClick={() => setCategory(slug)}
                 style={{
                   padding: '6px 10px',
                   borderRadius: 999,
                   border: '1px solid var(--divider)',
-                  background: category === c ? 'var(--accent-light)' : 'transparent',
-                  color: category === c ? 'var(--accent)' : theme.textSecondary,
+                  background: category === slug ? 'var(--accent-light)' : 'transparent',
+                  color: category === slug ? 'var(--accent)' : theme.textSecondary,
                   fontSize: 13,
                   cursor: 'pointer',
                 }}
               >
-                {c}
+                {t(LEDGER_CATEGORY_TKEY[slug])}
               </button>
             ))}
           </div>
@@ -259,24 +298,65 @@ export function LedgerPanel({ ledger, getMemberName, onError, t, theme, highCont
             }}
           />
         </label>
-        <button
-          type="submit"
-          disabled={submitting || loading}
-          style={{
-            width: '100%',
-            padding: '12px 14px',
-            borderRadius: 12,
-            border: 'none',
-            background: 'var(--accent)',
-            color: 'var(--bg-card)',
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: submitting ? 'wait' : 'pointer',
-            opacity: submitting ? 0.8 : 1,
-          }}
-        >
-          {submitting ? t('saving') : t('ledgerAdd')}
-        </button>
+        {editingId ? (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => resetFormForNew()}
+              style={{
+                flex: '0 0 auto',
+                padding: '12px 14px',
+                borderRadius: 12,
+                border: '1px solid var(--divider)',
+                background: 'transparent',
+                color: theme.text,
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              {t('ledgerCancelEdit')}
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || loading}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: '12px 14px',
+                borderRadius: 12,
+                border: 'none',
+                background: 'var(--accent)',
+                color: 'var(--bg-card)',
+                fontSize: 15,
+                fontWeight: 700,
+                cursor: submitting ? 'wait' : 'pointer',
+                opacity: submitting ? 0.8 : 1,
+              }}
+            >
+              {submitting ? t('saving') : t('ledgerSaveChanges')}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="submit"
+            disabled={submitting || loading}
+            style={{
+              width: '100%',
+              padding: '12px 14px',
+              borderRadius: 12,
+              border: 'none',
+              background: 'var(--accent)',
+              color: 'var(--bg-card)',
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: submitting ? 'wait' : 'pointer',
+              opacity: submitting ? 0.8 : 1,
+            }}
+          >
+            {submitting ? t('saving') : t('ledgerAdd')}
+          </button>
+        )}
       </form>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -321,7 +401,7 @@ export function LedgerPanel({ ledger, getMemberName, onError, t, theme, highCont
             >
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4 }}>
-                  {e.occurred_on} · {e.category} · {getMemberName(e.user_id)}
+                  {e.occurred_on} · {formatLedgerCategory(e.category, t)} · {getMemberName(e.user_id)}
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: e.direction === 'income' ? 'var(--accent)' : '#b91c1c' }}>
                   {e.direction === 'income' ? '+' : '-'}
@@ -329,25 +409,41 @@ export function LedgerPanel({ ledger, getMemberName, onError, t, theme, highCont
                 </div>
                 {e.memo ? <div style={{ fontSize: 12, color: theme.text, marginTop: 4, wordBreak: 'break-word' }}>{e.memo}</div> : null}
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof window !== 'undefined' && !window.confirm(t('ledgerDeleteConfirm'))) return;
-                  void deleteEntry(e.id);
-                }}
-                aria-label={t('delete')}
-                style={{
-                  flexShrink: 0,
-                  padding: 8,
-                  border: 'none',
-                  background: 'transparent',
-                  color: theme.textSecondary,
-                  cursor: 'pointer',
-                  borderRadius: 8,
-                }}
-              >
-                <Trash2 size={18} strokeWidth={1.5} />
-              </button>
+              <div style={{ display: 'flex', flexShrink: 0, gap: 2 }}>
+                <button
+                  type="button"
+                  onClick={() => startEdit(e)}
+                  aria-label={t('edit')}
+                  style={{
+                    padding: 8,
+                    border: 'none',
+                    background: 'transparent',
+                    color: theme.textSecondary,
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                  }}
+                >
+                  <Pencil size={18} strokeWidth={1.5} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined' && !window.confirm(t('ledgerDeleteConfirm'))) return;
+                    void deleteEntry(e.id);
+                  }}
+                  aria-label={t('delete')}
+                  style={{
+                    padding: 8,
+                    border: 'none',
+                    background: 'transparent',
+                    color: theme.textSecondary,
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                  }}
+                >
+                  <Trash2 size={18} strokeWidth={1.5} />
+                </button>
+              </div>
             </li>
           ))}
         </ul>
