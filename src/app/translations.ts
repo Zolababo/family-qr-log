@@ -179,6 +179,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     ledgerErrorSave: '가계부 저장 실패',
     ledgerErrorDelete: '삭제 실패',
     ledgerErrorUpdate: '수정 실패',
+    ledgerCalendarDayTitle: '이 날 가계부',
+    ledgerCalendarPrefill: '가계부에서 입력',
+    ledgerCalendarEmptyDay: '이 날 등록된 가계부가 없어요.',
+    ledgerCalendarDayIncome: '이 날 수입',
+    ledgerCalendarDayExpense: '이 날 지출',
   },
   en: {
     appTitle: 'Family Log',
@@ -354,6 +359,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     ledgerErrorSave: 'Could not save entry',
     ledgerErrorDelete: 'Could not delete',
     ledgerErrorUpdate: 'Could not update',
+    ledgerCalendarDayTitle: 'Ledger for this day',
+    ledgerCalendarPrefill: 'Open ledger tab',
+    ledgerCalendarEmptyDay: 'No ledger entries on this day.',
+    ledgerCalendarDayIncome: 'Income (day)',
+    ledgerCalendarDayExpense: 'Expense (day)',
   },
   ja: {
     appTitle: 'Family Log',
@@ -529,6 +539,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     ledgerErrorSave: '保存に失敗しました',
     ledgerErrorDelete: '削除に失敗しました',
     ledgerErrorUpdate: '更新に失敗しました',
+    ledgerCalendarDayTitle: 'この日の家計',
+    ledgerCalendarPrefill: '家計簿で入力',
+    ledgerCalendarEmptyDay: 'この日の記録はありません。',
+    ledgerCalendarDayIncome: 'この日の収入',
+    ledgerCalendarDayExpense: 'この日の支出',
   },
   zh: {
     appTitle: 'Family Log',
@@ -704,6 +719,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     ledgerErrorSave: '保存失败',
     ledgerErrorDelete: '删除失败',
     ledgerErrorUpdate: '更新失败',
+    ledgerCalendarDayTitle: '当日收支',
+    ledgerCalendarPrefill: '到账本页添加',
+    ledgerCalendarEmptyDay: '这一天还没有账本记录。',
+    ledgerCalendarDayIncome: '当日收入',
+    ledgerCalendarDayExpense: '当日支出',
   },
 };
 

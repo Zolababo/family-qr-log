@@ -6,7 +6,7 @@ import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
-import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, Baby, History, MapPin, ExternalLink, Sparkles, Plus, Loader2 } from 'lucide-react';
+import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, Baby, History, MapPin, ExternalLink, Sparkles, Plus, Loader2, Wallet } from 'lucide-react';
 import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug, type LogSlug } from '../lib/logTags';
 import { parseLogMeta } from '../lib/logActionMeta';
 import { getLogMedia } from '../lib/logMedia';
@@ -25,7 +25,9 @@ import { AccessibilitySettingsModal } from '../components/home/AccessibilitySett
 import { FamilyMemoPanel } from '../components/home/FamilyMemoPanel';
 import { EnlargedAvatarOverlay } from '../components/home/EnlargedAvatarOverlay';
 import { LedgerPanel } from '../components/home/LedgerPanel';
+import { CalendarDayLedgerSection } from '../components/home/CalendarDayLedgerSection';
 import { useHouseholdLedger } from '../features/ledger/useHouseholdLedger';
+import type { LedgerEntry } from '../features/ledger/ledgerTypes';
 import { LogActionSheet } from '../components/home/LogActionSheet';
 import { Toast } from '../components/ui/Toast';
 import { Empty } from '../components/ui/Empty';
@@ -324,6 +326,7 @@ export default function HomeClient() {
   });
   const [calendarTagFilter, setCalendarTagFilter] = useState<'all' | LogSlug>('all');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+  const [ledgerOccurredOnPrefill, setLedgerOccurredOnPrefill] = useState<string | null>(null);
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
@@ -584,6 +587,8 @@ export default function HomeClient() {
     t,
   });
   const { loadEntries: loadLedgerEntries } = householdLedger;
+
+  const clearLedgerOccurredOnPrefill = useCallback(() => setLedgerOccurredOnPrefill(null), []);
 
   const normalizeUserIdForCompare = useCallback((v: string | null | undefined) => {
     return String(v ?? '')
@@ -889,6 +894,25 @@ export default function HomeClient() {
     getPrimaryMedia,
     getLogMedia,
   });
+
+  const calendarDayLedgerMap = useMemo(() => {
+    const map: Record<string, LedgerEntry[]> = {};
+    for (const e of householdLedger.entries) {
+      const d = e.occurred_on;
+      if (!map[d]) map[d] = [];
+      map[d].push(e);
+    }
+    for (const k of Object.keys(map)) {
+      map[k].sort((a, b) => b.created_at.localeCompare(a.created_at));
+    }
+    return map;
+  }, [householdLedger.entries]);
+
+  const selectedCalendarDayLedgerEntries = useMemo(() => {
+    if (!selectedCalendarDate) return [];
+    return calendarDayLedgerMap[selectedCalendarDate] ?? [];
+  }, [selectedCalendarDate, calendarDayLedgerMap]);
+
   const closeMemoPanel = () => {
     setMemoPanelAnimated(false);
     setTimeout(() => setShowMemoPanel(false), 620);
@@ -1403,6 +1427,8 @@ export default function HomeClient() {
                 t={t}
                 theme={theme}
                 highContrast={highContrast}
+                occurredOnPrefill={ledgerOccurredOnPrefill}
+                onOccurredOnPrefillConsumed={clearLedgerOccurredOnPrefill}
               />
             )}
             {activeTab === 'calendar' && (
@@ -1521,6 +1547,7 @@ export default function HomeClient() {
                     const isInMonth = dayNum !== null && dayNum <= daysInMonth;
                     const dateKey = isInMonth ? `${calYear}-${String(calMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}` : null;
                     const count = dateKey ? (calendarDayLogsMap[dateKey]?.length ?? 0) : 0;
+                    const ledgerCount = dateKey ? (calendarDayLedgerMap[dateKey]?.length ?? 0) : 0;
                     const selected = dateKey === selectedCalendarDate;
                     return (
                       <button
@@ -1528,7 +1555,7 @@ export default function HomeClient() {
                         type="button"
                         onClick={() => setSelectedCalendarDate(isInMonth && dateKey ? dateKey : null)}
                         style={{
-                          minHeight: 44,
+                          minHeight: 48,
                           padding: 0,
                           border: 'none',
                           borderRadius: 8,
@@ -1553,6 +1580,7 @@ export default function HomeClient() {
                           flexDirection: 'column',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          gap: 1,
                           boxShadow: highContrast && selected ? '0 0 0 2px #ffc107' : undefined,
                         }}
                       >
@@ -1570,6 +1598,22 @@ export default function HomeClient() {
                         >
                           {count > 0 ? `${count}건` : '0건'}
                         </span>
+                        {ledgerCount > 0 ? (
+                          <span
+                            style={{
+                              fontSize: 9,
+                              color: highContrast ? '#86efac' : 'var(--accent)',
+                              lineHeight: 1.1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2,
+                            }}
+                            aria-hidden
+                          >
+                            <Wallet size={10} strokeWidth={1.5} />
+                            {ledgerCount}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -1611,6 +1655,17 @@ export default function HomeClient() {
                         닫기
                       </button>
                     </div>
+                    <CalendarDayLedgerSection
+                      entries={selectedCalendarDayLedgerEntries}
+                      getMemberName={getMemberName}
+                      t={t}
+                      theme={theme}
+                      highContrast={highContrast}
+                      onOpenLedgerTab={() => {
+                        if (selectedCalendarDate) setLedgerOccurredOnPrefill(selectedCalendarDate);
+                        setActiveTab('ledger');
+                      }}
+                    />
                     <div
                       style={{
                         maxHeight: '45vh',

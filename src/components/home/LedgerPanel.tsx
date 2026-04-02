@@ -32,6 +32,9 @@ type LedgerPanelProps = {
   t: (key: string) => string;
   theme: Theme;
   highContrast: boolean;
+  /** 캘린더 등에서 넘긴 날짜(YYYY-MM-DD) — 한 번 적용 후 소비 */
+  occurredOnPrefill?: string | null;
+  onOccurredOnPrefillConsumed?: () => void;
 };
 
 function todayIsoDate() {
@@ -39,7 +42,16 @@ function todayIsoDate() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function LedgerPanel({ ledger, getMemberName, onError, t, theme, highContrast }: LedgerPanelProps) {
+export function LedgerPanel({
+  ledger,
+  getMemberName,
+  onError,
+  t,
+  theme,
+  highContrast,
+  occurredOnPrefill,
+  onOccurredOnPrefillConsumed,
+}: LedgerPanelProps) {
   const { entries, loading, loadEntries, addEntry, updateEntry, deleteEntry, monthSummary } = ledger;
 
   const [occurredOn, setOccurredOn] = useState(todayIsoDate);
@@ -53,6 +65,13 @@ export function LedgerPanel({ ledger, getMemberName, onError, t, theme, highCont
   useEffect(() => {
     if (editingId && !entries.some((e) => e.id === editingId)) setEditingId(null);
   }, [entries, editingId]);
+
+  useEffect(() => {
+    if (!occurredOnPrefill || !/^\d{4}-\d{2}-\d{2}$/.test(occurredOnPrefill)) return;
+    setOccurredOn(occurredOnPrefill);
+    setEditingId(null);
+    onOccurredOnPrefillConsumed?.();
+  }, [occurredOnPrefill, onOccurredOnPrefillConsumed]);
 
   const resetFormForNew = () => {
     setOccurredOn(todayIsoDate());
