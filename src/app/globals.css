@@ -315,11 +315,11 @@ body {
   }
 }
 
-/* 홈 메인 스크롤: 좌·우·상단 여백 (8pt 그리드, 하단은 탭바 높이로 인라인 유지) */
+/* 홈 메인 스크롤: 좌·우만 (상단 패딩 없음 — 스티키 헤더와 사이에 스크롤 내용이 비치지 않게) */
 .home-scroll-region {
   padding-left: max(var(--space-4), env(safe-area-inset-left));
   padding-right: max(var(--space-4), env(safe-area-inset-right));
-  padding-top: var(--space-1);
+  padding-top: 0;
 }
 
 /* 하단 탭 내비: 탭 행 위·아래 기본 여백을 동일하게 두고, 홈 인디케이터만 하단에 추가 */

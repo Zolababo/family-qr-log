@@ -1063,9 +1063,11 @@ export default function HomeClient() {
                 top: 0,
                 zIndex: 33,
                 marginBottom: 4,
+                paddingTop: 'env(safe-area-inset-top, 0px)',
                 paddingBottom: 2,
                 background: highContrast ? '#0f0f0f' : 'var(--bg-base)',
                 borderBottom: 'none',
+                boxSizing: 'border-box',
               }}
             >
               <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />

@@ -16,7 +16,15 @@ const SETTINGS_HIT = 44;
 
 export function AppHeader({ t, onSettingsClick }: AppHeaderProps) {
   return (
-    <header style={{ marginBottom: 0, paddingTop: 'var(--space-2)', paddingBottom: 'var(--space-1)', borderBottom: 'none' }}>
+    <header
+      style={{
+        marginBottom: 0,
+        paddingTop: 0,
+        paddingBottom: 'var(--space-1)',
+        borderBottom: 'none',
+        background: 'transparent',
+      }}
+    >
       <div
         style={{
           display: 'flex',
