@@ -163,6 +163,7 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
+- **홈 헤더:** 홈 전용 이중 스티키·IO 제거 — 모든 탭 동일하게 `AppHeader`만 `sticky top:0`; 타이틀·프로필 사이 **구분선 제거**; 스크롤 영역·당겨서 새로고침 줄 **배경색**으로 상단 비침 완화.
 - **문서:** `DEPLOY.md` §8 댓글 RLS 정비(`enable-log-comments-rls-policies.sql`) 안내; `enable-log-comments-rls-policies.sql` 헤더에 선행 조건·문서 참조.
 - **문서:** `DEPLOY.md` §7 가계부 절차 추가; `ledger-entries-migration.sql` / `enable-ledger-realtime-publication.sql` 헤더에 선행·참조 주석; `MIGRATION.md` §2-6에 `DEPLOY.md` §7 링크.
 - **홈 UX:** `feedFilterHint` — 피드 필터 칩 위에 “목록 + 새 글 태그” 연동 안내; `LogTagFilterRow`에 `ariaDescribedBy` 옵션.

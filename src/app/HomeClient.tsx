@@ -338,16 +338,6 @@ export default function HomeClient() {
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
-  /** 타이틀 + 멤버 필터만 — 스크롤·스티키 기준 높이 */
-  const profileBlockRef = useRef<HTMLDivElement | null>(null);
-  const profileSentinelRef = useRef<HTMLDivElement | null>(null);
-  const [stickyHeaderEnabled, setStickyHeaderEnabled] = useState(false);
-  const [passedProfileSection, setPassedProfileSection] = useState(false);
-  const [stickyHeaderVisible, setStickyHeaderVisible] = useState(false);
-  const stickyHeaderEnabledRef = useRef(false);
-  const passedProfileSectionRef = useRef(false);
-  const stickyHeaderVisibleRef = useRef(false);
-  const lastHomeScrollTopRef = useRef(0);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
   const fontScale = FONT_STEPS[fontScaleStep];
@@ -391,114 +381,6 @@ export default function HomeClient() {
       window.clearTimeout(clearTimer);
     };
   }, [status]);
-
-  useEffect(() => {
-    const root = homeScrollRef.current;
-    const sentinel = profileSentinelRef.current;
-    const profileBlock = profileBlockRef.current;
-    if (!root || !sentinel || !profileBlock || activeTab !== 'home') {
-      setStickyHeaderEnabled(false);
-      setPassedProfileSection(false);
-      setStickyHeaderVisible(false);
-      return;
-    }
-
-    let rafId: number | null = null;
-    const recomputeEnabled = () => {
-      if (rafId != null) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        const scrollable = root.scrollHeight - root.clientHeight;
-        const blockH = Math.max(1, profileBlock.offsetHeight);
-        /** 타이틀+프로필을 지나갈 만큼 스크롤 여유가 있을 때만 (가족메모/태그 블록 높이는 제외) */
-        const minScrollable = Math.max(120, Math.round(blockH + 32));
-        const enabled = scrollable >= minScrollable;
-        stickyHeaderEnabledRef.current = enabled;
-        setStickyHeaderEnabled(enabled);
-        if (!enabled) {
-          passedProfileSectionRef.current = false;
-          stickyHeaderVisibleRef.current = false;
-          setPassedProfileSection(false);
-          setStickyHeaderVisible(false);
-        }
-      });
-    };
-
-    recomputeEnabled();
-
-    // 상단 끝과 근접한 구간에서는 관성/바운스로 흔들리기 쉬워 넉넉하게 가드
-    const TOP_HIDE_GUARD_PX = 24;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        const nextPassed = !entry.isIntersecting;
-        passedProfileSectionRef.current = nextPassed;
-        setPassedProfileSection(nextPassed);
-        if (!nextPassed) {
-          stickyHeaderVisibleRef.current = false;
-          setStickyHeaderVisible(false);
-        } else {
-          lastHomeScrollTopRef.current = root.scrollTop;
-          if (root.scrollTop > TOP_HIDE_GUARD_PX) {
-            stickyHeaderVisibleRef.current = true;
-            setStickyHeaderVisible(true);
-          } else {
-            stickyHeaderVisibleRef.current = false;
-            setStickyHeaderVisible(false);
-          }
-        }
-      },
-      {
-        root,
-        threshold: 0,
-        // 너무 이른 선행 노출은 줄이고, 프로필이 거의 사라질 때 자연스럽게 준비
-        rootMargin: '-36px 0px 0px 0px',
-      }
-    );
-    observer.observe(sentinel);
-
-    const onScroll = () => {
-      const current = root.scrollTop;
-      const delta = current - lastHomeScrollTopRef.current;
-      lastHomeScrollTopRef.current = current;
-      // 상단 끝(바운스/관성)에서는 스티키를 강제로 숨겨 마지막 떨림을 방지
-      if (current <= TOP_HIDE_GUARD_PX) {
-        if (stickyHeaderVisibleRef.current) {
-          stickyHeaderVisibleRef.current = false;
-          setStickyHeaderVisible(false);
-        }
-        return;
-      }
-      if (!stickyHeaderEnabledRef.current || !passedProfileSectionRef.current) {
-        if (stickyHeaderVisibleRef.current) {
-          stickyHeaderVisibleRef.current = false;
-          setStickyHeaderVisible(false);
-        }
-        return;
-      }
-      // 아래로 내릴 때는 조금 더 확실한 의도가 있을 때만 숨김
-      if (delta >= 10 && stickyHeaderVisibleRef.current) {
-        stickyHeaderVisibleRef.current = false;
-        setStickyHeaderVisible(false);
-      // 위로 올릴 때는 조금 더 빨리 드러나게
-      } else if (delta <= -4 && !stickyHeaderVisibleRef.current) {
-        stickyHeaderVisibleRef.current = true;
-        setStickyHeaderVisible(true);
-      }
-    };
-
-    root.addEventListener('scroll', onScroll, { passive: true });
-    const resizeObserver = new ResizeObserver(() => recomputeEnabled());
-    resizeObserver.observe(root);
-    resizeObserver.observe(profileBlock);
-
-    return () => {
-      if (rafId != null) cancelAnimationFrame(rafId);
-      observer.disconnect();
-      root.removeEventListener('scroll', onScroll);
-      resizeObserver.disconnect();
-    };
-  }, [activeTab, logs.length, members.length]);
 
   useEffect(() => {
     if (showMemoPanel) {
@@ -1133,55 +1015,9 @@ export default function HomeClient() {
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-y',
             paddingBottom: 'max(80px, calc(52px + env(safe-area-inset-bottom, 0px)))',
-            background: 'transparent',
+            background: highContrast ? '#0f0f0f' : 'var(--bg-base)',
           }}
         >
-        {user && householdId && activeTab === 'home' && stickyHeaderEnabled ? (
-          <div
-            aria-hidden={!stickyHeaderVisible}
-            style={{
-              position: 'sticky',
-              top: -4,
-              zIndex: 36,
-              height: 0,
-              overflow: 'visible',
-            }}
-          >
-            <div
-              className="home-top-bleed"
-              style={{
-                pointerEvents: stickyHeaderVisible ? 'auto' : 'none',
-                marginBottom: 0,
-                borderBottom: highContrast ? '1px solid #333' : '1px solid color-mix(in srgb, var(--divider) 78%, transparent 22%)',
-                backdropFilter: 'saturate(1.05)',
-                background: highContrast ? '#0f0f0f' : 'var(--bg-base)',
-                boxShadow: stickyHeaderVisible ? '0 8px 18px rgba(67, 50, 33, 0.08)' : 'none',
-                opacity: stickyHeaderVisible ? 1 : 0,
-                transform: stickyHeaderVisible ? 'translateY(0)' : 'translateY(-14px)',
-                transition: prefersReducedMotion
-                  ? 'none'
-                  : 'opacity 180ms ease, transform 220ms ease, box-shadow 220ms ease',
-              }}
-            >
-              <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />
-              <MemberFilter
-                user={user}
-                members={members}
-                selectedMemberId={selectedMemberId}
-                onSelectMember={setSelectedMemberId}
-                t={t}
-                meDisplayName={meDisplayName}
-                profileAvatarUrl={profileAvatarUrl}
-                profileAvatarLoadFailed={profileAvatarLoadFailed}
-                onEnlargeAvatar={setEnlargedAvatarUrl}
-                avatarFailedUserIds={avatarFailedUserIds}
-                onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
-                onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
-                interactive={stickyHeaderVisible}
-              />
-            </div>
-          </div>
-        ) : null}
         {user && householdId ? (
           <div
             aria-live="polite"
@@ -1198,6 +1034,7 @@ export default function HomeClient() {
               fontSize: 12,
               transition: prefersReducedMotion ? 'none' : 'height 0.18s ease-out',
               overflow: 'hidden',
+              background: highContrast ? '#0f0f0f' : 'var(--bg-base)',
             }}
           >
             {pullRefreshRefreshing ? (
@@ -1220,45 +1057,33 @@ export default function HomeClient() {
         />
         {user && householdId ? (
           <div className="home-top-bleed" style={{ marginBottom: 6 }}>
-            <div ref={profileBlockRef}>
-              {activeTab !== 'home' ? (
-                <div
-                  style={{
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 33,
-                    marginBottom: 4,
-                    paddingBottom: 2,
-                    background: highContrast ? '#0f0f0f' : 'var(--bg-base)',
-                    borderBottom: highContrast
-                      ? '1px solid #333'
-                      : '1px solid color-mix(in srgb, var(--divider) 78%, transparent 22%)',
-                  }}
-                >
-                  <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />
-                </div>
-              ) : (
-                <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />
-              )}
-              <MemberFilter
-                user={user}
-                members={members}
-                selectedMemberId={selectedMemberId}
-                onSelectMember={setSelectedMemberId}
-                t={t}
-                meDisplayName={meDisplayName}
-                profileAvatarUrl={profileAvatarUrl}
-                profileAvatarLoadFailed={profileAvatarLoadFailed}
-                onEnlargeAvatar={setEnlargedAvatarUrl}
-                avatarFailedUserIds={avatarFailedUserIds}
-                onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
-                onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
-                interactive={!stickyHeaderVisible}
-              />
+            <div
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 33,
+                marginBottom: 4,
+                paddingBottom: 2,
+                background: highContrast ? '#0f0f0f' : 'var(--bg-base)',
+                borderBottom: 'none',
+              }}
+            >
+              <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />
             </div>
-            {activeTab === 'home' ? (
-              <div ref={profileSentinelRef} aria-hidden style={{ height: 1, width: '100%', opacity: 0, pointerEvents: 'none' }} />
-            ) : null}
+            <MemberFilter
+              user={user}
+              members={members}
+              selectedMemberId={selectedMemberId}
+              onSelectMember={setSelectedMemberId}
+              t={t}
+              meDisplayName={meDisplayName}
+              profileAvatarUrl={profileAvatarUrl}
+              profileAvatarLoadFailed={profileAvatarLoadFailed}
+              onEnlargeAvatar={setEnlargedAvatarUrl}
+              avatarFailedUserIds={avatarFailedUserIds}
+              onProfileAvatarError={() => setProfileAvatarLoadFailed(true)}
+              onMemberAvatarError={(userId) => setAvatarFailedUserIds((prev) => new Set(prev).add(userId))}
+            />
             {activeTab === 'search' && (
               <input
                 type="search"
