@@ -338,17 +338,30 @@ export function LedgerPanel({
 
       {expenseByCategory.length > 0 ? (
         <div
+          role="region"
+          aria-labelledby="ledger-expense-by-category-heading"
           style={{
             marginBottom: 12,
             padding: 10,
             borderRadius: theme.radiusLg,
-            border: theme.border,
-            background: highContrast ? '#1a1515' : 'color-mix(in srgb, #fecaca 12%, var(--bg-card))',
+            border: highContrast ? '1px solid #ffc107' : theme.border,
+            background: highContrast ? '#1e1e1e' : 'color-mix(in srgb, #fecaca 12%, var(--bg-card))',
+            boxShadow: highContrast ? 'none' : theme.cardShadow,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, marginBottom: 8 }}>{t('ledgerExpenseByCategory')}</div>
-          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {expenseByCategory.map(([cat, amt]) => (
+          <div
+            id="ledger-expense-by-category-heading"
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: highContrast ? '#ffc107' : theme.text,
+              marginBottom: 8,
+            }}
+          >
+            {t('ledgerExpenseByCategory')}
+          </div>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {expenseByCategory.map(([cat, amt], i) => (
               <li
                 key={cat}
                 style={{
@@ -358,6 +371,13 @@ export function LedgerPanel({
                   gap: 8,
                   fontSize: 12,
                   color: theme.text,
+                  paddingTop: i > 0 ? 8 : 0,
+                  borderTop:
+                    i > 0
+                      ? highContrast
+                        ? '1px solid #444'
+                        : '1px solid color-mix(in srgb, var(--divider) 70%, transparent 30%)'
+                      : undefined,
                 }}
               >
                 <span style={{ minWidth: 0, wordBreak: 'break-word' }}>{formatLedgerCategory(cat, t)}</span>
