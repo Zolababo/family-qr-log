@@ -218,6 +218,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     ledgerExportAria: '이 달 내역을 CSV로 저장',
     ledgerExportEmpty: '내보낼 내역이 없어요.',
     ledgerExportRecordedBy: '기록자',
+    ledgerExpenseByCategory: '이 달 지출 · 분류',
   },
   en: {
     appTitle: 'Family Log',
@@ -432,6 +433,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     ledgerExportAria: 'Download this month as CSV',
     ledgerExportEmpty: 'Nothing to export.',
     ledgerExportRecordedBy: 'Recorded by',
+    ledgerExpenseByCategory: 'This month · spending by category',
   },
   ja: {
     appTitle: 'Family Log',
@@ -642,6 +644,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     calendarSectionAria: 'カレンダー',
     calendarPrevMonth: '前の月',
     calendarNextMonth: '次の月',
+    ledgerExportCsv: 'CSV',
+    ledgerExportAria: '今月をCSVで保存',
+    ledgerExportEmpty: 'エクスポートする記録がありません。',
+    ledgerExportRecordedBy: '記録者',
+    ledgerExpenseByCategory: '今月の支出 · 分類',
   },
   zh: {
     appTitle: 'Family Log',
@@ -856,6 +863,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     ledgerExportAria: '导出本月为 CSV',
     ledgerExportEmpty: '没有可导出的记录。',
     ledgerExportRecordedBy: '记录者',
+    ledgerExpenseByCategory: '本月支出 · 分类',
   },
 };
 

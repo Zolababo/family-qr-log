@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Download, Pencil, Trash2 } from 'lucide-react';
 import {
   LEDGER_CATEGORY_SLUGS,
@@ -40,6 +40,17 @@ type LedgerPanelProps = {
 function todayIsoDate() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 보고 있는 달에 맞춘 기본 거래일: 이번 달이면 오늘, 아니면 그 달 1일 */
+function defaultDateForView(viewYear: number, viewMonth: number): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  if (viewYear === y && viewMonth === m) {
+    return `${y}-${String(m).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+  return `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`;
 }
 
 function csvEscape(cell: string): string {
@@ -92,7 +103,17 @@ export function LedgerPanel({
     return entries.filter((e) => e.occurred_on.startsWith(prefix));
   }, [entries, viewYear, viewMonth]);
 
-  const [occurredOn, setOccurredOn] = useState(todayIsoDate);
+  const expenseByCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of listEntries) {
+      if (e.direction !== 'expense') continue;
+      const c = e.category;
+      map.set(c, (map.get(c) ?? 0) + e.amount_krw);
+    }
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [listEntries]);
+
+  const [occurredOn, setOccurredOn] = useState(() => defaultDateForView(new Date().getFullYear(), new Date().getMonth() + 1));
   const [direction, setDirection] = useState<LedgerDirection>('expense');
   const [amountRaw, setAmountRaw] = useState('');
   const [category, setCategory] = useState<LedgerCategorySlug>('food');
@@ -111,8 +132,18 @@ export function LedgerPanel({
     onOccurredOnPrefillConsumed?.();
   }, [occurredOnPrefill, onOccurredOnPrefillConsumed]);
 
+  const ledgerViewMountRef = useRef(false);
+  useEffect(() => {
+    if (editingId) return;
+    if (!ledgerViewMountRef.current) {
+      ledgerViewMountRef.current = true;
+      return;
+    }
+    setOccurredOn(defaultDateForView(viewYear, viewMonth));
+  }, [viewYear, viewMonth, editingId]);
+
   const resetFormForNew = () => {
-    setOccurredOn(todayIsoDate());
+    setOccurredOn(defaultDateForView(viewYear, viewMonth));
     setDirection('expense');
     setAmountRaw('');
     setCategory('food');
@@ -304,6 +335,38 @@ export function LedgerPanel({
           </button>
         </div>
       </div>
+
+      {expenseByCategory.length > 0 ? (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: 10,
+            borderRadius: theme.radiusLg,
+            border: theme.border,
+            background: highContrast ? '#1a1515' : 'color-mix(in srgb, #fecaca 12%, var(--bg-card))',
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, marginBottom: 8 }}>{t('ledgerExpenseByCategory')}</div>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {expenseByCategory.map(([cat, amt]) => (
+              <li
+                key={cat}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
+                  gap: 8,
+                  fontSize: 12,
+                  color: theme.text,
+                }}
+              >
+                <span style={{ minWidth: 0, wordBreak: 'break-word' }}>{formatLedgerCategory(cat, t)}</span>
+                <span style={{ flexShrink: 0, fontWeight: 700, color: highContrast ? '#fca5a5' : '#b91c1c' }}>{fmtKrw(amt)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <form
         onSubmit={handleSubmit}
