@@ -116,7 +116,7 @@
 - **Context used가 높을 때**: 새 채팅 + **`@MIGRATION.md`** (섹션 0).
 - **가족 메모**: 코드상 **동기화 시도**는 있음 (`household_memos`). 프로젝트에 테이블·**RLS·`updated_at` 트리거**가 없으면 폴백만 동작 — `scripts/` SQL 적용 여부 확인.
 - **스티커 / 남의 로그 수정**: `logs` RLS·`@@meta` 구조는 `DEPLOY.md`·SQL 참고. 반응 전용 테이블 분리는 미래 개선안.
-- **댓글(`log_comments`) RLS**: 댓글·답글이 막히거나 수정/삭제가 안 되면 `scripts/enable-log-comments-rls-policies.sql`을 Supabase에서 실행(백업 후). 테이블·마이그레이션은 기존 `DEPLOY.md`·관련 SQL과 함께 확인.
+- **댓글(`log_comments`) RLS**: 테이블·초기 RLS는 **`DEPLOY.md` §8**. 수정·삭제 불가 등 정책 꼬임은 `scripts/enable-log-comments-rls-policies.sql` 실행(백업 후) — 절차는 **같은 절** 하단 “RLS 오류” 참고.
 - **스크롤 단계별 연출**(프로필→장소→로그): 홈 탭에 **섹션 페이드(`ScrollReveal`, 스크롤 루트 기준 IO)** + 가로 칩 **`scroll-snap: x proximity`** 적용(2026-04). 전체 뷰포트 스냅·스크롤 잠금은 없음.
 - **아기 얼굴·성장 타임라인 고도화**: MVP·개인정보 검토 필요.
 
@@ -163,6 +163,7 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
+- **문서:** `DEPLOY.md` §8 댓글 RLS 정비(`enable-log-comments-rls-policies.sql`) 안내; `enable-log-comments-rls-policies.sql` 헤더에 선행 조건·문서 참조.
 - **문서:** `DEPLOY.md` §7 가계부 절차 추가; `ledger-entries-migration.sql` / `enable-ledger-realtime-publication.sql` 헤더에 선행·참조 주석; `MIGRATION.md` §2-6에 `DEPLOY.md` §7 링크.
 - **홈 UX:** `feedFilterHint` — 피드 필터 칩 위에 “목록 + 새 글 태그” 연동 안내; `LogTagFilterRow`에 `ariaDescribedBy` 옵션.
 - **`usePrefersReducedMotion`:** `useSyncExternalStore`로 갱신(움직임 줄이기 설정을 첫 클라이언트 렌더에서 반영).
@@ -242,4 +243,4 @@
 
 ---
 
-*마지막 업데이트: 2026-04-02 — DEPLOY 가계부 §7·SQL 헤더; 피드 `feedFilterHint`; `usePrefersReducedMotion` sync; 댓글 RLS; 홈 페이드·칩 스냅; 진척도·가계부 순서; 지출·분류 카드 UX.*
+*마지막 업데이트: 2026-04-02 — DEPLOY 댓글 RLS §8·가계부 §7·SQL 헤더; 피드 `feedFilterHint`; `usePrefersReducedMotion` sync; 홈 페이드·칩 스냅; 진척도·가계부 순서; 지출·분류 카드 UX.*

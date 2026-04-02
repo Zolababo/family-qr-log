@@ -197,6 +197,10 @@ CREATE POLICY "Allow insert log_comments"
   WITH CHECK (auth.uid() = user_id);
 ```
 
+### 댓글·답글 수정·삭제가 안 되거나 RLS 오류가 날 때
+
+위 SQL만 적용했는데 **본인 댓글 수정/삭제가 막히거나**, 정책이 꼬였다면 레포의 **`scripts/enable-log-comments-rls-policies.sql`** 을 SQL Editor에서 **통째로 실행**해 정책을 정비하세요. (`log_comments` 테이블이 이미 있어야 합니다.) 자세한 설명은 **`MIGRATION.md` §3** 과 해당 스크립트 상단 주석을 참고합니다.
+
 ## 9. 자주 쓰는 명령어 요약
 
 | 목적           | 명령어 |
