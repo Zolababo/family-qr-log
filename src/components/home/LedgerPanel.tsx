@@ -52,10 +52,15 @@ export function LedgerPanel({
   occurredOnPrefill,
   onOccurredOnPrefillConsumed,
 }: LedgerPanelProps) {
-  const { entries, loading, loadEntries, addEntry, updateEntry, deleteEntry } = ledger;
+  const { entries, loading, ledgerReady, loadEntries, loadMonthEntries, addEntry, updateEntry, deleteEntry } = ledger;
 
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth() + 1);
+
+  useEffect(() => {
+    if (!ledgerReady) return;
+    void loadMonthEntries(viewYear, viewMonth);
+  }, [ledgerReady, viewYear, viewMonth, loadMonthEntries]);
 
   const shiftViewMonth = (delta: number) => {
     const d = new Date(viewYear, viewMonth - 1 + delta, 1);

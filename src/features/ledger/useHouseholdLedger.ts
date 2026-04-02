@@ -7,17 +7,29 @@ import type { LedgerDirection, LedgerEntry } from './ledgerTypes';
 
 export type { LedgerCategorySlug } from './ledgerCategoryLabels';
 
-const LEDGER_FETCH_LIMIT = 300;
+const LEDGER_INITIAL_LIMIT = 300;
+/** 병합된 로컬 캐시 상한 (나중에 조정 가능) */
+const LEDGER_MERGED_MAX = 5000;
 
-function sortLedgerEntries(rows: LedgerEntry[]): LedgerEntry[] {
+function sortLedger(rows: LedgerEntry[]): LedgerEntry[] {
   const next = [...rows];
   next.sort((a, b) => {
     const d = b.occurred_on.localeCompare(a.occurred_on);
     if (d !== 0) return d;
     return b.created_at.localeCompare(a.created_at);
   });
-  return next.slice(0, LEDGER_FETCH_LIMIT);
+  return next.slice(0, LEDGER_MERGED_MAX);
 }
+
+function mergeMonthIntoEntries(prev: LedgerEntry[], y: number, m: number, monthRows: LedgerEntry[]): LedgerEntry[] {
+  const prefix = `${y}-${String(m).padStart(2, '0')}`;
+  const rest = prev.filter((e) => !e.occurred_on.startsWith(prefix));
+  const byId = new Map<string, LedgerEntry>();
+  for (const e of rest) byId.set(e.id, e);
+  for (const e of monthRows) byId.set(e.id, e);
+  return sortLedger([...byId.values()]);
+}
+
 export { LEDGER_CATEGORY_SLUGS } from './ledgerCategoryLabels';
 
 type LedgerInput = {
@@ -39,6 +51,7 @@ type UseHouseholdLedgerArgs = {
 export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouseholdLedgerArgs) {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [ledgerReady, setLedgerReady] = useState(false);
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
   const tRef = useRef(t);
@@ -58,7 +71,7 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
         .select('*')
         .eq('household_id', householdId)
         .order('occurred_on', { ascending: false })
-        .limit(300);
+        .limit(LEDGER_INITIAL_LIMIT);
 
       if (error) {
         onErrorRef.current(error.message);
@@ -74,12 +87,45 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
       setEntries(rows);
     } finally {
       setLoading(false);
+      setLedgerReady(true);
     }
   }, [householdId]);
 
   useEffect(() => {
+    if (!householdId) {
+      setEntries([]);
+      setLedgerReady(false);
+      return;
+    }
+    setLedgerReady(false);
     void loadEntries();
-  }, [loadEntries]);
+  }, [householdId, loadEntries]);
+
+  const loadMonthEntries = useCallback(
+    async (y: number, m: number) => {
+      if (!householdId) return;
+      const prefix = `${y}-${String(m).padStart(2, '0')}`;
+      const start = `${prefix}-01`;
+      const lastDay = new Date(y, m, 0).getDate();
+      const end = `${prefix}-${String(lastDay).padStart(2, '0')}`;
+      const { data, error } = await supabase
+        .from('ledger_entries')
+        .select('*')
+        .eq('household_id', householdId)
+        .gte('occurred_on', start)
+        .lte('occurred_on', end)
+        .order('occurred_on', { ascending: false })
+        .limit(LEDGER_MERGED_MAX);
+
+      if (error) {
+        onErrorRef.current(error.message);
+        return;
+      }
+      const monthRows = (data ?? []) as LedgerEntry[];
+      setEntries((prev) => mergeMonthIntoEntries(prev, y, m, monthRows));
+    },
+    [householdId]
+  );
 
   useEffect(() => {
     if (!householdId) return;
@@ -88,7 +134,7 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
       setEntries((prev) => {
         const map = new Map(prev.map((e) => [e.id, e]));
         map.set(row.id, row);
-        return sortLedgerEntries([...map.values()]);
+        return sortLedger([...map.values()]);
       });
     };
 
@@ -106,7 +152,7 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
           if (payload.eventType === 'DELETE') {
             const id = (payload.old as { id?: string } | null)?.id;
             if (id) {
-              setEntries((prev) => sortLedgerEntries(prev.filter((e) => e.id !== id)));
+              setEntries((prev) => sortLedger(prev.filter((e) => e.id !== id)));
             }
             return;
           }
@@ -148,7 +194,7 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
         setEntries((prev) => {
           const map = new Map(prev.map((e) => [e.id, e]));
           map.set(row.id, row);
-          return sortLedgerEntries([...map.values()]);
+          return sortLedger([...map.values()]);
         });
       } else {
         await loadEntries();
@@ -187,7 +233,7 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
       }
       if (data) {
         const row = data as LedgerEntry;
-        setEntries((prev) => sortLedgerEntries(prev.map((e) => (e.id === id ? row : e))));
+        setEntries((prev) => sortLedger(prev.map((e) => (e.id === id ? row : e))));
       } else {
         await loadEntries();
       }
@@ -213,7 +259,9 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
   return {
     entries,
     loading,
+    ledgerReady,
     loadEntries,
+    loadMonthEntries,
     addEntry,
     updateEntry,
     deleteEntry,
