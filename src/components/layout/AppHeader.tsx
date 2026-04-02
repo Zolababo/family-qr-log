@@ -11,8 +11,10 @@ type AppHeaderProps = {
   onSettingsClick?: () => void;
 };
 
-const SETTINGS_ICON_PX = 28;
-const SETTINGS_HIT = 44;
+/** 기존 28px 대비 약 +30% (28×1.3≈36) */
+const SETTINGS_ICON_PX = 36;
+/** 터치·레이아웃 슬롯도 비슷하게 확대 */
+const SETTINGS_HIT = 52;
 
 export function AppHeader({ t, onSettingsClick }: AppHeaderProps) {
   return (
@@ -96,7 +98,7 @@ export function AppHeader({ t, onSettingsClick }: AppHeaderProps) {
                   width: SETTINGS_ICON_PX,
                   height: SETTINGS_ICON_PX,
                   objectFit: 'contain',
-                  borderRadius: 8,
+                  borderRadius: 10,
                 }}
               />
             </button>
