@@ -13,6 +13,7 @@ import { getLogMedia } from '../lib/logMedia';
 import { formatDateTime } from '../lib/formatDateTime';
 import { FONT_STEPS, type FontScaleStep } from '../lib/accessibilityFont';
 import { AppHeader } from '../components/layout/AppHeader';
+import { SettingsMenuModal } from '../components/layout/SettingsMenuModal';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
 import { MemberFilter } from '../components/home/MemberFilter';
 import { LogTagFilterRow } from '../components/home/LogTagFilterRow';
@@ -250,6 +251,7 @@ export default function HomeClient() {
   const [enlargedAvatarUrl, setEnlargedAvatarUrl] = useState<string | null>(null);
   const [showNameEditModal, setShowNameEditModal] = useState(false);
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [fontScaleStep, setFontScaleStep] = useState<FontScaleStep>(1);
   const [fontBold, setFontBold] = useState(false);
@@ -589,7 +591,7 @@ export default function HomeClient() {
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(ACTIVE_TAB_KEY);
-      if (raw === 'home' || raw === 'calendar' || raw === 'search' || raw === 'todo') {
+      if (raw === 'home' || raw === 'calendar' || raw === 'search' || raw === 'todo' || raw === 'ledger') {
         setActiveTab(raw);
       }
     } catch {}
@@ -1046,7 +1048,7 @@ export default function HomeClient() {
                 transition: 'opacity 180ms ease, transform 220ms ease, box-shadow 220ms ease',
               }}
             >
-              <AppHeader t={t} />
+              <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />
               <MemberFilter
                 user={user}
                 members={members}
@@ -1104,7 +1106,25 @@ export default function HomeClient() {
         {user && householdId ? (
           <div className="home-top-bleed" style={{ marginBottom: 6 }}>
             <div ref={profileBlockRef}>
-              <AppHeader t={t} />
+              {activeTab !== 'home' ? (
+                <div
+                  style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 33,
+                    marginBottom: 4,
+                    paddingBottom: 2,
+                    background: highContrast ? '#0f0f0f' : 'var(--bg-base)',
+                    borderBottom: highContrast
+                      ? '1px solid #333'
+                      : '1px solid color-mix(in srgb, var(--divider) 78%, transparent 22%)',
+                  }}
+                >
+                  <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />
+                </div>
+              ) : (
+                <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />
+              )}
               <MemberFilter
                 user={user}
                 members={members}
@@ -1363,6 +1383,13 @@ export default function HomeClient() {
                 toggleTodoTaskDone={toggleTodoTaskDone}
                 removeTodoTask={removeTodoTask}
               />
+            )}
+            {activeTab === 'ledger' && (
+              <section aria-label="가계부" style={{ marginBottom: 20, padding: '4px 2px' }}>
+                <p style={{ fontSize: 14, color: theme.textSecondary, lineHeight: 1.65, margin: 0 }}>
+                  가계부 기능은 준비 중이에요. 곧 가족 수입·지출을 함께 기록할 수 있어요.
+                </p>
+              </section>
             )}
             {activeTab === 'calendar' && (
               <section aria-label="캘린더" style={{ marginBottom: 20 }}>
@@ -2056,15 +2083,35 @@ export default function HomeClient() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           t={t}
+          writePlaceSlug={activeTab === 'home' && feedTagFilter !== 'all' ? feedTagFilter : null}
+        />
+      )}
+
+      {user && householdId && (
+        <SettingsMenuModal
+          open={settingsMenuOpen}
+          onClose={() => setSettingsMenuOpen(false)}
+          t={t}
           highContrast={highContrast}
           language={language}
           setLanguage={setLanguage}
           langLabels={langLabels}
-          writePlaceSlug={activeTab === 'home' && feedTagFilter !== 'all' ? feedTagFilter : null}
-          onNameEdit={() => setShowNameEditModal(true)}
-          onProfilePhotoChange={() => profileAvatarInputRef.current?.click()}
-          onInviteFamily={() => router.push('/invite')}
-          onAccessibility={() => setShowAccessibilityModal(true)}
+          onNameEdit={() => {
+            setSettingsMenuOpen(false);
+            setShowNameEditModal(true);
+          }}
+          onProfilePhotoChange={() => {
+            setSettingsMenuOpen(false);
+            profileAvatarInputRef.current?.click();
+          }}
+          onInviteFamily={() => {
+            setSettingsMenuOpen(false);
+            router.push('/invite');
+          }}
+          onAccessibility={() => {
+            setSettingsMenuOpen(false);
+            setShowAccessibilityModal(true);
+          }}
           profileAvatarUploading={profileAvatarUploading}
         />
       )}

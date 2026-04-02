@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import type { Log } from './logTypes';
 import { getEffectiveLogSlug, isBamtoliLog } from './logDerived';
 
-type TabId = 'home' | 'calendar' | 'search' | 'todo';
+type TabId = 'home' | 'calendar' | 'search' | 'todo' | 'ledger';
 type LogSlugFilter = 'all' | string;
 type GrowthRange = 'week' | 'month' | 'quarter' | 'half' | 'year' | 'all';
 type LogGroup = { dateKey: string; dateLabel: string; items: Log[] };

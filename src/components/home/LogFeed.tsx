@@ -37,7 +37,7 @@ type Theme = {
 };
 
 type LogFeedProps = {
-  activeTab: 'home' | 'calendar' | 'search';
+  activeTab: 'home' | 'calendar' | 'search' | 'todo' | 'ledger';
   searchQuery: string;
   setSearchQuery: (v: string) => void;
   t: (key: string) => string;
