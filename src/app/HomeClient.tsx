@@ -1263,24 +1263,12 @@ export default function HomeClient() {
                     />
                   </summary>
                   <div style={{ padding: '4px 6px 6px' }}>
-                    <p
-                      id="home-feed-filter-hint"
-                      style={{
-                        fontSize: 11,
-                        color: theme.textSecondary,
-                        margin: '0 0 8px',
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      {t('feedFilterHint')}
-                    </p>
                     <LogTagFilterRow
                       filter={feedTagFilter}
                       setFilter={onFeedTagSelect}
                       options={feedTagOptions}
                       t={t}
                       highContrast={highContrast}
-                      ariaDescribedBy="home-feed-filter-hint"
                     />
                   </div>
                 </details>
