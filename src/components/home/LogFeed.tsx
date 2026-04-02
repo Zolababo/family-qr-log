@@ -132,7 +132,8 @@ function LogStickerOverlay({
         position: 'absolute',
         top: 10,
         left: 10,
-        zIndex: 3,
+        /* 앨범 사진 버튼(z-index 겹침) 및 .log-album-tape-bridge(z-index:20) 위에 표시 */
+        zIndex: 50,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-start',
