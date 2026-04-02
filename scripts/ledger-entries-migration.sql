@@ -3,6 +3,10 @@
 -- =============================================================================
 -- 실행: Supabase SQL Editor (스테이징 먼저 권장). 백업 후 적용.
 -- 앱: HomeClient 가계부 탭 → supabase.from('ledger_entries')
+--
+-- 다음 단계(선택, 가족 간 즉시 동기화): 이 스크립트 적용 후
+--   scripts/enable-ledger-realtime-publication.sql 실행
+-- 문서: MIGRATION.md §2-6, DEPLOY.md §7
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS public.ledger_entries (

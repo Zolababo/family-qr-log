@@ -92,7 +92,7 @@
 
 ### 2-6. 가계부 (ledger, 2026-04)
 - 하단 탭 **가계부** → `LedgerPanel` + `useHouseholdLedger` (`src/features/ledger/`).
-- **Supabase 적용 순서 (운영 DB):** (1) `scripts/ledger-entries-migration.sql` — 테이블·RLS·인덱스. (2) `scripts/enable-ledger-realtime-publication.sql` — `supabase_realtime`에 `ledger_entries` 추가(가족 간 즉시 반영). **(1) 후 (2)** 순서 권장. (2)만 실행해도 테이블이 없으면 의미 없음.
+- **Supabase 적용 순서 (운영 DB):** (1) `scripts/ledger-entries-migration.sql` — 테이블·RLS·인덱스. (2) `scripts/enable-ledger-realtime-publication.sql` — `supabase_realtime`에 `ledger_entries` 추가(가족 간 즉시 반영). **(1) 후 (2)** 순서 권장. (2)만 실행해도 테이블이 없으면 의미 없음. 스크립트 상단 주석·**`DEPLOY.md` §7** 참고.
 - **프로덕션 DB에 반드시 적용:** 위 (1). Supabase SQL Editor에서 한 번 실행. 미적용 시 목록/저장 시 에러 메시지가 표시됨.
 - 금액은 **원 단위 정수**(`amount_krw`), 수입/지출(`direction`), 날짜(`occurred_on`), 동일 household 멤버만 접근.
 - 분류(`category`)는 **영문 slug**(`food`, `transport`, …)로 저장하고, UI만 언어별 번역. 예전 한글 프리셋 행은 표시 시 매핑. **연필**로 내역 수정, **휴지통**으로 삭제.
@@ -163,6 +163,7 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
+- **문서:** `DEPLOY.md` §7 가계부 절차 추가; `ledger-entries-migration.sql` / `enable-ledger-realtime-publication.sql` 헤더에 선행·참조 주석; `MIGRATION.md` §2-6에 `DEPLOY.md` §7 링크.
 - **홈 UX:** `feedFilterHint` — 피드 필터 칩 위에 “목록 + 새 글 태그” 연동 안내; `LogTagFilterRow`에 `ariaDescribedBy` 옵션.
 - **`usePrefersReducedMotion`:** `useSyncExternalStore`로 갱신(움직임 줄이기 설정을 첫 클라이언트 렌더에서 반영).
 - **문서:** `MIGRATION.md` — `log_comments` RLS 스크립트 안내·§3 진척도 표 보정.
@@ -241,4 +242,4 @@
 
 ---
 
-*마지막 업데이트: 2026-04-02 — 피드 필터 `feedFilterHint`; `usePrefersReducedMotion` sync store; 댓글 RLS 문서; 홈 섹션 페이드·칩 스냅; 진척도·가계부 DB 순서; 지출·분류 카드 UX.*
+*마지막 업데이트: 2026-04-02 — DEPLOY 가계부 §7·SQL 헤더; 피드 `feedFilterHint`; `usePrefersReducedMotion` sync; 댓글 RLS; 홈 페이드·칩 스냅; 진척도·가계부 순서; 지출·분류 카드 UX.*

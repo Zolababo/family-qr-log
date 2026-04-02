@@ -148,7 +148,16 @@ USING (bucket_id = 'avatars');
 - 실제 사진이 보이게 하려면: Storage에서 `avatars` 버킷이 **Public**으로 설정되어 있는지 확인하세요.
 - Supabase 대시보드 → Storage → avatars → 설정에서 "Public bucket"이 켜져 있어야 합니다.
 
-## 7. 로그 댓글 (답글 포함) 사용 시
+## 7. 가계부 (`ledger_entries`) 사용 시
+
+앱 하단 **가계부** 탭에서 수입·지출을 쓰려면 Supabase에 테이블과 RLS가 있어야 합니다. **백업 후**, 아래 순서로 **SQL Editor**에서 실행하세요.
+
+1. **필수** — 레포의 `scripts/ledger-entries-migration.sql` 파일 내용을 통째로 복사해 실행합니다. (`ledger_entries` 테이블 + RLS 등)
+2. **선택** — 가족 구성원끼리 **다른 기기에서 바로 반영**되게 하려면 `scripts/enable-ledger-realtime-publication.sql` 을 실행합니다. (`supabase_realtime` publication에 테이블 추가; 1번 없이 2번만 하면 의미 없습니다.)
+
+자세한 동작·한계는 **`MIGRATION.md` §2-6** 을 참고하세요.
+
+## 8. 로그 댓글 (답글 포함) 사용 시
 
 로그에 댓글·답글을 쓰려면 Supabase에서 **댓글용 테이블**을 한 번 만들어 두어야 합니다.
 
@@ -188,7 +197,7 @@ CREATE POLICY "Allow insert log_comments"
   WITH CHECK (auth.uid() = user_id);
 ```
 
-## 8. 자주 쓰는 명령어 요약
+## 9. 자주 쓰는 명령어 요약
 
 | 목적           | 명령어 |
 |----------------|--------|
