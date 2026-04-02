@@ -98,6 +98,7 @@
 - **다른 기기·가족과 즉시 동기화:** `useHouseholdLedger`가 `ledger_entries`에 Realtime 구독함. Supabase에서 한 번 실행: `scripts/enable-ledger-realtime-publication.sql` (테이블을 `supabase_realtime` publication에 추가). Dashboard **Database → Publications**에서 `ledger_entries`가 포함돼 있는지 확인 가능.
 - **캘린더 연동:** 월 그리드에 해당 일 가계부 건수(지갑 아이콘) 표시. 날짜 선택 시 **이 날 가계부** 블록 + **가계부에서 입력**으로 가계부 탭 이동 시 날짜 필드 프리필(`CalendarDayLedgerSection`, `LedgerPanel.occurredOnPrefill`).
 - **가계부 월 보기:** 집계 카드·목록은 **선택한 연·월** 기준(◀ ▶). 첫 로드는 최근 **300건** 스냅샷, 월 변경 시 해당 월은 **Supabase에서 `occurred_on` 범위로 추가 조회**해 병합(로컬 캐시 상한 `LEDGER_MERGED_MAX`는 코드에서 조정 가능).
+- **가계부 CSV:** 보고 있는 달의 목록을 UTF-8(BOM) CSV로 내려받기 (`ledger-YYYY-MM.csv`).
 - **캘린더 헤더:** 월 제목은 `language`에 맞춰 `toLocaleDateString` (년+월).
 
 ### 2-7. 할 일 (todo)

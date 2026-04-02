@@ -214,6 +214,10 @@ export const translations: Record<Lang, Record<string, string>> = {
     calendarSectionAria: '캘린더',
     calendarPrevMonth: '이전 달',
     calendarNextMonth: '다음 달',
+    ledgerExportCsv: 'CSV',
+    ledgerExportAria: '이 달 내역을 CSV로 저장',
+    ledgerExportEmpty: '내보낼 내역이 없어요.',
+    ledgerExportRecordedBy: '기록자',
   },
   en: {
     appTitle: 'Family Log',
@@ -424,6 +428,10 @@ export const translations: Record<Lang, Record<string, string>> = {
     calendarSectionAria: 'Calendar',
     calendarPrevMonth: 'Previous month',
     calendarNextMonth: 'Next month',
+    ledgerExportCsv: 'CSV',
+    ledgerExportAria: 'Download this month as CSV',
+    ledgerExportEmpty: 'Nothing to export.',
+    ledgerExportRecordedBy: 'Recorded by',
   },
   ja: {
     appTitle: 'Family Log',
@@ -844,6 +852,10 @@ export const translations: Record<Lang, Record<string, string>> = {
     calendarSectionAria: '日历',
     calendarPrevMonth: '上一个月',
     calendarNextMonth: '下一个月',
+    ledgerExportCsv: 'CSV',
+    ledgerExportAria: '导出本月为 CSV',
+    ledgerExportEmpty: '没有可导出的记录。',
+    ledgerExportRecordedBy: '记录者',
   },
 };
 

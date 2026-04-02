@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, Download, Pencil, Trash2 } from 'lucide-react';
 import {
   LEDGER_CATEGORY_SLUGS,
   useHouseholdLedger,
@@ -40,6 +40,13 @@ type LedgerPanelProps = {
 function todayIsoDate() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function csvEscape(cell: string): string {
+  if (/[",\n\r]/.test(cell)) {
+    return `"${cell.replace(/"/g, '""')}"`;
+  }
+  return cell;
 }
 
 export function LedgerPanel({
@@ -159,6 +166,48 @@ export function LedgerPanel({
   };
 
   const fmtKrw = (n: number) => `${n.toLocaleString('ko-KR')}${t('ledgerWonSuffix')}`;
+
+  const exportMonthCsv = useCallback(() => {
+    if (listEntries.length === 0) {
+      onError(t('ledgerExportEmpty'));
+      return;
+    }
+    const sorted = [...listEntries].sort((a, b) => {
+      const d = a.occurred_on.localeCompare(b.occurred_on);
+      if (d !== 0) return d;
+      return a.created_at.localeCompare(b.created_at);
+    });
+    const header = [
+      t('ledgerDate'),
+      t('ledgerType'),
+      t('ledgerAmount'),
+      t('ledgerCategory'),
+      t('ledgerMemo'),
+      t('ledgerExportRecordedBy'),
+    ].map(csvEscape);
+    const lines = [header.join(',')];
+    for (const e of sorted) {
+      const typeLabel = e.direction === 'income' ? t('ledgerIncome') : t('ledgerExpense');
+      const row = [
+        e.occurred_on,
+        typeLabel,
+        String(e.amount_krw),
+        formatLedgerCategory(e.category, t),
+        e.memo ?? '',
+        getMemberName(e.user_id),
+      ].map(csvEscape);
+      lines.push(row.join(','));
+    }
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ledger-${viewYear}-${String(viewMonth).padStart(2, '0')}.csv`;
+    a.rel = 'noopener';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [listEntries, t, getMemberName, onError, viewYear, viewMonth]);
 
   return (
     <section aria-label={t('ledgerTitle')} style={{ marginBottom: 20 }}>
@@ -452,24 +501,48 @@ export function LedgerPanel({
         )}
       </form>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: theme.text }}>{t('ledgerRecent')}</h2>
-        <button
-          type="button"
-          onClick={() => void loadEntries()}
-          disabled={loading}
-          style={{
-            fontSize: 12,
-            padding: '6px 10px',
-            borderRadius: 8,
-            border: '1px solid var(--divider)',
-            background: 'transparent',
-            color: theme.textSecondary,
-            cursor: loading ? 'wait' : 'pointer',
-          }}
-        >
-          {t('ledgerRefresh')}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            type="button"
+            onClick={() => exportMonthCsv()}
+            disabled={listEntries.length === 0}
+            style={{
+              fontSize: 12,
+              padding: '6px 10px',
+              borderRadius: 8,
+              border: '1px solid var(--divider)',
+              background: 'transparent',
+              color: theme.textSecondary,
+              cursor: listEntries.length === 0 ? 'not-allowed' : 'pointer',
+              opacity: listEntries.length === 0 ? 0.5 : 1,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+            aria-label={t('ledgerExportAria')}
+          >
+            <Download size={14} strokeWidth={1.75} aria-hidden />
+            {t('ledgerExportCsv')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void loadEntries()}
+            disabled={loading}
+            style={{
+              fontSize: 12,
+              padding: '6px 10px',
+              borderRadius: 8,
+              border: '1px solid var(--divider)',
+              background: 'transparent',
+              color: theme.textSecondary,
+              cursor: loading ? 'wait' : 'pointer',
+            }}
+          >
+            {t('ledgerRefresh')}
+          </button>
+        </div>
       </div>
 
       {loading && entries.length === 0 ? (
