@@ -10,6 +10,7 @@ import { Camera, Image as ImageIcon, X, ChevronLeft, MapPin, Mic } from 'lucide-
 import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug } from '../../lib/logTags';
 import { composeActionWithMeta, parseLogMeta, type LogMeta } from '../../lib/logActionMeta';
 import { compressImageFile, VIDEO_MAX_MB } from '../../lib/imageCompress';
+import { convertHeicLikeToJpeg, isHeicOrHeif, MOBILE_IMAGE_EXTENSIONS } from '../../lib/heicToJpeg';
 import { compressVideoForUpload } from '../../lib/videoCompress';
 
 const QUICK_PHRASES_KEY = 'family_qr_log_quick_phrases';
@@ -298,11 +299,10 @@ export default function WriteLogClient() {
       const fileList = e.target.files;
       if (!fileList?.length || imageCompressing || videoCompressing) return;
       const files = Array.from(fileList);
-      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'];
       const imageFiles = files.filter((f) => {
         if (f.type.startsWith('image/')) return true;
         const ext = f.name.split('.').pop()?.toLowerCase() || '';
-        return imageExts.includes(ext);
+        return (MOBILE_IMAGE_EXTENSIONS as readonly string[]).includes(ext);
       });
       const videoFiles = files.filter((f) => f.type.startsWith('video/'));
       const videoFile = videoFiles[0] ?? null;
@@ -343,25 +343,42 @@ export default function WriteLogClient() {
 
       setImageCompressing(true);
       setStatus(null);
-      Promise.all(
-        imageFiles.map((f) =>
-          compressImageFile(f).catch(() => ({
-            file: f,
-            previewUrl: URL.createObjectURL(f),
-          }))
-        )
-      )
-        .then((results) => {
+      void (async () => {
+        const results: { file: File; previewUrl: string }[] = [];
+        let heicFail = false;
+        for (const f of imageFiles) {
+          try {
+            let file = f;
+            if (isHeicOrHeif(file)) {
+              try {
+                file = await convertHeicLikeToJpeg(file);
+              } catch {
+                heicFail = true;
+                continue;
+              }
+            }
+            const r = await compressImageFile(file).catch(() => ({
+              file: f,
+              previewUrl: URL.createObjectURL(f),
+            }));
+            results.push(r);
+          } catch {
+            heicFail = true;
+          }
+        }
+        if (results.length) {
           const newFiles = results.map((r) => r.file);
           const newUrls = results.map((r) => r.previewUrl);
           newUrls.forEach((u) => logPreviewUrlsRef.current.push(u));
           setLogImageFiles((prev) => [...prev, ...newFiles]);
           setLogImagePreviews((prev) => [...prev, ...newUrls]);
-        })
-        .finally(() => {
-          setImageCompressing(false);
-        });
-      e.target.value = '';
+        }
+        if (heicFail) {
+          setStatus('일부 HEIC/HEIF 사진 변환에 실패했습니다. JPEG/PNG로 올려 주세요.');
+        }
+        setImageCompressing(false);
+        e.target.value = '';
+      })();
     },
     [imageCompressing, videoCompressing]
   );
@@ -858,7 +875,7 @@ export default function WriteLogClient() {
         <div style={{ marginBottom: 12 }}>
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,image/heic,image/heif"
             capture="environment"
             id="write-log-camera-input"
             style={{ display: 'none' }}
@@ -867,7 +884,7 @@ export default function WriteLogClient() {
           />
           <input
             type="file"
-            accept="image/*,video/*"
+            accept="image/*,image/heic,image/heif,video/*"
             id="write-log-gallery-input"
             style={{ display: 'none' }}
             multiple

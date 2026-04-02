@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState, type ChangeEvent } from 'react';
 import { supabase } from '@/app/api/supabaseClient';
 import { compressImageFile } from '@/lib/imageCompress';
+import { convertHeicLikeToJpeg, isHeicOrHeif, MOBILE_IMAGE_EXTENSIONS } from '@/lib/heicToJpeg';
 
 type UseProfileEditorArgs = {
   userId: string | null | undefined;
@@ -78,13 +79,9 @@ export function useProfileEditor({
       setProfileAvatarUploading(true);
       onStatus('프로필 사진 업로드 중...', 'info');
       let fileToUpload: File = file;
-      if (isHeic && typeof window !== 'undefined') {
+      if (isHeicOrHeif(file) && typeof window !== 'undefined') {
         try {
-          const heic2any = (await import('heic2any')).default;
-          const result = await heic2any({ blob: file, toType: 'image/jpeg' });
-          const blob = result instanceof Blob ? result : Array.isArray(result) ? result[0] : result;
-          if (!blob) throw new Error('Conversion failed');
-          fileToUpload = new File([blob], file.name.replace(/\.[^.]+$/i, '.jpg'), { type: 'image/jpeg' });
+          fileToUpload = await convertHeicLikeToJpeg(file);
         } catch {
           onStatus('HEIC 변환에 실패했습니다. JPEG/PNG로 올려 주세요.', 'error');
           setProfileAvatarUploading(false);
