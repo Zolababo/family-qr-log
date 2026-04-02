@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import {
   LEDGER_CATEGORY_SLUGS,
   useHouseholdLedger,
@@ -52,7 +52,33 @@ export function LedgerPanel({
   occurredOnPrefill,
   onOccurredOnPrefillConsumed,
 }: LedgerPanelProps) {
-  const { entries, loading, loadEntries, addEntry, updateEntry, deleteEntry, monthSummary } = ledger;
+  const { entries, loading, loadEntries, addEntry, updateEntry, deleteEntry } = ledger;
+
+  const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => new Date().getMonth() + 1);
+
+  const shiftViewMonth = (delta: number) => {
+    const d = new Date(viewYear, viewMonth - 1 + delta, 1);
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth() + 1);
+  };
+
+  const monthSummary = useMemo(() => {
+    const prefix = `${viewYear}-${String(viewMonth).padStart(2, '0')}`;
+    let income = 0;
+    let expense = 0;
+    for (const e of entries) {
+      if (!e.occurred_on.startsWith(prefix)) continue;
+      if (e.direction === 'income') income += e.amount_krw;
+      else expense += e.amount_krw;
+    }
+    return { income, expense, balance: income - expense, year: viewYear, month: viewMonth };
+  }, [entries, viewYear, viewMonth]);
+
+  const listEntries = useMemo(() => {
+    const prefix = `${viewYear}-${String(viewMonth).padStart(2, '0')}`;
+    return entries.filter((e) => e.occurred_on.startsWith(prefix));
+  }, [entries, viewYear, viewMonth]);
 
   const [occurredOn, setOccurredOn] = useState(todayIsoDate);
   const [direction, setDirection] = useState<LedgerDirection>('expense');
@@ -178,8 +204,51 @@ export function LedgerPanel({
           <div style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>{fmtKrw(monthSummary.balance)}</div>
         </div>
       </div>
-      <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 12 }}>
-        {t('ledgerThisMonth')}: {monthSummary.year}.{String(monthSummary.month).padStart(2, '0')}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          marginBottom: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <span style={{ fontSize: 11, color: theme.textSecondary }}>
+          {t('ledgerThisMonth')}: {monthSummary.year}.{String(monthSummary.month).padStart(2, '0')}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button
+            type="button"
+            onClick={() => shiftViewMonth(-1)}
+            aria-label={t('ledgerMonthPrevAria')}
+            style={{
+              padding: '6px 8px',
+              borderRadius: 8,
+              border: highContrast ? '1px solid #ffc107' : '1px solid var(--divider)',
+              background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+              color: theme.textSecondary,
+              cursor: 'pointer',
+            }}
+          >
+            <ChevronLeft size={18} strokeWidth={1.5} aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={() => shiftViewMonth(1)}
+            aria-label={t('ledgerMonthNextAria')}
+            style={{
+              padding: '6px 8px',
+              borderRadius: 8,
+              border: highContrast ? '1px solid #ffc107' : '1px solid var(--divider)',
+              background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+              color: theme.textSecondary,
+              cursor: 'pointer',
+            }}
+          >
+            <ChevronRight size={18} strokeWidth={1.5} aria-hidden />
+          </button>
+        </div>
       </div>
 
       <form
@@ -402,9 +471,11 @@ export function LedgerPanel({
         <p style={{ fontSize: 13, color: theme.textSecondary }}>{t('ledgerLoading')}</p>
       ) : entries.length === 0 ? (
         <p style={{ fontSize: 13, color: theme.textSecondary }}>{t('ledgerEmpty')}</p>
+      ) : listEntries.length === 0 ? (
+        <p style={{ fontSize: 13, color: theme.textSecondary }}>{t('ledgerEmptyMonth')}</p>
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {entries.map((e) => (
+          {listEntries.map((e) => (
             <li
               key={e.id}
               style={{

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/app/api/supabaseClient';
 import { normalizeLedgerCategory } from './ledgerCategoryLabels';
 import type { LedgerDirection, LedgerEntry } from './ledgerTypes';
@@ -210,21 +210,6 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
     [householdId, tr]
   );
 
-  const monthSummary = useMemo(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth() + 1;
-    const prefix = `${y}-${String(m).padStart(2, '0')}`;
-    let income = 0;
-    let expense = 0;
-    for (const e of entries) {
-      if (!e.occurred_on.startsWith(prefix)) continue;
-      if (e.direction === 'income') income += e.amount_krw;
-      else expense += e.amount_krw;
-    }
-    return { income, expense, balance: income - expense, year: y, month: m };
-  }, [entries]);
-
   return {
     entries,
     loading,
@@ -232,6 +217,5 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
     addEntry,
     updateEntry,
     deleteEntry,
-    monthSummary,
   };
 }

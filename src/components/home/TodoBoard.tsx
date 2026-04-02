@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { CheckSquare2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 
 export type TodoPriorityKey = 'urgentImportant' | 'notUrgentImportant' | 'urgentNotImportant' | 'notUrgentNotImportant';
@@ -42,6 +42,9 @@ type TodoBoardProps = {
   toggleTodoTaskDone: (id: number) => void;
   removeTodoTask: (id: number) => void;
   t: (key: string) => string;
+  /** 캘린더 등에서 넘긴 기한(YYYY-MM-DD) — 긴급·중요 칸 기한란에 한 번 적용 */
+  dueDatePrefill?: string | null;
+  onDueDatePrefillConsumed?: () => void;
 };
 
 const emptyDrafts = (): Record<TodoPriorityKey, string> => ({
@@ -62,10 +65,18 @@ export function TodoBoard({
   toggleTodoTaskDone,
   removeTodoTask,
   t,
+  dueDatePrefill,
+  onDueDatePrefillConsumed,
 }: TodoBoardProps) {
   const [draftByKey, setDraftByKey] = useState<Record<TodoPriorityKey, string>>(emptyDrafts);
   const [draftDueByKey, setDraftDueByKey] = useState<Record<TodoPriorityKey, string>>(emptyDrafts);
   const [editState, setEditState] = useState<{ id: number; text: string; due: string } | null>(null);
+
+  useEffect(() => {
+    if (!dueDatePrefill || !/^\d{4}-\d{2}-\d{2}$/.test(dueDatePrefill)) return;
+    setDraftDueByKey((prev) => ({ ...prev, urgentImportant: dueDatePrefill }));
+    onDueDatePrefillConsumed?.();
+  }, [dueDatePrefill, onDueDatePrefillConsumed]);
 
   const commitDraft = useCallback(
     (key: TodoPriorityKey) => {

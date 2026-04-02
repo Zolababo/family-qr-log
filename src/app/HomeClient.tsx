@@ -332,6 +332,7 @@ export default function HomeClient() {
   const [calendarTagFilter, setCalendarTagFilter] = useState<'all' | LogSlug>('all');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [ledgerOccurredOnPrefill, setLedgerOccurredOnPrefill] = useState<string | null>(null);
+  const [todoDueDatePrefill, setTodoDueDatePrefill] = useState<string | null>(null);
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
@@ -594,6 +595,7 @@ export default function HomeClient() {
   const { loadEntries: loadLedgerEntries } = householdLedger;
 
   const clearLedgerOccurredOnPrefill = useCallback(() => setLedgerOccurredOnPrefill(null), []);
+  const clearTodoDueDatePrefill = useCallback(() => setTodoDueDatePrefill(null), []);
 
   const normalizeUserIdForCompare = useCallback((v: string | null | undefined) => {
     return String(v ?? '')
@@ -797,6 +799,13 @@ export default function HomeClient() {
     const used = startWeekday + daysInMonth;
     return Math.ceil(used / 7) * 7;
   }, [startWeekday, daysInMonth]);
+
+  const calendarHeaderMonthLabel = useMemo(() => {
+    const d = new Date(calYear, calMonth - 1, 1);
+    const loc =
+      language === 'ko' ? 'ko-KR' : language === 'ja' ? 'ja-JP' : language === 'zh' ? 'zh-CN' : 'en-US';
+    return d.toLocaleDateString(loc, { year: 'numeric', month: 'long' });
+  }, [calYear, calMonth, language]);
   const todoActiveByGroup = useMemo(() => {
     const map: Record<TodoPriorityKey, TodoTask[]> = {
       urgentImportant: [],
@@ -1485,6 +1494,8 @@ export default function HomeClient() {
                 toggleTodoTaskDone={toggleTodoTaskDone}
                 removeTodoTask={removeTodoTask}
                 t={t}
+                dueDatePrefill={todoDueDatePrefill}
+                onDueDatePrefillConsumed={clearTodoDueDatePrefill}
               />
             )}
             {activeTab === 'ledger' && (
@@ -1500,7 +1511,7 @@ export default function HomeClient() {
               />
             )}
             {activeTab === 'calendar' && (
-              <section aria-label="캘린더" style={{ marginBottom: 20 }}>
+              <section aria-label={t('calendarSectionAria')} style={{ marginBottom: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
                   <button
                     type="button"
@@ -1518,13 +1529,13 @@ export default function HomeClient() {
                       fontSize: 14,
                       cursor: 'pointer',
                     }}
-                    aria-label="이전 달"
+                    aria-label={t('calendarPrevMonth')}
                   >
                     <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
                   </button>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 16, fontWeight: 700, color: highContrast ? '#fff' : 'var(--text-primary)' }}>
                     <Calendar size={20} strokeWidth={1.5} aria-hidden />
-                    {calYear}년 {calMonth}월
+                    {calendarHeaderMonthLabel}
                   </div>
                   <button
                     type="button"
@@ -1542,7 +1553,7 @@ export default function HomeClient() {
                       fontSize: 14,
                       cursor: 'pointer',
                     }}
-                    aria-label="다음 달"
+                    aria-label={t('calendarNextMonth')}
                   >
                     <ChevronRight size={20} strokeWidth={1.5} aria-hidden />
                   </button>
@@ -1756,7 +1767,10 @@ export default function HomeClient() {
                       t={t}
                       theme={theme}
                       highContrast={highContrast}
-                      onOpenTodoTab={() => setActiveTab('todo')}
+                      onOpenTodoTab={() => {
+                        if (selectedCalendarDate) setTodoDueDatePrefill(selectedCalendarDate);
+                        setActiveTab('todo');
+                      }}
                     />
                     <div
                       style={{
