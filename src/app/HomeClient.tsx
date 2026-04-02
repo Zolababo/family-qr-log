@@ -110,6 +110,9 @@ function parseTodoSnapshot(action: string | null | undefined): TodoTask[] | null
       .map((task, idx) => {
         if (!task || typeof task !== 'object') return null;
         const t = task as Partial<TodoTask> & Record<string, unknown>;
+        const dueRaw = t.dueDate ?? t.due_date;
+        const dueDate =
+          typeof dueRaw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dueRaw) ? dueRaw : null;
         return {
           id: typeof t.id === 'number' && Number.isFinite(t.id) ? t.id : Date.now() + idx,
           text: typeof t.text === 'string' ? t.text : '',
@@ -117,6 +120,7 @@ function parseTodoSnapshot(action: string | null | undefined): TodoTask[] | null
           done: Boolean(t.done),
           createdAt: typeof t.createdAt === 'string' && t.createdAt ? t.createdAt : new Date().toISOString(),
           completedAt: typeof t.completedAt === 'string' ? t.completedAt : null,
+          dueDate,
         } as TodoTask;
       })
       .filter((t): t is TodoTask => Boolean(t && t.text.trim().length > 0));
@@ -799,12 +803,23 @@ export default function HomeClient() {
       urgentNotImportant: [],
       notUrgentNotImportant: [],
     };
+    const cmpDue = (a: TodoTask, b: TodoTask) => {
+      const da = a.dueDate ?? '';
+      const db = b.dueDate ?? '';
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return da.localeCompare(db);
+    };
     todoTasks
       .filter((task) => !task.done)
       .forEach((task) => {
         const key = normalizeTodoPriorityKey(task.key);
         map[key].push({ ...task, key });
       });
+    (Object.keys(map) as TodoPriorityKey[]).forEach((k) => {
+      map[k].sort(cmpDue);
+    });
     return map;
   }, [todoTasks]);
   const todoCompletedGroups = useMemo(() => {
@@ -917,12 +932,22 @@ export default function HomeClient() {
     setMemoPanelAnimated(false);
     setTimeout(() => setShowMemoPanel(false), 620);
   };
-  const addTodoTask = useCallback((key: TodoPriorityKey, text: string) => {
+  const addTodoTask = useCallback((key: TodoPriorityKey, text: string, dueDate?: string | null) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    const due =
+      typeof dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dueDate) ? dueDate : null;
     markTodoDirty();
     setTodoTasks((prev) => [
-      { id: Date.now(), text: trimmed, key, done: false, createdAt: new Date().toISOString(), completedAt: null },
+      {
+        id: Date.now(),
+        text: trimmed,
+        key,
+        done: false,
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+        dueDate: due,
+      },
       ...prev,
     ]);
   }, [markTodoDirty]);
@@ -1417,6 +1442,7 @@ export default function HomeClient() {
                 addTodoTask={addTodoTask}
                 toggleTodoTaskDone={toggleTodoTaskDone}
                 removeTodoTask={removeTodoTask}
+                t={t}
               />
             )}
             {activeTab === 'ledger' && (

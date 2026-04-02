@@ -98,6 +98,10 @@
 - **다른 기기·가족과 즉시 동기화:** `useHouseholdLedger`가 `ledger_entries`에 Realtime 구독함. Supabase에서 한 번 실행: `scripts/enable-ledger-realtime-publication.sql` (테이블을 `supabase_realtime` publication에 추가). Dashboard **Database → Publications**에서 `ledger_entries`가 포함돼 있는지 확인 가능.
 - **캘린더 연동:** 월 그리드에 해당 일 가계부 건수(지갑 아이콘) 표시. 날짜 선택 시 **이 날 가계부** 블록 + **가계부에서 입력**으로 가계부 탭 이동 시 날짜 필드 프리필(`CalendarDayLedgerSection`, `LedgerPanel.occurredOnPrefill`).
 
+### 2-7. 할 일 (todo)
+- `TodoBoard` + `logs` 스냅샷 동기화. 항목에 선택적 **`dueDate`** (YYYY-MM-DD) — 입력란 위 **기한** `type="date"`, 미입력 가능.
+- 사분면 내 활성 목록은 **기한 오름차순**(기한 없음은 뒤). 기한이 **오늘 이전**이면 미완료 시 **지연** 표시.
+
 ---
 
 ## 3. 알려진 이슈 / 남은 작업
