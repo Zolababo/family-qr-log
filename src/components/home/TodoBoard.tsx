@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { CheckSquare2, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { CheckSquare2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 
 export type TodoPriorityKey = 'urgentImportant' | 'notUrgentImportant' | 'urgentNotImportant' | 'notUrgentNotImportant';
 export type TodoTask = {
@@ -38,6 +38,7 @@ type TodoBoardProps = {
   todoActiveByGroup: Record<TodoPriorityKey, TodoTask[]>;
   todoCompletedGroups: Array<[string, TodoTask[]]>;
   addTodoTask: (key: TodoPriorityKey, text: string, dueDate?: string | null) => void;
+  updateTodoTask: (id: number, patch: { text?: string; dueDate?: string | null }) => void;
   toggleTodoTaskDone: (id: number) => void;
   removeTodoTask: (id: number) => void;
   t: (key: string) => string;
@@ -57,12 +58,14 @@ export function TodoBoard({
   todoActiveByGroup,
   todoCompletedGroups,
   addTodoTask,
+  updateTodoTask,
   toggleTodoTaskDone,
   removeTodoTask,
   t,
 }: TodoBoardProps) {
   const [draftByKey, setDraftByKey] = useState<Record<TodoPriorityKey, string>>(emptyDrafts);
   const [draftDueByKey, setDraftDueByKey] = useState<Record<TodoPriorityKey, string>>(emptyDrafts);
+  const [editState, setEditState] = useState<{ id: number; text: string; due: string } | null>(null);
 
   const commitDraft = useCallback(
     (key: TodoPriorityKey) => {
@@ -119,6 +122,94 @@ export function TodoBoard({
           ) : (
             tasks.map((task, idx) => {
               const overdue = Boolean(task.dueDate && task.dueDate < todayIsoDate());
+              const isEditing = editState?.id === task.id;
+              if (isEditing && editState) {
+                return (
+                  <div
+                    key={task.id}
+                    style={{
+                      padding: '8px 0',
+                      borderBottom: idx < tasks.length - 1 ? (highContrast ? '1px solid #333' : '1px solid var(--divider)') : 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                      <input
+                        type="date"
+                        value={editState.due}
+                        onChange={(e) => setEditState((s) => (s ? { ...s, due: e.target.value } : s))}
+                        aria-label={t('todoDueDateAria')}
+                        style={{
+                          width: '100%',
+                          maxWidth: 200,
+                          borderRadius: 8,
+                          border: highContrast ? '1px solid #555' : '1px solid var(--divider)',
+                          padding: '6px 8px',
+                          fontSize: 11,
+                          background: highContrast ? '#0c0c0c' : 'var(--bg-subtle)',
+                          color: highContrast ? '#fff' : 'var(--text-primary)',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      <input
+                        type="text"
+                        value={editState.text}
+                        onChange={(e) => setEditState((s) => (s ? { ...s, text: e.target.value } : s))}
+                        style={{
+                          width: '100%',
+                          borderRadius: 8,
+                          border: highContrast ? '1px solid #555' : '1px solid var(--divider)',
+                          padding: '8px 10px',
+                          fontSize: 12,
+                          background: highContrast ? '#0c0c0c' : 'var(--bg-subtle)',
+                          color: highContrast ? '#fff' : 'var(--text-primary)',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const trimmed = editState.text.trim();
+                          if (!trimmed) return;
+                          const dueRaw = editState.due.trim();
+                          const dueDate = dueRaw && /^\d{4}-\d{2}-\d{2}$/.test(dueRaw) ? dueRaw : null;
+                          updateTodoTask(editState.id, { text: trimmed, dueDate });
+                          setEditState(null);
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 8,
+                          border: 'none',
+                          background: 'var(--accent)',
+                          color: 'var(--bg-card)',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {t('save')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditState(null)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 8,
+                          border: highContrast ? '1px solid #555' : '1px solid var(--divider)',
+                          background: 'transparent',
+                          color: highContrast ? '#e2e8f0' : 'var(--text-primary)',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {t('cancel')}
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <div
                   key={task.id}
@@ -149,6 +240,14 @@ export function TodoBoard({
                       </span>
                     ) : null}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setEditState({ id: task.id, text: task.text, due: task.dueDate ?? '' })}
+                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#94a3b8' : 'var(--text-secondary)', flexShrink: 0 }}
+                    aria-label={t('edit')}
+                  >
+                    <Pencil size={16} strokeWidth={1.75} aria-hidden />
+                  </button>
                   <button type="button" onClick={() => toggleTodoTaskDone(task.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: highContrast ? '#ffc107' : '#16a34a', flexShrink: 0 }} aria-label={t('todoAriaComplete')}>
                     <CheckSquare2 size={16} strokeWidth={1.75} aria-hidden />
                   </button>

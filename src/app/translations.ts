@@ -205,6 +205,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     todoAriaRestore: '복원',
     todoAddAria: '할 일 입력',
     todoSubmitAria: '추가',
+    todoCalendarDueTitle: '이 날 마감 할 일',
+    todoCalendarDueOpenTab: '할 일 탭으로',
+    todoCalendarDueEmpty: '마감일이 이 날인 미완료 할 일이 없어요.',
   },
   en: {
     appTitle: 'Family Log',
@@ -406,6 +409,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     todoAriaRestore: 'Restore',
     todoAddAria: 'task input',
     todoSubmitAria: 'add',
+    todoCalendarDueTitle: 'Due this day',
+    todoCalendarDueOpenTab: 'Open to-do tab',
+    todoCalendarDueEmpty: 'No open tasks due on this day.',
   },
   ja: {
     appTitle: 'Family Log',
@@ -607,6 +613,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     todoAriaRestore: '戻す',
     todoAddAria: '入力',
     todoSubmitAria: '追加',
+    todoCalendarDueTitle: 'この日が期限',
+    todoCalendarDueOpenTab: 'やることへ',
+    todoCalendarDueEmpty: 'この日が期限の未完了はありません。',
   },
   zh: {
     appTitle: 'Family Log',
@@ -808,6 +817,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     todoAriaRestore: '恢复',
     todoAddAria: '输入',
     todoSubmitAria: '添加',
+    todoCalendarDueTitle: '当日截止的待办',
+    todoCalendarDueOpenTab: '前往待办',
+    todoCalendarDueEmpty: '没有将这一天设为截止的未完成项。',
   },
 };
 

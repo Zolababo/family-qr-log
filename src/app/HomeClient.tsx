@@ -6,7 +6,7 @@ import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './api/supabaseClient';
 import { getT, langLabels, type Lang } from './translations';
-import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, Baby, History, MapPin, ExternalLink, Sparkles, Plus, Loader2, Wallet } from 'lucide-react';
+import { Calendar, Image as ImageIcon, X, ChevronLeft, ChevronRight, ChevronDown, Baby, History, MapPin, ExternalLink, Sparkles, Plus, Loader2, Wallet, CheckSquare2 } from 'lucide-react';
 import { LOG_SLUG, TOPIC_SLUGS, normalizeLogSlug, type LogSlug } from '../lib/logTags';
 import { parseLogMeta } from '../lib/logActionMeta';
 import { getLogMedia } from '../lib/logMedia';
@@ -26,6 +26,7 @@ import { FamilyMemoPanel } from '../components/home/FamilyMemoPanel';
 import { EnlargedAvatarOverlay } from '../components/home/EnlargedAvatarOverlay';
 import { LedgerPanel } from '../components/home/LedgerPanel';
 import { CalendarDayLedgerSection } from '../components/home/CalendarDayLedgerSection';
+import { CalendarDayTodoSection } from '../components/home/CalendarDayTodoSection';
 import { useHouseholdLedger } from '../features/ledger/useHouseholdLedger';
 import type { LedgerEntry } from '../features/ledger/ledgerTypes';
 import { LogActionSheet } from '../components/home/LogActionSheet';
@@ -928,6 +929,23 @@ export default function HomeClient() {
     return calendarDayLedgerMap[selectedCalendarDate] ?? [];
   }, [selectedCalendarDate, calendarDayLedgerMap]);
 
+  const calendarDayDueTodoCount = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const task of todoTasks) {
+      if (task.done || !task.dueDate) continue;
+      const d = task.dueDate;
+      map[d] = (map[d] ?? 0) + 1;
+    }
+    return map;
+  }, [todoTasks]);
+
+  const selectedCalendarDayTodos = useMemo(() => {
+    if (!selectedCalendarDate) return [];
+    return todoTasks
+      .filter((task) => !task.done && task.dueDate === selectedCalendarDate)
+      .sort((a, b) => a.key.localeCompare(b.key) || a.text.localeCompare(b.text));
+  }, [selectedCalendarDate, todoTasks]);
+
   const closeMemoPanel = () => {
     setMemoPanelAnimated(false);
     setTimeout(() => setShowMemoPanel(false), 620);
@@ -967,6 +985,29 @@ export default function HomeClient() {
     markTodoDirty();
     setTodoTasks((prev) => prev.filter((task) => task.id !== id));
   }, [markTodoDirty]);
+
+  const updateTodoTask = useCallback(
+    (id: number, patch: { text?: string; dueDate?: string | null }) => {
+      markTodoDirty();
+      setTodoTasks((prev) =>
+        prev.map((task) => {
+          if (task.id !== id) return task;
+          const next = { ...task };
+          if (typeof patch.text === 'string') {
+            const trimmed = patch.text.trim();
+            if (!trimmed) return task;
+            next.text = trimmed;
+          }
+          if ('dueDate' in patch) {
+            const d = patch.dueDate;
+            next.dueDate = typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
+          }
+          return next;
+        })
+      );
+    },
+    [markTodoDirty]
+  );
 
   const saveSharedMemos = useCallback(async () => {
     if (!householdId || !user) return;
@@ -1440,6 +1481,7 @@ export default function HomeClient() {
                 todoActiveByGroup={todoActiveByGroup}
                 todoCompletedGroups={todoCompletedGroups}
                 addTodoTask={addTodoTask}
+                updateTodoTask={updateTodoTask}
                 toggleTodoTaskDone={toggleTodoTaskDone}
                 removeTodoTask={removeTodoTask}
                 t={t}
@@ -1574,6 +1616,7 @@ export default function HomeClient() {
                     const dateKey = isInMonth ? `${calYear}-${String(calMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}` : null;
                     const count = dateKey ? (calendarDayLogsMap[dateKey]?.length ?? 0) : 0;
                     const ledgerCount = dateKey ? (calendarDayLedgerMap[dateKey]?.length ?? 0) : 0;
+                    const todoDueCount = dateKey ? (calendarDayDueTodoCount[dateKey] ?? 0) : 0;
                     const selected = dateKey === selectedCalendarDate;
                     return (
                       <button
@@ -1581,7 +1624,7 @@ export default function HomeClient() {
                         type="button"
                         onClick={() => setSelectedCalendarDate(isInMonth && dateKey ? dateKey : null)}
                         style={{
-                          minHeight: 48,
+                          minHeight: 52,
                           padding: 0,
                           border: 'none',
                           borderRadius: 8,
@@ -1640,6 +1683,22 @@ export default function HomeClient() {
                             {ledgerCount}
                           </span>
                         ) : null}
+                        {todoDueCount > 0 ? (
+                          <span
+                            style={{
+                              fontSize: 9,
+                              color: highContrast ? '#c4b5fd' : '#6366f1',
+                              lineHeight: 1.1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2,
+                            }}
+                            aria-hidden
+                          >
+                            <CheckSquare2 size={10} strokeWidth={1.5} />
+                            {todoDueCount}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -1691,6 +1750,13 @@ export default function HomeClient() {
                         if (selectedCalendarDate) setLedgerOccurredOnPrefill(selectedCalendarDate);
                         setActiveTab('ledger');
                       }}
+                    />
+                    <CalendarDayTodoSection
+                      tasks={selectedCalendarDayTodos}
+                      t={t}
+                      theme={theme}
+                      highContrast={highContrast}
+                      onOpenTodoTab={() => setActiveTab('todo')}
                     />
                     <div
                       style={{
