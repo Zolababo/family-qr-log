@@ -2,8 +2,8 @@
 
 import Image from 'next/image';
 
-/** 브라우저 탭·PWA `manifest` / `layout` 과 동일한 앱 아이콘 */
-const APP_ICON_SRC = '/icon-192.png?v=3';
+/** PWA `manifest` / `layout` favicon 과 동일 파일 (`public/icon-192.png`). `next/image` 최적화는 쿼리스트링·작은 아이콘에서 깨질 수 있어 `unoptimized`로 직접 제공 */
+const APP_ICON_PATH = '/icon-192.png';
 
 type AppHeaderProps = {
   t: (key: string) => string;
@@ -76,11 +76,12 @@ export function AppHeader({ t, onSettingsClick }: AppHeaderProps) {
               }}
             >
               <Image
-                src={APP_ICON_SRC}
+                src={APP_ICON_PATH}
                 alt=""
                 width={SETTINGS_ICON_PX}
                 height={SETTINGS_ICON_PX}
                 sizes={`${SETTINGS_ICON_PX}px`}
+                unoptimized
                 aria-hidden
                 style={{
                   display: 'block',
