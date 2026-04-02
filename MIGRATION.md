@@ -92,7 +92,8 @@
 
 ### 2-6. 가계부 (ledger, 2026-04)
 - 하단 탭 **가계부** → `LedgerPanel` + `useHouseholdLedger` (`src/features/ledger/`).
-- **프로덕션 DB에 반드시 적용:** `scripts/ledger-entries-migration.sql` (테이블 `ledger_entries` + RLS). Supabase SQL Editor에서 한 번 실행. 미적용 시 목록/저장 시 에러 메시지가 표시됨.
+- **Supabase 적용 순서 (운영 DB):** (1) `scripts/ledger-entries-migration.sql` — 테이블·RLS·인덱스. (2) `scripts/enable-ledger-realtime-publication.sql` — `supabase_realtime`에 `ledger_entries` 추가(가족 간 즉시 반영). **(1) 후 (2)** 순서 권장. (2)만 실행해도 테이블이 없으면 의미 없음.
+- **프로덕션 DB에 반드시 적용:** 위 (1). Supabase SQL Editor에서 한 번 실행. 미적용 시 목록/저장 시 에러 메시지가 표시됨.
 - 금액은 **원 단위 정수**(`amount_krw`), 수입/지출(`direction`), 날짜(`occurred_on`), 동일 household 멤버만 접근.
 - 분류(`category`)는 **영문 slug**(`food`, `transport`, …)로 저장하고, UI만 언어별 번역. 예전 한글 프리셋 행은 표시 시 매핑. **연필**로 내역 수정, **휴지통**으로 삭제.
 - **다른 기기·가족과 즉시 동기화:** `useHouseholdLedger`가 `ledger_entries`에 Realtime 구독함. Supabase에서 한 번 실행: `scripts/enable-ledger-realtime-publication.sql` (테이블을 `supabase_realtime` publication에 추가). Dashboard **Database → Publications**에서 `ledger_entries`가 포함돼 있는지 확인 가능.
@@ -161,12 +162,24 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
+- **문서:** `MIGRATION.md` — 진척도(%) 기준 표·가계부 Supabase **(1)→(2)** 적용 순서 정리.
 - **가계부:** `LedgerPanel` — **이 달 지출 · 분류** 카드 고대비·구역 레이블(`aria-labelledby`)·카테고리 행 구분선.
 - **v0 토큰(로드맵 8/8):** `globals.css`에 `--v0-*` 별칭(기존 토큰 참조), `docs/v0-design-tokens-reference.md` 상태 문구 갱신.
 - (이전) `PlaceButtons` 삭제, `household_memos` SQL 등.
 
 **다음 우선순위 (로드맵 표 §6)**  
 - **표 8단계 완료.** 이후는 제품 백로그(반응·피드 고정 등) 또는 `--v0-*` 실제 색 치환(디자인 합의 후).
+
+### 진척도 (한눈에 — “몇 %?”에 쓰는 기준)
+
+| 무엇을 세나요? | 진행률 | 설명 |
+|----------------|--------|------|
+| **§6 로드맵 표 8단계** (Empty·Toast·Badge·Button·마이크로·household_memos 스크립트·PlaceButtons·v0 별칭) | **100%** | 표에 적힌 8항목은 모두 완료. |
+| **가계부·할 일·캘린더 연동** (앱 코드·다국어) | **~100%** | 레포 기준 기능 구현 완료. |
+| **Supabase SQL** (가계부·가족 메모 등) | **운영별** | 스크립트는 레포에 있음. **프로덕션에 실행했는지**에 따라 “실제로 켜진 기능” 비율이 달라짐(미적용 시 앱은 폴백·에러 안내). |
+| **§3 백로그** (스크롤 단계별 연출·성장 타임라인 고도화·반응·피드 고정 등) | **0% (미착수)** | 우선순위·디자인 합의 후 별도. |
+
+**한 줄 감각:** “정해 둔 UI 로드맵”은 **100%**. “핵심 가족 앱(로그+가계부+할 일)” **코드**는 **대략 90~95%**처럼 보는 경우가 많고(남는 건 주로 **DB 스크립트 적용·운영**), **§3까지 전부** 넣으면 %는 **낮아짐** — 비교할 때 **위 표의 행**을 같이 말하면 혼동이 줄어듦.
 
 ### 진척도 (§6 로드맵 표 8단계 기준)
 
@@ -222,4 +235,4 @@
 
 ---
 
-*마지막 업데이트: 2026-04-02 — 가계부 지출·분류 카드 UX(고대비·a11y).*
+*마지막 업데이트: 2026-04-02 — 진척도(%) 기준·가계부 DB 순서 문서화; 지출·분류 카드 UX(고대비·a11y).*
