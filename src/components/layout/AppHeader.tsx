@@ -1,7 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { Settings } from 'lucide-react';
+
+/** 브라우저 탭·PWA `manifest` / `layout` 과 동일한 앱 아이콘 */
+const APP_ICON_SRC = '/icon-192.png?v=3';
 
 type AppHeaderProps = {
   t: (key: string) => string;
@@ -9,7 +11,7 @@ type AppHeaderProps = {
   onSettingsClick?: () => void;
 };
 
-const SETTINGS_ICON = 18;
+const SETTINGS_ICON_PX = 28;
 const SETTINGS_HIT = 44;
 
 export function AppHeader({ t, onSettingsClick }: AppHeaderProps) {
@@ -71,10 +73,23 @@ export function AppHeader({ t, onSettingsClick }: AppHeaderProps) {
                 background: 'transparent',
                 cursor: 'pointer',
                 borderRadius: 12,
-                color: 'var(--text-secondary)',
               }}
             >
-              <Settings size={SETTINGS_ICON} strokeWidth={1.5} aria-hidden />
+              <Image
+                src={APP_ICON_SRC}
+                alt=""
+                width={SETTINGS_ICON_PX}
+                height={SETTINGS_ICON_PX}
+                sizes={`${SETTINGS_ICON_PX}px`}
+                aria-hidden
+                style={{
+                  display: 'block',
+                  width: SETTINGS_ICON_PX,
+                  height: SETTINGS_ICON_PX,
+                  objectFit: 'contain',
+                  borderRadius: 8,
+                }}
+              />
             </button>
           ) : null}
         </div>
