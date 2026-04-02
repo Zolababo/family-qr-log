@@ -90,6 +90,11 @@
 ### 2-5. 그대로 유지되는 기능 (요약)
 - HEIC 프로필 변환, 댓글·대댓글, 캘린더·성장 타임라인, 메모 패널, 지도 로그 메타(`@@meta`), 미디어 업로드, 다국어
 
+### 2-6. 가계부 (ledger, 2026-04)
+- 하단 탭 **가계부** → `LedgerPanel` + `useHouseholdLedger` (`src/features/ledger/`).
+- **프로덕션 DB에 반드시 적용:** `scripts/ledger-entries-migration.sql` (테이블 `ledger_entries` + RLS). Supabase SQL Editor에서 한 번 실행. 미적용 시 목록/저장 시 에러 메시지가 표시됨.
+- 금액은 **원 단위 정수**(`amount_krw`), 수입/지출(`direction`), 날짜(`occurred_on`), 동일 household 멤버만 접근.
+
 ---
 
 ## 3. 알려진 이슈 / 남은 작업

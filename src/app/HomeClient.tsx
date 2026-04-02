@@ -24,6 +24,8 @@ import { NameEditModal } from '../components/home/NameEditModal';
 import { AccessibilitySettingsModal } from '../components/home/AccessibilitySettingsModal';
 import { FamilyMemoPanel } from '../components/home/FamilyMemoPanel';
 import { EnlargedAvatarOverlay } from '../components/home/EnlargedAvatarOverlay';
+import { LedgerPanel } from '../components/home/LedgerPanel';
+import { useHouseholdLedger } from '../features/ledger/useHouseholdLedger';
 import { LogActionSheet } from '../components/home/LogActionSheet';
 import { Toast } from '../components/ui/Toast';
 import { Empty } from '../components/ui/Empty';
@@ -575,6 +577,13 @@ export default function HomeClient() {
     onSuccess: (message) => setAppStatus(message, 'success'),
   });
 
+  const householdLedger = useHouseholdLedger({
+    householdId,
+    userId: user?.id,
+    onError: reportErrorStatus,
+  });
+  const { loadEntries: loadLedgerEntries } = householdLedger;
+
   const normalizeUserIdForCompare = useCallback((v: string | null | undefined) => {
     return String(v ?? '')
       .trim()
@@ -614,11 +623,12 @@ export default function HomeClient() {
     await loadLogs(householdId, undefined, undefined);
     await reloadMembersList(householdId);
     await refreshTodoSnapshot();
+    await loadLedgerEntries();
 
     if (canApplyIncomingSharedMemo()) {
       await refreshSharedMemos();
     }
-  }, [householdId, user, loadLogs, reloadMembersList, canApplyIncomingSharedMemo, refreshTodoSnapshot, refreshSharedMemos]);
+  }, [householdId, user, loadLogs, reloadMembersList, canApplyIncomingSharedMemo, refreshTodoSnapshot, refreshSharedMemos, loadLedgerEntries]);
   const { pullRefreshOffset, pullRefreshRefreshing } = usePullToRefresh({
     scrollRef: homeScrollRef,
     enabled: !!householdId && !!user,
@@ -1385,11 +1395,14 @@ export default function HomeClient() {
               />
             )}
             {activeTab === 'ledger' && (
-              <section aria-label="가계부" style={{ marginBottom: 20, padding: '4px 2px' }}>
-                <p style={{ fontSize: 14, color: theme.textSecondary, lineHeight: 1.65, margin: 0 }}>
-                  가계부 기능은 준비 중이에요. 곧 가족 수입·지출을 함께 기록할 수 있어요.
-                </p>
-              </section>
+              <LedgerPanel
+                ledger={householdLedger}
+                getMemberName={getMemberName}
+                onError={reportErrorStatus}
+                t={t}
+                theme={theme}
+                highContrast={highContrast}
+              />
             )}
             {activeTab === 'calendar' && (
               <section aria-label="캘린더" style={{ marginBottom: 20 }}>
