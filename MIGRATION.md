@@ -150,7 +150,7 @@
 - 문자열: `src/app/translations.ts` (키 예: `familyBoardTitle`, `feedFilterTitle`, `nextPostTagLabel`, `qrTabGuest`, `logGeneral`, `topicHealth` …)
 
 **UI/UX (현재)**
-- **목록에서 보기**: 피드 필터 칩. **이번 글 태그**: 다음 로그에 붙는 `place_slug` 선택
+- **목록에서 보기**: 피드 필터 칩 + **`feedFilterHint`** 안내(선택 태그가 목록·새 글 태그에 같이 적용됨). **이번 글 태그**: 다음 로그에 붙는 `place_slug` 선택
 - **가족 메모 카드**: 공지·장보기·루틴 — 읽기/편집; **`household_memos` + RLS** 적용 시 가족 간 동기화(미적용 시 로컬·로그 폴백)
 - **올리기** 버튼 문구 (`quickPost`), 빠른 문구, 사진·영상·지도 메타(접기) 등 기존 유지
 - **로딩/피드백 (점진 도입)**: `LogFeedSkeleton` — 최초 로그 로드 + 당겨서 새로고침 중 홈 피드 자리 표시. `Toast` — `status` 문자열 + **`setAppStatus(msg, tone?)`** (`HomeClient.tsx`): 두 번째 인자로 `success` | `error` | `info` 고정(생략 시 `inferToastVariant(msg)`). `Empty` — 빈 화면 문구: `LogFeed`, 검색 탭, 캘린더 날짜 상세, 「오늘의 회상」; `tone="caption"` 보조 스타일
@@ -163,6 +163,7 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
+- **홈 UX:** `feedFilterHint` — 피드 필터 칩 위에 “목록 + 새 글 태그” 연동 안내; `LogTagFilterRow`에 `ariaDescribedBy` 옵션.
 - **`usePrefersReducedMotion`:** `useSyncExternalStore`로 갱신(움직임 줄이기 설정을 첫 클라이언트 렌더에서 반영).
 - **문서:** `MIGRATION.md` — `log_comments` RLS 스크립트 안내·§3 진척도 표 보정.
 - **홈 모션:** `ScrollReveal` — 가족 메모·피드 필터·오늘 요약·`LogFeed`가 스크롤로 들어올 때만 약한 페이드; `globals.css` **`.home-chip-scroll-snap`** — 로그/캘린더 태그 칩 가로 proximity 스냅.
@@ -240,4 +241,4 @@
 
 ---
 
-*마지막 업데이트: 2026-04-02 — `usePrefersReducedMotion` sync store; 댓글 RLS 문서; 홈 섹션 페이드·칩 스냅; 진척도·가계부 DB 순서; 지출·분류 카드 UX.*
+*마지막 업데이트: 2026-04-02 — 피드 필터 `feedFilterHint`; `usePrefersReducedMotion` sync store; 댓글 RLS 문서; 홈 섹션 페이드·칩 스냅; 진척도·가계부 DB 순서; 지출·분류 카드 UX.*

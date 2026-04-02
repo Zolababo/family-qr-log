@@ -6,6 +6,8 @@ type LogTagFilterRowProps = {
   options: { key: string; label: string }[];
   t: (key: string) => string;
   highContrast: boolean;
+  /** 보조 설명 문단 `id` — 스크린 리더 연결용 */
+  ariaDescribedBy?: string;
 };
 
 const chip = (active: boolean, highContrast: boolean) => ({
@@ -22,11 +24,12 @@ const chip = (active: boolean, highContrast: boolean) => ({
 });
 
 /** 피드 상단: 전체 / 로그 태그 슬러그별 필터 칩 */
-export function LogTagFilterRow({ filter, setFilter, options, t: _t, highContrast }: LogTagFilterRowProps) {
+export function LogTagFilterRow({ filter, setFilter, options, t: _t, highContrast, ariaDescribedBy }: LogTagFilterRowProps) {
   return (
     <div style={{ marginTop: 0, marginBottom: 4, width: '100%' }}>
       <div
         className="horizontal-scroll-hide home-chip-scroll-snap"
+        {...(ariaDescribedBy ? ({ role: 'group' as const, 'aria-describedby': ariaDescribedBy } as const) : {})}
         style={{
           display: 'flex',
           flexWrap: 'nowrap',
