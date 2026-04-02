@@ -116,7 +116,7 @@
 - **Context used가 높을 때**: 새 채팅 + **`@MIGRATION.md`** (섹션 0).
 - **가족 메모**: 코드상 **동기화 시도**는 있음 (`household_memos`). 프로젝트에 테이블·**RLS·`updated_at` 트리거**가 없으면 폴백만 동작 — `scripts/` SQL 적용 여부 확인.
 - **스티커 / 남의 로그 수정**: `logs` RLS·`@@meta` 구조는 `DEPLOY.md`·SQL 참고. 반응 전용 테이블 분리는 미래 개선안.
-- **스크롤 단계별 연출**(프로필→장소→로그): 요청 이력 있음, 미완.
+- **스크롤 단계별 연출**(프로필→장소→로그): 홈 탭에 **섹션 페이드(`ScrollReveal`, 스크롤 루트 기준 IO)** + 가로 칩 **`scroll-snap: x proximity`** 적용(2026-04). 전체 뷰포트 스냅·스크롤 잠금은 없음.
 - **아기 얼굴·성장 타임라인 고도화**: MVP·개인정보 검토 필요.
 
 ---
@@ -162,6 +162,7 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
+- **홈 모션:** `ScrollReveal` — 가족 메모·피드 필터·오늘 요약·`LogFeed`가 스크롤로 들어올 때만 약한 페이드; `globals.css` **`.home-chip-scroll-snap`** — 로그/캘린더 태그 칩 가로 proximity 스냅.
 - **접근성:** `usePrefersReducedMotion` — 홈 스티키 헤더·당겨서 새로고침 높이·가족 메모/피드 필터 `details` 화살표·`FamilyMemoPanel` 슬라이드에 **`prefers-reduced-motion: reduce` 시 transition 비활성**.
 - **문서:** `MIGRATION.md` — 진척도(%) 기준 표·가계부 Supabase **(1)→(2)** 적용 순서 정리.
 - **가계부:** `LedgerPanel` — **이 달 지출 · 분류** 카드 고대비·구역 레이블(`aria-labelledby`)·카테고리 행 구분선.
@@ -236,4 +237,4 @@
 
 ---
 
-*마지막 업데이트: 2026-04-02 — `prefers-reduced-motion` 연동(스티키·메모 패널 등); 진척도·가계부 DB 순서; 지출·분류 카드 UX.*
+*마지막 업데이트: 2026-04-02 — 홈 섹션 페이드·가로 칩 proximity 스냅; `prefers-reduced-motion` 연동; 진척도·가계부 DB 순서; 지출·분류 카드 UX.*

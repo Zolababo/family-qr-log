@@ -378,6 +378,15 @@ body {
   display: none;
 }
 
+/* 가로 태그 칩: 세로 스크롤은 자유롭게, 가로만 살짝 스냅(proximity) */
+.home-chip-scroll-snap {
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 10px;
+}
+.home-chip-scroll-snap .log-filter-btn {
+  scroll-snap-align: start;
+}
+
 /* 할 일 아이젠하워: 모바일 1열, 넓은 화면 2×2 (가로 넘침 방지) */
 .todo-eisenhower-grid {
   display: grid;

@@ -33,6 +33,7 @@ import type { LedgerEntry } from '../features/ledger/ledgerTypes';
 import { LogActionSheet } from '../components/home/LogActionSheet';
 import { Toast } from '../components/ui/Toast';
 import { Empty } from '../components/ui/Empty';
+import { ScrollReveal } from '../components/ui/ScrollReveal';
 import { LogTagBadge } from '../components/ui/Badge';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 import { usePullToRefresh } from '../features/home/usePullToRefresh';
@@ -1281,18 +1282,18 @@ export default function HomeClient() {
             )}
             {activeTab === 'home' && (
               <>
-                <details
-                  className="feed-filter-disclosure"
-                  open={familyNotesEditing}
-                  onToggle={(e) => setFamilyNotesEditing(e.currentTarget.open)}
-                  style={{
-                    marginBottom: 8,
-                    borderRadius: theme.radiusLg,
-                    border: theme.border,
-                    background: theme.card,
-                    boxShadow: theme.cardShadow,
-                  }}
-                >
+                <ScrollReveal scrollRootRef={homeScrollRef} style={{ marginBottom: 8 }}>
+                  <details
+                    className="feed-filter-disclosure"
+                    open={familyNotesEditing}
+                    onToggle={(e) => setFamilyNotesEditing(e.currentTarget.open)}
+                    style={{
+                      borderRadius: theme.radiusLg,
+                      border: theme.border,
+                      background: theme.card,
+                      boxShadow: theme.cardShadow,
+                    }}
+                  >
                   <summary className="feed-filter-summary">
                     <div style={{ flex: 1, fontSize: 13, lineHeight: 1.65, color: theme.text }}>
                       {familyNotesEditing ? (
@@ -1414,11 +1415,13 @@ export default function HomeClient() {
                     </div>
                   </div>
                 </details>
-                <details
-                  className="feed-filter-disclosure"
-                  open={feedFilterOpen}
-                  onToggle={(e) => setFeedFilterOpen(e.currentTarget.open)}
-                >
+                </ScrollReveal>
+                <ScrollReveal scrollRootRef={homeScrollRef}>
+                  <details
+                    className="feed-filter-disclosure"
+                    open={feedFilterOpen}
+                    onToggle={(e) => setFeedFilterOpen(e.currentTarget.open)}
+                  >
                   <summary className="feed-filter-summary">
                     <span style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>{t('feedFilterTitle')}</span>
                     <ChevronDown
@@ -1442,6 +1445,7 @@ export default function HomeClient() {
                     />
                   </div>
                 </details>
+                </ScrollReveal>
               </>
             )}
           </div>
@@ -1480,11 +1484,13 @@ export default function HomeClient() {
         {user && householdId && (
           <>
             {activeTab === 'home' ? (
-              <section style={{ marginBottom: 10 }}>
-                <p style={{ fontSize: 12, color: theme.textSecondary, margin: '0 0 10px' }}>
-                  {t('dailySummary')} · <strong style={{ color: theme.text }}>{todayLogCount}</strong>
-                </p>
-              </section>
+              <ScrollReveal scrollRootRef={homeScrollRef}>
+                <section style={{ marginBottom: 10 }}>
+                  <p style={{ fontSize: 12, color: theme.textSecondary, margin: '0 0 10px' }}>
+                    {t('dailySummary')} · <strong style={{ color: theme.text }}>{todayLogCount}</strong>
+                  </p>
+                </section>
+              </ScrollReveal>
             ) : null}
             {activeTab === 'todo' && (
               <TodoBoard
@@ -1563,7 +1569,7 @@ export default function HomeClient() {
                   </button>
                 </div>
                 <div
-                  className="horizontal-scroll-hide calendar-tag-filter-row"
+                  className="horizontal-scroll-hide home-chip-scroll-snap calendar-tag-filter-row"
                   style={{
                     display: 'flex',
                     flexWrap: 'nowrap',
@@ -2013,40 +2019,42 @@ export default function HomeClient() {
             )}
 
             {activeTab === 'home' && (
-              <LogFeed
-                activeTab={activeTab}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                t={t}
-                theme={theme}
-                highContrast={highContrast}
-                logs={logs}
-                logsByDate={logsByDate}
-                user={user}
-                editingLogId={editingLogId}
-                setEditingLogId={setEditingLogId}
-                editingAction={editingAction}
-                setEditingAction={setEditingAction}
-                onUpdateLog={handleUpdateLog}
-                getMemberName={getMemberName}
-                getLogMedia={getLogMedia}
-                getLogTagLabelKey={getLogTagLabelKey}
-                commentsByLogId={commentsByLogId}
-                replyingTo={replyingTo}
-                setReplyingTo={setReplyingTo}
-                commentDraft={commentDraft}
-                setCommentDraft={setCommentDraft}
-                commentSending={commentSending}
-                addComment={addComment}
-                commentTarget={commentTarget}
-                setCommentTarget={setCommentTarget}
-                longPressTimerRef={longPressTimerRef}
-                setActionPopupLogId={setActionPopupLogId}
-                onPickSticker={(logId) => openStickerPicker(logId)}
-                onTagClick={applyTagFromLogCard}
-                logsInitialLoading={logsInitialLoading}
-                logsRefreshLoading={pullRefreshRefreshing}
-              />
+              <ScrollReveal scrollRootRef={homeScrollRef}>
+                <LogFeed
+                  activeTab={activeTab}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  t={t}
+                  theme={theme}
+                  highContrast={highContrast}
+                  logs={logs}
+                  logsByDate={logsByDate}
+                  user={user}
+                  editingLogId={editingLogId}
+                  setEditingLogId={setEditingLogId}
+                  editingAction={editingAction}
+                  setEditingAction={setEditingAction}
+                  onUpdateLog={handleUpdateLog}
+                  getMemberName={getMemberName}
+                  getLogMedia={getLogMedia}
+                  getLogTagLabelKey={getLogTagLabelKey}
+                  commentsByLogId={commentsByLogId}
+                  replyingTo={replyingTo}
+                  setReplyingTo={setReplyingTo}
+                  commentDraft={commentDraft}
+                  setCommentDraft={setCommentDraft}
+                  commentSending={commentSending}
+                  addComment={addComment}
+                  commentTarget={commentTarget}
+                  setCommentTarget={setCommentTarget}
+                  longPressTimerRef={longPressTimerRef}
+                  setActionPopupLogId={setActionPopupLogId}
+                  onPickSticker={(logId) => openStickerPicker(logId)}
+                  onTagClick={applyTagFromLogCard}
+                  logsInitialLoading={logsInitialLoading}
+                  logsRefreshLoading={pullRefreshRefreshing}
+                />
+              </ScrollReveal>
             )}
             {activeTab === 'search' && (
               <section aria-label="검색" style={{ marginBottom: 20 }}>

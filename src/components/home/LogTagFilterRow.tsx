@@ -26,7 +26,7 @@ export function LogTagFilterRow({ filter, setFilter, options, t: _t, highContras
   return (
     <div style={{ marginTop: 0, marginBottom: 4, width: '100%' }}>
       <div
-        className="horizontal-scroll-hide"
+        className="horizontal-scroll-hide home-chip-scroll-snap"
         style={{
           display: 'flex',
           flexWrap: 'nowrap',
