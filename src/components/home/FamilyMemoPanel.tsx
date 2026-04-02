@@ -2,6 +2,7 @@
 
 import { useRef } from 'react';
 import { FileText } from 'lucide-react';
+import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
 
 type FamilyMemoPanelProps = {
   memoPanelAnimated: boolean;
@@ -26,6 +27,7 @@ export function FamilyMemoPanel({
   onSave,
 }: FamilyMemoPanelProps) {
   const swipeStartXRef = useRef<number | null>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   return (
     <>
@@ -37,7 +39,7 @@ export function FamilyMemoPanel({
           background: 'rgba(0,0,0,0.3)',
           zIndex: 58,
           opacity: memoPanelAnimated ? 1 : 0,
-          transition: 'opacity 0.55s ease-out',
+          transition: prefersReducedMotion ? 'none' : 'opacity 0.55s ease-out',
         }}
         onClick={onClose}
       />
@@ -62,7 +64,9 @@ export function FamilyMemoPanel({
           touchAction: 'pan-y',
           transform: memoPanelAnimated ? 'translateX(0)' : 'translateX(24px)',
           opacity: memoPanelAnimated ? 1 : 0,
-          transition: 'transform 0.65s cubic-bezier(0.22, 0.9, 0.32, 1), opacity 0.55s ease-out',
+          transition: prefersReducedMotion
+            ? 'none'
+            : 'transform 0.65s cubic-bezier(0.22, 0.9, 0.32, 1), opacity 0.55s ease-out',
         }}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => {

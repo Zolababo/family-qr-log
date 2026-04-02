@@ -162,6 +162,7 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
+- **접근성:** `usePrefersReducedMotion` — 홈 스티키 헤더·당겨서 새로고침 높이·가족 메모/피드 필터 `details` 화살표·`FamilyMemoPanel` 슬라이드에 **`prefers-reduced-motion: reduce` 시 transition 비활성**.
 - **문서:** `MIGRATION.md` — 진척도(%) 기준 표·가계부 Supabase **(1)→(2)** 적용 순서 정리.
 - **가계부:** `LedgerPanel` — **이 달 지출 · 분류** 카드 고대비·구역 레이블(`aria-labelledby`)·카테고리 행 구분선.
 - **v0 토큰(로드맵 8/8):** `globals.css`에 `--v0-*` 별칭(기존 토큰 참조), `docs/v0-design-tokens-reference.md` 상태 문구 갱신.
@@ -235,4 +236,4 @@
 
 ---
 
-*마지막 업데이트: 2026-04-02 — 진척도(%) 기준·가계부 DB 순서 문서화; 지출·분류 카드 UX(고대비·a11y).*
+*마지막 업데이트: 2026-04-02 — `prefers-reduced-motion` 연동(스티키·메모 패널 등); 진척도·가계부 DB 순서; 지출·분류 카드 UX.*

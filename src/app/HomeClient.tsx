@@ -12,6 +12,7 @@ import { parseLogMeta } from '../lib/logActionMeta';
 import { getLogMedia } from '../lib/logMedia';
 import { formatDateTime } from '../lib/formatDateTime';
 import { FONT_STEPS, type FontScaleStep } from '../lib/accessibilityFont';
+import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion';
 import { AppHeader } from '../components/layout/AppHeader';
 import { SettingsMenuModal } from '../components/layout/SettingsMenuModal';
 import { BottomTabBar, type TabId } from '../components/layout/BottomTabBar';
@@ -349,6 +350,7 @@ export default function HomeClient() {
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
   const fontScale = FONT_STEPS[fontScaleStep];
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     const el = homeScrollRef.current;
@@ -1155,7 +1157,9 @@ export default function HomeClient() {
                 boxShadow: stickyHeaderVisible ? '0 8px 18px rgba(67, 50, 33, 0.08)' : 'none',
                 opacity: stickyHeaderVisible ? 1 : 0,
                 transform: stickyHeaderVisible ? 'translateY(0)' : 'translateY(-14px)',
-                transition: 'opacity 180ms ease, transform 220ms ease, box-shadow 220ms ease',
+                transition: prefersReducedMotion
+                  ? 'none'
+                  : 'opacity 180ms ease, transform 220ms ease, box-shadow 220ms ease',
               }}
             >
               <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />
@@ -1191,7 +1195,7 @@ export default function HomeClient() {
               paddingBottom: pullRefreshRefreshing || pullRefreshOffset > 12 ? 6 : 0,
               color: highContrast ? '#94a3b8' : 'var(--text-secondary)',
               fontSize: 12,
-              transition: 'height 0.18s ease-out',
+              transition: prefersReducedMotion ? 'none' : 'height 0.18s ease-out',
               overflow: 'hidden',
             }}
           >
@@ -1322,7 +1326,7 @@ export default function HomeClient() {
                       style={{
                         color: theme.textSecondary,
                         transform: familyNotesEditing ? 'rotate(180deg)' : undefined,
-                        transition: 'transform 0.2s ease',
+                        transition: prefersReducedMotion ? 'none' : 'transform 0.2s ease',
                         flexShrink: 0,
                       }}
                     />
@@ -1424,7 +1428,7 @@ export default function HomeClient() {
                       style={{
                         color: theme.textSecondary,
                         transform: feedFilterOpen ? 'rotate(180deg)' : undefined,
-                        transition: 'transform 0.2s ease',
+                        transition: prefersReducedMotion ? 'none' : 'transform 0.2s ease',
                       }}
                     />
                   </summary>
