@@ -6,6 +6,18 @@ import { normalizeLedgerCategory } from './ledgerCategoryLabels';
 import type { LedgerDirection, LedgerEntry } from './ledgerTypes';
 
 export type { LedgerCategorySlug } from './ledgerCategoryLabels';
+
+const LEDGER_FETCH_LIMIT = 300;
+
+function sortLedgerEntries(rows: LedgerEntry[]): LedgerEntry[] {
+  const next = [...rows];
+  next.sort((a, b) => {
+    const d = b.occurred_on.localeCompare(a.occurred_on);
+    if (d !== 0) return d;
+    return b.created_at.localeCompare(a.created_at);
+  });
+  return next.slice(0, LEDGER_FETCH_LIMIT);
+}
 export { LEDGER_CATEGORY_SLUGS } from './ledgerCategoryLabels';
 
 type LedgerInput = {
@@ -69,6 +81,46 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
     void loadEntries();
   }, [loadEntries]);
 
+  useEffect(() => {
+    if (!householdId) return;
+
+    const applyRow = (row: LedgerEntry) => {
+      setEntries((prev) => {
+        const map = new Map(prev.map((e) => [e.id, e]));
+        map.set(row.id, row);
+        return sortLedgerEntries([...map.values()]);
+      });
+    };
+
+    const channel = supabase
+      .channel(`ledger-entries-${householdId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ledger_entries',
+          filter: `household_id=eq.${householdId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const id = (payload.old as { id?: string } | null)?.id;
+            if (id) {
+              setEntries((prev) => sortLedgerEntries(prev.filter((e) => e.id !== id)));
+            }
+            return;
+          }
+          const row = payload.new as LedgerEntry | null;
+          if (row?.id) applyRow(row);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [householdId]);
+
   const addEntry = useCallback(
     async (input: LedgerInput) => {
       if (!householdId || !userId) return false;
@@ -92,14 +144,11 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
         return false;
       }
       if (data) {
+        const row = data as LedgerEntry;
         setEntries((prev) => {
-          const next = [data as LedgerEntry, ...prev];
-          next.sort((a, b) => {
-            const d = b.occurred_on.localeCompare(a.occurred_on);
-            if (d !== 0) return d;
-            return b.created_at.localeCompare(a.created_at);
-          });
-          return next;
+          const map = new Map(prev.map((e) => [e.id, e]));
+          map.set(row.id, row);
+          return sortLedgerEntries([...map.values()]);
         });
       } else {
         await loadEntries();
@@ -138,15 +187,7 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
       }
       if (data) {
         const row = data as LedgerEntry;
-        setEntries((prev) => {
-          const next = prev.map((e) => (e.id === id ? row : e));
-          next.sort((a, b) => {
-            const d = b.occurred_on.localeCompare(a.occurred_on);
-            if (d !== 0) return d;
-            return b.created_at.localeCompare(a.created_at);
-          });
-          return next;
-        });
+        setEntries((prev) => sortLedgerEntries(prev.map((e) => (e.id === id ? row : e))));
       } else {
         await loadEntries();
       }
