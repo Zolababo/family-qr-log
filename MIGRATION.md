@@ -144,7 +144,7 @@
 **아키텍처**
 - 메인: `src/app/HomeClient.tsx`
 - 태그/필터: `src/lib/logTags.ts`
-- 홈: `src/components/home/LogTagFilterRow.tsx`, `LogFeed.tsx`, `LogFeedSkeleton.tsx`, `SearchTabPanel.tsx`, `src/components/layout/AppHeader.tsx`, `BottomTabBar.tsx`, `MemberFilter.tsx`
+- 홈: `src/components/home/LogTagFilterRow.tsx`, `LogFeed.tsx`, `LogFeedSkeleton.tsx`, `SearchTabPanel.tsx`, `CalendarTabPanel.tsx`, `src/components/layout/AppHeader.tsx`, `BottomTabBar.tsx`, `MemberFilter.tsx`
 - 공통 UI(소규모): `src/components/ui/Toast.tsx`, `src/components/ui/Empty.tsx`, `src/components/ui/Badge.tsx` (`LogTagBadge`), `src/components/ui/Button.tsx` (`primary` | `secondary` | `ghost` — 점진 도입)
 - 스타일: `src/app/globals.css`
 - 문자열: `src/app/translations.ts` (키 예: `familyBoardTitle`, `feedFilterTitle`, `nextPostTagLabel`, `qrTabGuest`, `logGeneral`, `topicHealth` …)
@@ -163,6 +163,7 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
+- **리팩터:** 캘린더 탭 UI를 `CalendarTabPanel.tsx`로 분리 — 월 그리드·날짜 상세·가계부/할 일 블록·성장 타임라인·오늘의 회상까지 동일 동작, 데이터·`useLogDerivedViews`·ledger/todo 프리필은 `HomeClient` 유지.
 - **리팩터:** 검색 탭 UI를 `SearchTabPanel.tsx`로 분리 — 미디어 그리드·텍스트 목록·`Empty`는 동일, 상태·Supabase는 `HomeClient` 유지.
 - **홈 헤더:** 홈 전용 이중 스티키·IO 제거 — 모든 탭 동일하게 `AppHeader`만 `sticky top:0`; 타이틀·프로필 사이 **구분선 제거**; 스크롤 영역·당겨서 새로고침 줄 **배경색**으로 상단 비침 완화.
 - **설정 버튼:** PWA 아이콘(`icon-192`) 표시, `unoptimized`로 깨짐 방지; 표시 크기·히트 영역 ~30% 확대.
@@ -179,7 +180,7 @@
 - (이전) `PlaceButtons` 삭제, `household_memos` SQL 등.
 
 **다음 우선순위 (로드맵 표 §6)**  
-- **표 8단계 완료.** 이후: `HomeClient` 추가 분할(예: 캘린더 탭 큰 JSX 블록)은 **한 덩어리씩** — 제품 백로그(반응·피드 고정 등) 또는 `--v0-*` 실제 색 치환(디자인 합의 후).
+- **표 8단계 완료.** 이후: `HomeClient` 추가 분할(예: 홈 상단 블록·설정 흐름)은 **한 덩어리씩** — 제품 백로그(반응·피드 고정 등) 또는 `--v0-*` 실제 색 치환(디자인 합의 후).
 
 ### 진척도 (한눈에 — “몇 %?”에 쓰는 기준)
 
