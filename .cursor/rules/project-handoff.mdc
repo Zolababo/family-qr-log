@@ -14,3 +14,11 @@ alwaysApply: true
 - Main branch is used for deployment. After requested UI/asset changes, verify with `npm run build`, then commit and push `main`.
 - **Session / handoff continuity**: Keep product context connected across new chats or editor windows by maintaining `MIGRATION.md` (project memo) and this rule; do not rely on ad-hoc “migration” outside documented deploy + SQL steps.
 - **Fullscreen media (`/media`)**: Download prefers `fetch` → blob → save; on success the app shows a completion toast. If the browser blocks blob download and opens the file in a new tab instead, the fallback toast explains long-press save / share—behavior is browser-dependent, not a separate migration step.
+
+- **Cursor window crashes with `reason: oom` (stable workflow for heavy work)**  
+  - **One chunk per session**: Large `HomeClient` refactors — split into **one file or one feature per chat**. Do not @-attach `MIGRATION.md` and a multi-thousand-line file at the same time (context + UI = high RAM).  
+  - **New chat after long threads**: High Context used increases OOM risk. Resume with **`@MIGRATION.md` + one short instruction** in a fresh chat.  
+  - **Run builds outside Cursor when possible**: Use **external** PowerShell / Windows Terminal for `npm run build`, and avoid running the Agent and a full production build at the same peak.  
+  - **Close unused tabs / diffs**: Reduces renderer memory.  
+  - **OS headroom**: Close heavy browser tabs / apps; if OOM persists, consider increasing Windows **virtual memory (page file)**.  
+  - **Checklist**: (1) New chat or end long session first (2) attach only `@MIGRATION.md` plus one-line goal (3) @ at most **one** huge file per message (4) after code edits, **commit** in-repo; run `npm run build` in an **external** terminal when the editor already feels heavy.

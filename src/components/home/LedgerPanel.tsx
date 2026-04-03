@@ -107,7 +107,7 @@ export function LedgerPanel({
     const map = new Map<string, number>();
     for (const e of listEntries) {
       if (e.direction !== 'expense') continue;
-      const c = e.category;
+      const c = normalizeLedgerCategory(e.category);
       map.set(c, (map.get(c) ?? 0) + e.amount_krw);
     }
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
