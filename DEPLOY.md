@@ -210,3 +210,19 @@ CREATE POLICY "Allow insert log_comments"
 | 커밋           | `git commit -m "메시지"` |
 | 푸시(배포 반영) | `git push origin main` |
 | 최신 받기      | `git pull origin main` |
+
+## 10. 운영 DB — 한 번에 점검할 순서 (밤톨이네 이야기)
+
+**백업 후** Supabase **SQL Editor**에서 필요한 것만 순서대로 실행하세요. 이미 적용된 단계는 스크립트가 `IF NOT EXISTS` 등으로 대부분 건너뛰거나, "already exists"면 무시해도 됩니다.
+
+| 순서 | 기능 | 할 일 |
+|------|------|--------|
+| 1 | 로그 미디어·Storage | 위 **§6** (logs 컬럼, `log-images` 버킷·정책) |
+| 2 | 프로필 사진 (선택) | **§6** 하단 ①②③ (`avatars`) |
+| 3 | 가족 메모 동기화 | `household_memos` 테이블이 **이미 있어야** 합니다. 그다음 레포 순서: `scripts/add-household-memos-board-columns.sql` → `scripts/household-memos-updated-at.sql` → `scripts/enable-household-memos-rls-policies.sql`. Realtime 쓰려면 Dashboard **Database → Replication** 에서 `household_memos` 포함 여부 확인 (**`MIGRATION.md` §2-3**). |
+| 4 | 가계부 | **§7**: `scripts/ledger-entries-migration.sql` → (선택) `scripts/enable-ledger-realtime-publication.sql`. Publications에 `ledger_entries` 포함 여부 확인. |
+| 5 | 댓글·답글 | **§8**로 `log_comments` 테이블·기본 RLS. 수정·삭제가 막히면 `scripts/enable-log-comments-rls-policies.sql` 추가 실행. |
+| 6 | 태그 데이터 정리 (선택) | 기존 `logs.place_slug` 값을 v2 슬러그로 맞출 때만 `scripts/migrate-logs-place-slug-canonical.sql` (적용 전 데이터 백업·검토). |
+| 7 | RLS 점검 (읽기 전용) | `scripts/rls-baseline-production-checklist.sql` — 정책 목록 확인용 쿼리. 실행으로 스키마를 바꾸지는 않습니다. |
+
+**배포 후 앱이 예전처럼 보일 때**: 브라우저·PWA 캐시 삭제, Vercel 배포 완료 여부 확인 (**`MIGRATION.md` §3**).
