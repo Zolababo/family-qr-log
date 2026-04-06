@@ -6,6 +6,9 @@ import { Home, Calendar, Search, Plus, CheckSquare2, Wallet } from 'lucide-react
 
 export type TabId = 'home' | 'calendar' | 'search' | 'todo' | 'ledger';
 
+/** 하단 탭 표시 순서 — 스와이프로 이전/다음 탭 이동 시 동일 순서 사용 */
+export const BOTTOM_TAB_ORDER: TabId[] = ['home', 'calendar', 'search', 'todo', 'ledger'];
+
 type BottomTabBarProps = {
   activeTab: TabId;
   onTabChange: (id: TabId) => void;

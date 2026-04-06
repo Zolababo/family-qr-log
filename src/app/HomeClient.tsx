@@ -34,6 +34,7 @@ import { SearchTabPanel } from '../components/home/SearchTabPanel';
 import { CalendarTabPanel } from '../components/home/CalendarTabPanel';
 import { TodoBoard, type TodoPeriod, type TodoPriorityKey, type TodoTask } from '../components/home/TodoBoard';
 import { usePullToRefresh } from '../features/home/usePullToRefresh';
+import { useTabSwipeNavigation } from '../features/home/useTabSwipeNavigation';
 import { useHouseholdBootstrap } from '../features/members/useHouseholdBootstrap';
 import { useHouseholdMembers } from '../features/members/useHouseholdMembers';
 import { useProfileEditor } from '../features/members/useProfileEditor';
@@ -528,6 +529,25 @@ export default function HomeClient() {
     scrollRef: homeScrollRef,
     enabled: !!householdId && !!user,
     onRefresh: performPullRefresh,
+  });
+
+  const tabSwipeGestureEnabled =
+    !!user &&
+    !!householdId &&
+    !showMemoPanel &&
+    !settingsMenuOpen &&
+    !commentTarget &&
+    !stickerPickerOpen &&
+    !showNameEditModal &&
+    !showAccessibilityModal &&
+    !actionPopupLogId &&
+    !enlargedAvatarUrl;
+
+  useTabSwipeNavigation({
+    scrollRef: homeScrollRef,
+    activeTab,
+    onTabChange: setActiveTab,
+    enabled: tabSwipeGestureEnabled,
   });
 
   const handleUpdateLog = async (logId: string, newAction: string) => {

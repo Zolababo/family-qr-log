@@ -169,6 +169,7 @@
 3. **안정성 체크리스트**를 건드린 작업마다 훑는다.
 
 **이번 세션에서 한 일 (최근)**
+- **UX:** 메인 세로 스크롤 영역에서 **좌·우 스와이프**로 하단 탭 순서 이동(`BOTTOM_TAB_ORDER`와 동일). 오른쪽 끝 ~42px에서 시작한 제스처는 **메모 패널 엣지**와 겹치지 않게 탭 전환 안 함. 가로 칩·멤버 필터·입력란·모달·댓글 시트 열림 등에서는 비활성 — `src/features/home/useTabSwipeNavigation.ts`.
 - **문서:** `DEPLOY.md` **§10** — 운영 DB 적용 순서를 표로 통합(로그/Storage·가족 메모·가계부·댓글·선택 마이그레이션·RLS 점검 쿼리). `MIGRATION.md` §5 예시 문장에 §10 참조 추가.
 - **리팩터:** 캘린더 탭 UI를 `CalendarTabPanel.tsx`로 분리 — 월 그리드·날짜 상세·가계부/할 일 블록·성장 타임라인·오늘의 회상까지 동일 동작, 데이터·`useLogDerivedViews`·ledger/todo 프리필은 `HomeClient` 유지.
 - **리팩터:** 검색 탭 UI를 `SearchTabPanel.tsx`로 분리 — 미디어 그리드·텍스트 목록·`Empty`는 동일, 상태·Supabase는 `HomeClient` 유지.
@@ -254,4 +255,4 @@
 
 ---
 
-*마지막 업데이트: 2026-04-06 — `DEPLOY.md` §10 운영 DB 통합 체크리스트 추가.*
+*마지막 업데이트: 2026-04-06 — 하단 탭 스와이프 전환(`useTabSwipeNavigation`); `DEPLOY.md` §10.*
