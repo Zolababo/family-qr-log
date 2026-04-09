@@ -338,6 +338,9 @@ export default function HomeClient() {
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
   const activeTabInitializedRef = useRef(false);
+  const pendingRestoreTopRef = useRef<number | null>(null);
+  const restoreAttemptRef = useRef(0);
+  const restoreTimerRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
   const fontScale = FONT_STEPS[fontScaleStep];
@@ -360,13 +363,51 @@ export default function HomeClient() {
       if (!raw) return;
       const nextTop = Number(raw);
       if (!Number.isFinite(nextTop) || nextTop < 0) return;
+      pendingRestoreTopRef.current = nextTop;
+      restoreAttemptRef.current = 0;
+    } catch {}
+  }, []);
+  const tryRestoreHomeScroll = useCallback(() => {
+    const targetTop = pendingRestoreTopRef.current;
+    if (targetTop == null) return;
+    const el = homeScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: targetTop, left: 0, behavior: 'auto' });
+    const diff = Math.abs(el.scrollTop - targetTop);
+    if (diff <= 2 || restoreAttemptRef.current >= 8) {
+      pendingRestoreTopRef.current = null;
+      restoreAttemptRef.current = 0;
+      try {
+        sessionStorage.removeItem(HOME_SCROLL_TOP_KEY);
+      } catch {}
+      return;
+    }
+    restoreAttemptRef.current += 1;
+    if (restoreTimerRef.current) window.clearTimeout(restoreTimerRef.current);
+    restoreTimerRef.current = window.setTimeout(() => {
+      tryRestoreHomeScroll();
+    }, 90);
+  }, []);
+  useEffect(() => {
+    // Retry restore while dynamic feed contents settle.
+    if (activeTab !== 'home') return;
+    if (pendingRestoreTopRef.current == null) return;
+    tryRestoreHomeScroll();
+  }, [activeTab, logs.length, tryRestoreHomeScroll]);
+  useEffect(() => {
+    if (pathname !== '/') return;
+    if (pendingRestoreTopRef.current == null) return;
+    tryRestoreHomeScroll();
+  }, [pathname, tryRestoreHomeScroll]);
+  useEffect(() => {
+    return () => {
+      if (restoreTimerRef.current) window.clearTimeout(restoreTimerRef.current);
       const el = homeScrollRef.current;
       if (!el) return;
-      requestAnimationFrame(() => {
-        el.scrollTo({ top: nextTop, left: 0, behavior: 'auto' });
-      });
-      sessionStorage.removeItem(HOME_SCROLL_TOP_KEY);
-    } catch {}
+      try {
+        sessionStorage.setItem(HOME_SCROLL_TOP_KEY, String(el.scrollTop));
+      } catch {}
+    };
   }, []);
 
   useHouseholdBootstrap({
@@ -1096,22 +1137,23 @@ export default function HomeClient() {
           aria-hidden
         />
         {user && householdId ? (
+          <>
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 33,
+              marginBottom: 4,
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingBottom: 2,
+              background: highContrast ? '#0f0f0f' : 'var(--bg-base)',
+              borderBottom: 'none',
+              boxSizing: 'border-box',
+            }}
+          >
+            <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />
+          </div>
           <div className="home-top-bleed" style={{ marginBottom: 6 }}>
-            <div
-              style={{
-                position: 'sticky',
-                top: 0,
-                zIndex: 33,
-                marginBottom: 4,
-                paddingTop: 'env(safe-area-inset-top, 0px)',
-                paddingBottom: 2,
-                background: highContrast ? '#0f0f0f' : 'var(--bg-base)',
-                borderBottom: 'none',
-                boxSizing: 'border-box',
-              }}
-            >
-              <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />
-            </div>
             <MemberFilter
               user={user}
               members={members}
@@ -1316,6 +1358,7 @@ export default function HomeClient() {
               </>
             )}
           </div>
+          </>
         ) : (
           <div className="home-top-bleed" style={{ marginBottom: 6 }}>
             <AppHeader t={t} />

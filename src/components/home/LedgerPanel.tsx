@@ -119,6 +119,22 @@ export function LedgerPanel({
     }
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   }, [listEntries]);
+  const amountByPaymentMethod = useMemo(() => {
+    const map = new Map<LedgerPaymentMethod, { amount: number; count: number }>();
+    for (const method of LEDGER_PAYMENT_METHODS) {
+      map.set(method, { amount: 0, count: 0 });
+    }
+    for (const e of listEntries) {
+      const method = normalizeLedgerPaymentMethod(e.payment_method);
+      const prev = map.get(method) ?? { amount: 0, count: 0 };
+      map.set(method, { amount: prev.amount + e.amount_krw, count: prev.count + 1 });
+    }
+    return LEDGER_PAYMENT_METHODS.map((method) => ({
+      method,
+      amount: map.get(method)?.amount ?? 0,
+      count: map.get(method)?.count ?? 0,
+    }));
+  }, [listEntries]);
 
   const [occurredOn, setOccurredOn] = useState(() => defaultDateForView(new Date().getFullYear(), new Date().getMonth() + 1));
   const [direction, setDirection] = useState<LedgerDirection>('expense');
@@ -300,6 +316,46 @@ export function LedgerPanel({
         >
           <div style={{ fontSize: 10, color: theme.textSecondary, marginBottom: 4 }}>{t('ledgerBalance')}</div>
           <div style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>{fmtKrw(monthSummary.balance)}</div>
+        </div>
+      </div>
+      <div
+        style={{
+          marginBottom: 14,
+          padding: 10,
+          borderRadius: theme.radiusLg,
+          border: theme.border,
+          background: theme.card,
+          boxShadow: theme.cardShadow,
+        }}
+      >
+        <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 8 }}>{t('ledgerByPaymentMethod')}</div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: 8,
+          }}
+        >
+          {amountByPaymentMethod.map(({ method, amount, count }) => (
+            <div
+              key={method}
+              style={{
+                padding: '8px 10px',
+                borderRadius: 10,
+                border: '1px solid var(--divider)',
+                background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+              }}
+            >
+              <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 4 }}>
+                {t(LEDGER_PAYMENT_METHOD_TKEY[method])}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: theme.text }}>{fmtKrw(amount)}</div>
+              <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }}>
+                {count.toLocaleString('ko-KR')}
+                {t('ledgerCountSuffix')}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
       <div
