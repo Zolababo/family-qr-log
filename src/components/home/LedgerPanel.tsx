@@ -119,22 +119,20 @@ export function LedgerPanel({
     }
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   }, [listEntries]);
-  const amountByPaymentMethod = useMemo(() => {
-    const map = new Map<LedgerPaymentMethod, { amount: number; count: number }>();
-    for (const method of LEDGER_PAYMENT_METHODS) {
-      map.set(method, { amount: 0, count: 0 });
-    }
+  const expenseByPaymentMethod = useMemo(() => {
+    const map = new Map<LedgerPaymentMethod, number>();
+    for (const method of LEDGER_PAYMENT_METHODS) map.set(method, 0);
     for (const e of listEntries) {
+      if (e.direction !== 'expense') continue;
       const method = normalizeLedgerPaymentMethod(e.payment_method);
-      const prev = map.get(method) ?? { amount: 0, count: 0 };
-      map.set(method, { amount: prev.amount + e.amount_krw, count: prev.count + 1 });
+      map.set(method, (map.get(method) ?? 0) + e.amount_krw);
     }
     return LEDGER_PAYMENT_METHODS.map((method) => ({
       method,
-      amount: map.get(method)?.amount ?? 0,
-      count: map.get(method)?.count ?? 0,
-    })).filter((row) => row.amount > 0 || row.count > 0);
-  }, [listEntries]);
+      amount: map.get(method) ?? 0,
+      ratio: monthSummary.expense > 0 ? ((map.get(method) ?? 0) / monthSummary.expense) * 100 : 0,
+    })).sort((a, b) => b.amount - a.amount);
+  }, [listEntries, monthSummary.expense]);
   const paymentMethodIcon = (method: LedgerPaymentMethod) => {
     switch (method) {
       case 'card':
@@ -158,6 +156,7 @@ export function LedgerPanel({
   const [memo, setMemo] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showExpenseChart, setShowExpenseChart] = useState(false);
 
   useEffect(() => {
     if (editingId && !entries.some((e) => e.id === editingId)) setEditingId(null);
@@ -307,18 +306,24 @@ export function LedgerPanel({
           <div style={{ fontSize: 10, color: theme.textSecondary, marginBottom: 4 }}>{t('ledgerSumIncome')}</div>
           <div style={{ fontSize: 14, fontWeight: 700, color: highContrast ? '#86efac' : 'var(--accent)' }}>{fmtKrw(monthSummary.income)}</div>
         </div>
-        <div
+        <button
+          type="button"
+          onClick={() => setShowExpenseChart(true)}
           style={{
             padding: '10px 8px',
             borderRadius: theme.radiusLg,
             border: theme.border,
             background: highContrast ? '#3d1a1a' : 'color-mix(in srgb, #fecaca 35%, var(--bg-card))',
             boxShadow: theme.cardShadow,
+            textAlign: 'left',
+            cursor: 'pointer',
           }}
+          aria-label={t('ledgerOpenExpenseChart')}
+          title={t('ledgerOpenExpenseChart')}
         >
           <div style={{ fontSize: 10, color: theme.textSecondary, marginBottom: 4 }}>{t('ledgerSumExpense')}</div>
           <div style={{ fontSize: 14, fontWeight: 700, color: highContrast ? '#fca5a5' : '#b91c1c' }}>{fmtKrw(monthSummary.expense)}</div>
-        </div>
+        </button>
         <div
           style={{
             padding: '10px 8px',
@@ -330,61 +335,6 @@ export function LedgerPanel({
         >
           <div style={{ fontSize: 10, color: theme.textSecondary, marginBottom: 4 }}>{t('ledgerBalance')}</div>
           <div style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>{fmtKrw(monthSummary.balance)}</div>
-        </div>
-      </div>
-      <div
-        style={{
-          marginBottom: 10,
-          borderRadius: 999,
-          border: theme.border,
-          background: highContrast ? '#1e1e1e' : 'var(--bg-card)',
-          boxShadow: theme.cardShadow,
-          padding: '6px 8px',
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch',
-        }}
-      >
-        <div style={{ display: 'inline-flex', minWidth: '100%', gap: 6 }}>
-          <span
-            style={{
-              flexShrink: 0,
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '4px 8px',
-              borderRadius: 999,
-              border: '1px solid var(--divider)',
-              background: highContrast ? '#111' : 'var(--bg-subtle)',
-              color: theme.textSecondary,
-              fontSize: 11,
-              fontWeight: 700,
-            }}
-          >
-            {t('ledgerByPaymentMethod')}
-          </span>
-          {(amountByPaymentMethod.length > 0 ? amountByPaymentMethod : LEDGER_PAYMENT_METHODS.map((method) => ({ method, amount: 0, count: 0 }))).map(({ method, amount }) => (
-            <span
-              key={method}
-              style={{
-                flexShrink: 0,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '4px 8px',
-                borderRadius: 999,
-                border: '1px solid var(--divider)',
-                background: highContrast ? '#111' : 'var(--bg-subtle)',
-                color: theme.text,
-                fontSize: 11,
-                fontWeight: 700,
-                whiteSpace: 'nowrap',
-              }}
-              title={`${t(LEDGER_PAYMENT_METHOD_TKEY[method])}: ${fmtKrw(amount)}`}
-            >
-              {paymentMethodIcon(method)}
-              <span>{t(LEDGER_PAYMENT_METHOD_TKEY[method])}</span>
-              <span style={{ color: theme.textSecondary, fontWeight: 600 }}>{fmtKrw(amount)}</span>
-            </span>
-          ))}
         </div>
       </div>
       <div
@@ -820,6 +770,94 @@ export function LedgerPanel({
           ))}
         </ul>
       )}
+      {showExpenseChart ? (
+        <>
+          <div
+            role="presentation"
+            onClick={() => setShowExpenseChart(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.45)',
+              zIndex: 55,
+            }}
+          />
+          <div
+            role="dialog"
+            aria-label={t('ledgerExpenseChartTitle')}
+            style={{
+              position: 'fixed',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(92vw, 420px)',
+              maxHeight: '78dvh',
+              overflowY: 'auto',
+              borderRadius: 14,
+              border: theme.border,
+              background: highContrast ? '#141414' : 'var(--bg-card)',
+              boxShadow: '0 18px 44px rgba(0,0,0,0.28)',
+              zIndex: 56,
+              padding: 14,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: theme.text }}>{t('ledgerExpenseChartTitle')}</div>
+              <button
+                type="button"
+                onClick={() => setShowExpenseChart(false)}
+                style={{
+                  border: '1px solid var(--divider)',
+                  background: 'transparent',
+                  color: theme.textSecondary,
+                  borderRadius: 8,
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                }}
+              >
+                {t('close')}
+              </button>
+            </div>
+            <div style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 10 }}>
+              {t('ledgerSumExpense')}: <strong style={{ color: theme.text }}>{fmtKrw(monthSummary.expense)}</strong>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {expenseByPaymentMethod.map(({ method, amount, ratio }) => (
+                <div key={method} style={{ display: 'grid', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: theme.text }}>
+                      {paymentMethodIcon(method)}
+                      {t(LEDGER_PAYMENT_METHOD_TKEY[method])}
+                    </span>
+                    <span style={{ color: theme.textSecondary }}>
+                      {fmtKrw(amount)} · {ratio.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      width: '100%',
+                      height: 8,
+                      borderRadius: 999,
+                      background: highContrast ? '#2a2a2a' : 'var(--bg-subtle)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.max(0, Math.min(100, ratio))}%`,
+                        height: '100%',
+                        borderRadius: 999,
+                        background: 'var(--accent)',
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }
