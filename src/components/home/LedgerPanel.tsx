@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Pencil, Trash2 } from 'lucide-react';
+import { Banknote, ChevronLeft, ChevronRight, CreditCard, Download, Ellipsis, Gift, Pencil, Ticket, Trash2 } from 'lucide-react';
 import {
   LEDGER_CATEGORY_SLUGS,
   useHouseholdLedger,
@@ -133,8 +133,22 @@ export function LedgerPanel({
       method,
       amount: map.get(method)?.amount ?? 0,
       count: map.get(method)?.count ?? 0,
-    }));
+    })).filter((row) => row.amount > 0 || row.count > 0);
   }, [listEntries]);
+  const paymentMethodIcon = (method: LedgerPaymentMethod) => {
+    switch (method) {
+      case 'card':
+        return <CreditCard size={14} strokeWidth={1.8} aria-hidden />;
+      case 'cash':
+        return <Banknote size={14} strokeWidth={1.8} aria-hidden />;
+      case 'gift':
+        return <Gift size={14} strokeWidth={1.8} aria-hidden />;
+      case 'gglocal':
+        return <Ticket size={14} strokeWidth={1.8} aria-hidden />;
+      default:
+        return <Ellipsis size={14} strokeWidth={1.8} aria-hidden />;
+    }
+  };
 
   const [occurredOn, setOccurredOn] = useState(() => defaultDateForView(new Date().getFullYear(), new Date().getMonth() + 1));
   const [direction, setDirection] = useState<LedgerDirection>('expense');
@@ -320,41 +334,56 @@ export function LedgerPanel({
       </div>
       <div
         style={{
-          marginBottom: 14,
-          padding: 10,
-          borderRadius: theme.radiusLg,
+          marginBottom: 10,
+          borderRadius: 999,
           border: theme.border,
-          background: theme.card,
+          background: highContrast ? '#1e1e1e' : 'var(--bg-card)',
           boxShadow: theme.cardShadow,
+          padding: '6px 8px',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
-        <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 8 }}>{t('ledgerByPaymentMethod')}</div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-            gap: 8,
-          }}
-        >
-          {amountByPaymentMethod.map(({ method, amount, count }) => (
-            <div
+        <div style={{ display: 'inline-flex', minWidth: '100%', gap: 6 }}>
+          <span
+            style={{
+              flexShrink: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '4px 8px',
+              borderRadius: 999,
+              border: '1px solid var(--divider)',
+              background: highContrast ? '#111' : 'var(--bg-subtle)',
+              color: theme.textSecondary,
+              fontSize: 11,
+              fontWeight: 700,
+            }}
+          >
+            {t('ledgerByPaymentMethod')}
+          </span>
+          {(amountByPaymentMethod.length > 0 ? amountByPaymentMethod : LEDGER_PAYMENT_METHODS.map((method) => ({ method, amount: 0, count: 0 }))).map(({ method, amount }) => (
+            <span
               key={method}
               style={{
-                padding: '8px 10px',
-                borderRadius: 10,
+                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '4px 8px',
+                borderRadius: 999,
                 border: '1px solid var(--divider)',
-                background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
+                background: highContrast ? '#111' : 'var(--bg-subtle)',
+                color: theme.text,
+                fontSize: 11,
+                fontWeight: 700,
+                whiteSpace: 'nowrap',
               }}
+              title={`${t(LEDGER_PAYMENT_METHOD_TKEY[method])}: ${fmtKrw(amount)}`}
             >
-              <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 4 }}>
-                {t(LEDGER_PAYMENT_METHOD_TKEY[method])}
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: theme.text }}>{fmtKrw(amount)}</div>
-              <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }}>
-                {count.toLocaleString('ko-KR')}
-                {t('ledgerCountSuffix')}
-              </div>
-            </div>
+              {paymentMethodIcon(method)}
+              <span>{t(LEDGER_PAYMENT_METHOD_TKEY[method])}</span>
+              <span style={{ color: theme.textSecondary, fontWeight: 600 }}>{fmtKrw(amount)}</span>
+            </span>
           ))}
         </div>
       </div>

@@ -341,6 +341,8 @@ export default function HomeClient() {
   const pendingRestoreTopRef = useRef<number | null>(null);
   const restoreAttemptRef = useRef(0);
   const restoreTimerRef = useRef<number | null>(null);
+  const lastScrollTopRef = useRef(0);
+  const [headerRevealed, setHeaderRevealed] = useState(true);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
   const fontScale = FONT_STEPS[fontScaleStep];
@@ -399,6 +401,27 @@ export default function HomeClient() {
     if (pendingRestoreTopRef.current == null) return;
     tryRestoreHomeScroll();
   }, [pathname, tryRestoreHomeScroll]);
+  useEffect(() => {
+    const el = homeScrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const current = el.scrollTop;
+      const prev = lastScrollTopRef.current;
+      lastScrollTopRef.current = current;
+      if (current <= 16) {
+        if (!headerRevealed) setHeaderRevealed(true);
+        return;
+      }
+      // Reveal header when scrolling up, hide when scrolling down.
+      if (current < prev - 2) {
+        if (!headerRevealed) setHeaderRevealed(true);
+      } else if (current > prev + 2) {
+        if (headerRevealed) setHeaderRevealed(false);
+      }
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [headerRevealed]);
   useEffect(() => {
     return () => {
       if (restoreTimerRef.current) window.clearTimeout(restoreTimerRef.current);
@@ -1149,6 +1172,9 @@ export default function HomeClient() {
               background: highContrast ? '#0f0f0f' : 'var(--bg-base)',
               borderBottom: 'none',
               boxSizing: 'border-box',
+              transform: headerRevealed ? 'translateY(0)' : 'translateY(calc(-100% - env(safe-area-inset-top, 0px)))',
+              opacity: headerRevealed ? 1 : 0.98,
+              transition: prefersReducedMotion ? 'none' : 'transform 0.18s ease, opacity 0.18s ease',
             }}
           >
             <AppHeader t={t} onSettingsClick={() => setSettingsMenuOpen(true)} />
