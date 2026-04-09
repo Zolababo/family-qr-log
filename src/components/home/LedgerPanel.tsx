@@ -512,17 +512,18 @@ export function LedgerPanel({
             style={{
               position: 'fixed',
               left: '50%',
-              top: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 'min(92vw, 440px)',
-              maxHeight: 'min(92dvh, 680px)',
-              overflow: 'hidden',
+              top: 'max(8px, env(safe-area-inset-top, 0px))',
+              transform: 'translateX(-50%)',
+              width: 'min(96vw, 520px)',
+              height: 'calc(100dvh - max(16px, env(safe-area-inset-top, 0px)) - max(16px, env(safe-area-inset-bottom, 0px)))',
+              maxHeight: 'calc(100dvh - max(16px, env(safe-area-inset-top, 0px)) - max(16px, env(safe-area-inset-bottom, 0px)))',
+              overflowY: 'auto',
               zIndex: 58,
               borderRadius: 14,
               border: theme.border,
               background: highContrast ? '#141414' : 'var(--bg-card)',
               boxShadow: '0 18px 44px rgba(0,0,0,0.28)',
-              padding: 12,
+              padding: 14,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
@@ -550,7 +551,7 @@ export function LedgerPanel({
         style={{
           padding: 0,
           display: 'grid',
-          gap: 8,
+          gap: 10,
         }}
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -564,12 +565,12 @@ export function LedgerPanel({
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
-                padding: '7px 9px',
+                padding: '8px 10px',
                 borderRadius: 9,
                 border: highContrast ? '1px solid #ffc107' : '1px solid var(--divider)',
                 background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
                 color: theme.text,
-                fontSize: 13,
+                fontSize: 14,
               }}
             />
           </label>
@@ -581,12 +582,12 @@ export function LedgerPanel({
                 onClick={() => setDirection('expense')}
                 style={{
                   flex: 1,
-                  padding: '7px 8px',
+                  padding: '8px 10px',
                   borderRadius: 9,
                   border: '1px solid var(--divider)',
                   background: direction === 'expense' ? (highContrast ? '#450a0a' : '#fee2e2') : 'transparent',
                   color: direction === 'expense' ? (highContrast ? '#fecaca' : '#991b1b') : theme.textSecondary,
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
@@ -598,12 +599,12 @@ export function LedgerPanel({
                 onClick={() => setDirection('income')}
                 style={{
                   flex: 1,
-                  padding: '7px 8px',
+                  padding: '8px 10px',
                   borderRadius: 9,
                   border: '1px solid var(--divider)',
                   background: direction === 'income' ? (highContrast ? '#14532d' : 'var(--accent-light)') : 'transparent',
                   color: direction === 'income' ? (highContrast ? '#86efac' : 'var(--accent)') : theme.textSecondary,
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
@@ -625,63 +626,63 @@ export function LedgerPanel({
             style={{
               width: '100%',
               boxSizing: 'border-box',
-              padding: '7px 9px',
+              padding: '8px 10px',
               borderRadius: 9,
               border: highContrast ? '1px solid #ffc107' : '1px solid var(--divider)',
               background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
               color: theme.text,
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: 600,
             }}
           />
         </label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <label style={{ display: 'block', fontSize: 12 }}>
-            <span style={{ display: 'block', color: theme.textSecondary, marginBottom: 4 }}>{t('ledgerCategory')}</span>
-            <select
-              value={category}
-              onChange={(e) => setCategory(normalizeLedgerCategory(e.target.value) as LedgerCategorySlug)}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '7px 9px',
-                borderRadius: 9,
-                border: highContrast ? '1px solid #ffc107' : '1px solid var(--divider)',
-                background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
-                color: theme.text,
-                fontSize: 13,
-              }}
-            >
-              {LEDGER_CATEGORY_SLUGS.map((slug) => (
-                <option key={slug} value={slug}>
-                  {t(LEDGER_CATEGORY_TKEY[slug])}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label style={{ display: 'block', fontSize: 12 }}>
-            <span style={{ display: 'block', color: theme.textSecondary, marginBottom: 4 }}>{t('ledgerPaymentMethod')}</span>
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(normalizeLedgerPaymentMethod(e.target.value))}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '7px 9px',
-                borderRadius: 9,
-                border: highContrast ? '1px solid #ffc107' : '1px solid var(--divider)',
-                background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
-                color: theme.text,
-                fontSize: 13,
-              }}
-            >
-              {LEDGER_PAYMENT_METHODS.map((method) => (
-                <option key={method} value={method}>
-                  {t(LEDGER_PAYMENT_METHOD_TKEY[method])}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div>
+          <span style={{ display: 'block', fontSize: 12, color: theme.textSecondary, marginBottom: 6 }}>{t('ledgerCategory')}</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {LEDGER_CATEGORY_SLUGS.map((slug) => (
+              <button
+                key={slug}
+                type="button"
+                onClick={() => setCategory(slug)}
+                style={{
+                  padding: '7px 10px',
+                  borderRadius: 999,
+                  border: '1px solid var(--divider)',
+                  background: category === slug ? 'var(--accent-light)' : 'transparent',
+                  color: category === slug ? 'var(--accent)' : theme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: category === slug ? 700 : 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {t(LEDGER_CATEGORY_TKEY[slug])}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span style={{ display: 'block', fontSize: 12, color: theme.textSecondary, marginBottom: 6 }}>{t('ledgerPaymentMethod')}</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {LEDGER_PAYMENT_METHODS.map((method) => (
+              <button
+                key={method}
+                type="button"
+                onClick={() => setPaymentMethod(method)}
+                style={{
+                  padding: '7px 10px',
+                  borderRadius: 999,
+                  border: '1px solid var(--divider)',
+                  background: paymentMethod === method ? 'var(--accent-light)' : 'transparent',
+                  color: paymentMethod === method ? 'var(--accent)' : theme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: paymentMethod === method ? 700 : 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {t(LEDGER_PAYMENT_METHOD_TKEY[method])}
+              </button>
+            ))}
+          </div>
         </div>
         <label style={{ display: 'block', fontSize: 12 }}>
           <span style={{ display: 'block', color: theme.textSecondary, marginBottom: 4 }}>{t('ledgerMemo')}</span>
@@ -693,12 +694,12 @@ export function LedgerPanel({
             style={{
               width: '100%',
               boxSizing: 'border-box',
-              padding: '7px 9px',
+              padding: '8px 10px',
               borderRadius: 9,
               border: highContrast ? '1px solid #ffc107' : '1px solid var(--divider)',
               background: highContrast ? '#1e1e1e' : 'var(--bg-subtle)',
               color: theme.text,
-              fontSize: 13,
+              fontSize: 14,
             }}
           />
         </label>
