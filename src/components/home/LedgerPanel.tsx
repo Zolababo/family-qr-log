@@ -11,6 +11,13 @@ import {
   formatLedgerCategory,
   normalizeLedgerCategory,
 } from '@/features/ledger/ledgerCategoryLabels';
+import {
+  LEDGER_PAYMENT_METHODS,
+  LEDGER_PAYMENT_METHOD_TKEY,
+  formatLedgerPaymentMethod,
+  normalizeLedgerPaymentMethod,
+  type LedgerPaymentMethod,
+} from '@/features/ledger/ledgerPaymentMethod';
 import type { LedgerCategorySlug } from '@/features/ledger/ledgerCategoryLabels';
 import type { LedgerDirection } from '@/features/ledger/ledgerTypes';
 
@@ -117,6 +124,7 @@ export function LedgerPanel({
   const [direction, setDirection] = useState<LedgerDirection>('expense');
   const [amountRaw, setAmountRaw] = useState('');
   const [category, setCategory] = useState<LedgerCategorySlug>('food');
+  const [paymentMethod, setPaymentMethod] = useState<LedgerPaymentMethod>('other');
   const [memo, setMemo] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -147,6 +155,7 @@ export function LedgerPanel({
     setDirection('expense');
     setAmountRaw('');
     setCategory('food');
+    setPaymentMethod('other');
     setMemo('');
     setEditingId(null);
   };
@@ -157,6 +166,7 @@ export function LedgerPanel({
     setDirection(e.direction);
     setAmountRaw(String(e.amount_krw));
     setCategory(normalizeLedgerCategory(e.category));
+    setPaymentMethod(normalizeLedgerPaymentMethod(e.payment_method));
     setMemo(e.memo ?? '');
   };
 
@@ -179,6 +189,7 @@ export function LedgerPanel({
         amount_krw: amountKrw,
         category,
         memo,
+        payment_method: paymentMethod,
       };
       const ok = editingId
         ? await updateEntry(editingId, payload)
@@ -213,6 +224,7 @@ export function LedgerPanel({
       t('ledgerType'),
       t('ledgerAmount'),
       t('ledgerCategory'),
+      t('ledgerPaymentMethod'),
       t('ledgerMemo'),
       t('ledgerExportRecordedBy'),
     ].map(csvEscape);
@@ -224,6 +236,7 @@ export function LedgerPanel({
         typeLabel,
         String(e.amount_krw),
         formatLedgerCategory(e.category, t),
+        formatLedgerPaymentMethod(e.payment_method, t),
         e.memo ?? '',
         getMemberName(e.user_id),
       ].map(csvEscape);
@@ -504,6 +517,29 @@ export function LedgerPanel({
             ))}
           </div>
         </div>
+        <div style={{ marginBottom: 10 }}>
+          <span style={{ display: 'block', fontSize: 12, color: theme.textSecondary, marginBottom: 6 }}>{t('ledgerPaymentMethod')}</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {LEDGER_PAYMENT_METHODS.map((method) => (
+              <button
+                key={method}
+                type="button"
+                onClick={() => setPaymentMethod(method)}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: 999,
+                  border: '1px solid var(--divider)',
+                  background: paymentMethod === method ? 'var(--accent-light)' : 'transparent',
+                  color: paymentMethod === method ? 'var(--accent)' : theme.textSecondary,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                }}
+              >
+                {t(LEDGER_PAYMENT_METHOD_TKEY[method])}
+              </button>
+            ))}
+          </div>
+        </div>
         <label style={{ display: 'block', fontSize: 12, marginBottom: 12 }}>
           <span style={{ display: 'block', color: theme.textSecondary, marginBottom: 4 }}>{t('ledgerMemo')}</span>
           <input
@@ -652,7 +688,7 @@ export function LedgerPanel({
             >
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4 }}>
-                  {e.occurred_on} · {formatLedgerCategory(e.category, t)} · {getMemberName(e.user_id)}
+                  {e.occurred_on} · {formatLedgerCategory(e.category, t)} · {formatLedgerPaymentMethod(e.payment_method, t)} · {getMemberName(e.user_id)}
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: e.direction === 'income' ? 'var(--accent)' : '#b91c1c' }}>
                   {e.direction === 'income' ? '+' : '-'}

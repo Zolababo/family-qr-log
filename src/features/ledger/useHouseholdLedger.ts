@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/app/api/supabaseClient';
 import { normalizeLedgerCategory } from './ledgerCategoryLabels';
+import { normalizeLedgerPaymentMethod } from './ledgerPaymentMethod';
 import type { LedgerDirection, LedgerEntry } from './ledgerTypes';
 
 export type { LedgerCategorySlug } from './ledgerCategoryLabels';
@@ -37,6 +38,7 @@ type LedgerInput = {
   direction: LedgerDirection;
   amount_krw: number;
   category: string;
+  payment_method: string;
   memo: string;
 };
 
@@ -175,6 +177,7 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
         return false;
       }
       const category = normalizeLedgerCategory(input.category);
+      const paymentMethod = normalizeLedgerPaymentMethod(input.payment_method);
       const payload = {
         household_id: householdId,
         user_id: userId,
@@ -182,6 +185,7 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
         direction: input.direction,
         amount_krw: Math.round(input.amount_krw),
         category,
+        payment_method: paymentMethod,
         memo: input.memo.trim() || null,
       };
       const { data, error } = await supabase.from('ledger_entries').insert(payload).select('*').maybeSingle();
@@ -212,11 +216,13 @@ export function useHouseholdLedger({ householdId, userId, onError, t }: UseHouse
         return false;
       }
       const category = normalizeLedgerCategory(input.category);
+      const paymentMethod = normalizeLedgerPaymentMethod(input.payment_method);
       const patch = {
         occurred_on: input.occurred_on,
         direction: input.direction,
         amount_krw: Math.round(input.amount_krw),
         category,
+        payment_method: paymentMethod,
         memo: input.memo.trim() || null,
       };
       const { data, error } = await supabase

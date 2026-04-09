@@ -161,6 +161,7 @@ const getPlaceChipStyle = (slug: string) => {
 const ACCESSIBILITY_KEY = 'family_qr_log_accessibility';
 const MEMO_KEY = 'family_qr_log_memo';
 const ACTIVE_TAB_KEY = 'family_qr_log_active_tab';
+const HOME_SCROLL_TOP_KEY = 'family_qr_log_home_scroll_top';
 
 function legacyFontStep(scale: number): FontScaleStep {
   const idx = FONT_STEPS.findIndex((s) => Math.abs(s - scale) < 0.03);
@@ -336,15 +337,37 @@ export default function HomeClient() {
   const [growthRange, setGrowthRange] = useState<'week' | 'month' | 'quarter' | 'half' | 'year' | 'all'>('month');
   const [memoPanelAnimated, setMemoPanelAnimated] = useState(false);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
+  const activeTabInitializedRef = useRef(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<number | null>(null);
   const fontScale = FONT_STEPS[fontScaleStep];
   const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
+    // Keep current behavior when user switches tabs, but do not force-reset on initial mount.
+    if (!activeTabInitializedRef.current) {
+      activeTabInitializedRef.current = true;
+      return;
+    }
     const el = homeScrollRef.current;
     if (el) el.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activeTab]);
+
+  useEffect(() => {
+    // Restore scroll position after returning from media viewer.
+    try {
+      const raw = sessionStorage.getItem(HOME_SCROLL_TOP_KEY);
+      if (!raw) return;
+      const nextTop = Number(raw);
+      if (!Number.isFinite(nextTop) || nextTop < 0) return;
+      const el = homeScrollRef.current;
+      if (!el) return;
+      requestAnimationFrame(() => {
+        el.scrollTo({ top: nextTop, left: 0, behavior: 'auto' });
+      });
+      sessionStorage.removeItem(HOME_SCROLL_TOP_KEY);
+    } catch {}
+  }, []);
 
   useHouseholdBootstrap({
     setUser,

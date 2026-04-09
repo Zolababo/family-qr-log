@@ -8,6 +8,8 @@ import { Empty } from '../ui/Empty';
 import { LogTagBadge } from '../ui/Badge';
 import type { Log } from '../../features/logs/logTypes';
 
+const HOME_SCROLL_TOP_KEY = 'family_qr_log_home_scroll_top';
+
 export type SearchMediaViewModel = {
   visible: Log[];
   swipeImageUrls: string[];
@@ -44,6 +46,14 @@ export function SearchTabPanel({
   applyTagFromLogCard,
 }: SearchTabPanelProps) {
   const router = useRouter();
+  const stashHomeScrollTop = () => {
+    try {
+      const scrollRegion = document.querySelector('.home-scroll-region');
+      if (scrollRegion instanceof HTMLElement) {
+        sessionStorage.setItem(HOME_SCROLL_TOP_KEY, String(scrollRegion.scrollTop));
+      }
+    } catch {}
+  };
 
   return (
     <section aria-label="검색" style={{ marginBottom: 20 }}>
@@ -67,6 +77,7 @@ export function SearchTabPanel({
                 key={`search-media-${log.id}`}
                 type="button"
                 onClick={() => {
+                  stashHomeScrollTop();
                   if (cleanImages.length > 0) {
                     const params = new URLSearchParams();
                     params.set('type', 'image');

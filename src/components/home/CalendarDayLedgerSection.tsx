@@ -3,6 +3,7 @@
 import { Wallet } from 'lucide-react';
 import type { LedgerEntry } from '@/features/ledger/ledgerTypes';
 import { formatLedgerCategory } from '@/features/ledger/ledgerCategoryLabels';
+import { formatLedgerPaymentMethod } from '@/features/ledger/ledgerPaymentMethod';
 
 type Theme = {
   text: string;
@@ -105,7 +106,7 @@ export function CalendarDayLedgerSection({
                 }}
               >
                 <div style={{ color: theme.textSecondary, marginBottom: 4 }}>
-                  {formatLedgerCategory(e.category, t)} · {getMemberName(e.user_id)}
+                  {formatLedgerCategory(e.category, t)} · {formatLedgerPaymentMethod(e.payment_method, t)} · {getMemberName(e.user_id)}
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: e.direction === 'income' ? 'var(--accent)' : '#b91c1c' }}>
                   {e.direction === 'income' ? '+' : '-'}

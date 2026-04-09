@@ -111,11 +111,14 @@ const FAMILY_TEXT_OPTIONS = [
   '밤토라~♥',
   '귀요미~♥',
   '러블리~♥',
+  '말랍~♥',
   '우꼰쥬~♥',
+  '먹깨비~♥',
   '차야~',
   '서방님',
   '낭군님',
   '완쟈',
+  '두째 완쟈',
   '똘마야~',
   '똥깡쥐',
   '동고야',
@@ -134,11 +137,15 @@ type StickerPickerSheetProps = {
   saving?: boolean;
 };
 
+type StickerCategory = 'emoji' | 'feeling' | 'fun' | 'family';
+const CATEGORY_ORDER: StickerCategory[] = ['emoji', 'feeling', 'fun', 'family'];
+
 /** 로그 카드 스티커 선택 하단 시트 — `onPickSticker`는 부모에서 `applyStickerToLog` 등과 연결 */
 export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRemove = false, saving = false }: StickerPickerSheetProps) {
-  const [category, setCategory] = useState<'emoji' | 'feeling' | 'fun' | 'family'>('emoji');
+  const [category, setCategory] = useState<StickerCategory>('emoji');
   const handleRef = useRef<HTMLDivElement | null>(null);
   const startYRef = useRef<number | null>(null);
+  const categorySwipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragYRef = useRef(0);
   const [translateY, setTranslateY] = useState(0);
   const DRAG_CLOSE_THRESHOLD = 90;
@@ -151,6 +158,14 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
         : category === 'fun'
           ? FUN_TEXT_OPTIONS
           : FAMILY_TEXT_OPTIONS;
+  const moveCategoryBySwipe = (direction: 'prev' | 'next') => {
+    setCategory((prev) => {
+      const idx = CATEGORY_ORDER.indexOf(prev);
+      if (idx < 0) return prev;
+      const nextIdx = direction === 'next' ? Math.min(CATEGORY_ORDER.length - 1, idx + 1) : Math.max(0, idx - 1);
+      return CATEGORY_ORDER[nextIdx];
+    });
+  };
 
   useEffect(() => {
     const html = document.documentElement;
@@ -284,6 +299,27 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
               </button>
             </div>
           ) : null}
+          <div
+            role="presentation"
+            onTouchStart={(e) => {
+              const t = e.changedTouches?.[0];
+              if (!t) return;
+              categorySwipeStartRef.current = { x: t.clientX, y: t.clientY };
+            }}
+            onTouchEnd={(e) => {
+              const start = categorySwipeStartRef.current;
+              categorySwipeStartRef.current = null;
+              const t = e.changedTouches?.[0];
+              if (!start || !t) return;
+              const dx = t.clientX - start.x;
+              const dy = t.clientY - start.y;
+              // Only treat mostly-horizontal gestures as category swipe.
+              if (Math.abs(dx) < 44 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
+              if (dx < 0) moveCategoryBySwipe('next');
+              else moveCategoryBySwipe('prev');
+            }}
+            style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
+          >
           <div
             style={{
               display: 'flex',
@@ -421,6 +457,7 @@ export function StickerPickerSheet({ highContrast, onClose, onPickSticker, canRe
                 {s}
               </button>
             ))}
+          </div>
           </div>
         </div>
       </div>

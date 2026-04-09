@@ -24,6 +24,8 @@ import { CalendarDayLedgerSection } from './CalendarDayLedgerSection';
 import { CalendarDayTodoSection } from './CalendarDayTodoSection';
 import type { TodoTask } from './TodoBoard';
 
+const HOME_SCROLL_TOP_KEY = 'family_qr_log_home_scroll_top';
+
 export type GrowthRangeKey = 'week' | 'month' | 'quarter' | 'half' | 'year' | 'all';
 
 export type GrowthTimelineViewModel = {
@@ -114,6 +116,14 @@ export function CalendarTabPanel({
   getPrimaryMedia,
 }: CalendarTabPanelProps) {
   const router = useRouter();
+  const stashHomeScrollTop = () => {
+    try {
+      const scrollRegion = document.querySelector('.home-scroll-region');
+      if (scrollRegion instanceof HTMLElement) {
+        sessionStorage.setItem(HOME_SCROLL_TOP_KEY, String(scrollRegion.scrollTop));
+      }
+    } catch {}
+  };
 
   return (
     <section aria-label={t('calendarSectionAria')} style={{ marginBottom: 20 }}>
@@ -501,6 +511,7 @@ export function CalendarTabPanel({
                 key={`growth-${log.id}`}
                 type="button"
                 onClick={() => {
+                  stashHomeScrollTop();
                   if (!media) return;
                   if (cleanImages.length > 0) {
                     const params = new URLSearchParams();

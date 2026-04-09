@@ -13,6 +13,8 @@ import { LogFeedSkeleton } from './LogFeedSkeleton';
 import { Empty } from '../ui/Empty';
 import { LogTagBadge } from '../ui/Badge';
 
+const HOME_SCROLL_TOP_KEY = 'family_qr_log_home_scroll_top';
+
 export type Log = {
   id: string;
   household_id: string;
@@ -273,6 +275,12 @@ export function LogFeed({
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const [pausedVideoId, setPausedVideoId] = useState<string | null>(null);
   const openMediaPage = (type: 'image' | 'video', url: string, imageUrls?: string[], imageIndex = 0) => {
+    try {
+      const scrollRegion = document.querySelector('.home-scroll-region');
+      if (scrollRegion instanceof HTMLElement) {
+        sessionStorage.setItem(HOME_SCROLL_TOP_KEY, String(scrollRegion.scrollTop));
+      }
+    } catch {}
     const params = new URLSearchParams();
     params.set('type', type);
     if (type === 'image' && imageUrls && imageUrls.length > 0) {

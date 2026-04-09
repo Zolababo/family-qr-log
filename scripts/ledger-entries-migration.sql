@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.ledger_entries (
   direction TEXT NOT NULL CHECK (direction IN ('income', 'expense')),
   amount_krw BIGINT NOT NULL CHECK (amount_krw > 0),
   category TEXT NOT NULL DEFAULT '기타',
+  payment_method TEXT NOT NULL DEFAULT 'other' CHECK (payment_method IN ('card', 'cash', 'gift', 'gglocal', 'other')),
   memo TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { AppVersionGuard } from "./AppVersionGuard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,7 +22,7 @@ const appTitle = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "밤톨이네 이야기",
   description: "가족과 함께 장소별 로그를 공유하세요",
-  manifest: "/manifest.webmanifest?v=3",
+  manifest: "/manifest.webmanifest?v=4",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -45,12 +46,13 @@ export default function RootLayout({
     <html lang="ko">
       <head>
         <meta name="theme-color" content="#f5efe6" />
-        <link rel="icon" href="/icon-192.png?v=3" type="image/png" sizes="192x192" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" sizes="180x180" />
+        <link rel="icon" href="/icon-192.png?v=4" type="image/png" sizes="192x192" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=4" sizes="180x180" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${appTitle.variable} antialiased`}
       >
+        <AppVersionGuard currentVersion="2026.04.09-1" />
         {children}
       </body>
     </html>
