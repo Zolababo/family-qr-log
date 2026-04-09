@@ -157,6 +157,8 @@ export function LedgerPanel({
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showExpenseChart, setShowExpenseChart] = useState(false);
+  const [expenseChartRange, setExpenseChartRange] = useState<'month' | 'threeMonths'>('month');
+  const [entryEditorOpen, setEntryEditorOpen] = useState(false);
 
   useEffect(() => {
     if (editingId && !entries.some((e) => e.id === editingId)) setEditingId(null);
@@ -166,6 +168,7 @@ export function LedgerPanel({
     if (!occurredOnPrefill || !/^\d{4}-\d{2}-\d{2}$/.test(occurredOnPrefill)) return;
     setOccurredOn(occurredOnPrefill);
     setEditingId(null);
+    setEntryEditorOpen(true);
     onOccurredOnPrefillConsumed?.();
   }, [occurredOnPrefill, onOccurredOnPrefillConsumed]);
 
@@ -188,6 +191,14 @@ export function LedgerPanel({
     setMemo('');
     setEditingId(null);
   };
+  const closeEntryEditor = () => {
+    setEntryEditorOpen(false);
+    resetFormForNew();
+  };
+  const openEntryEditorForNew = () => {
+    resetFormForNew();
+    setEntryEditorOpen(true);
+  };
 
   const startEdit = (e: (typeof entries)[number]) => {
     setEditingId(e.id);
@@ -197,6 +208,7 @@ export function LedgerPanel({
     setCategory(normalizeLedgerCategory(e.category));
     setPaymentMethod(normalizeLedgerPaymentMethod(e.payment_method));
     setMemo(e.memo ?? '');
+    setEntryEditorOpen(true);
   };
 
   const amountKrw = useMemo(() => {
@@ -224,17 +236,36 @@ export function LedgerPanel({
         ? await updateEntry(editingId, payload)
         : await addEntry(payload);
       if (ok) {
-        if (editingId) {
-          resetFormForNew();
-        } else {
-          setAmountRaw('');
-          setMemo('');
-        }
+        closeEntryEditor();
       }
     } finally {
       setSubmitting(false);
     }
   };
+  const expenseByPaymentMethodChart = useMemo(() => {
+    const map = new Map<LedgerPaymentMethod, number>();
+    for (const method of LEDGER_PAYMENT_METHODS) map.set(method, 0);
+    const now = new Date(viewYear, viewMonth - 1, 1);
+    const minWindow = new Date(viewYear, viewMonth - 3, 1);
+    for (const e of entries) {
+      if (e.direction !== 'expense') continue;
+      const dt = new Date(`${e.occurred_on}T00:00:00`);
+      const inRange =
+        expenseChartRange === 'month'
+          ? e.occurred_on.startsWith(`${viewYear}-${String(viewMonth).padStart(2, '0')}`)
+          : dt >= minWindow && dt <= new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      if (!inRange) continue;
+      const method = normalizeLedgerPaymentMethod(e.payment_method);
+      map.set(method, (map.get(method) ?? 0) + e.amount_krw);
+    }
+    const total = [...map.values()].reduce((acc, v) => acc + v, 0);
+    const rows = LEDGER_PAYMENT_METHODS.map((method) => ({
+      method,
+      amount: map.get(method) ?? 0,
+      ratio: total > 0 ? ((map.get(method) ?? 0) / total) * 100 : 0,
+    })).sort((a, b) => b.amount - a.amount);
+    return { total, rows };
+  }, [entries, expenseChartRange, viewMonth, viewYear]);
 
   const fmtKrw = (n: number) => `${n.toLocaleString('ko-KR')}${t('ledgerWonSuffix')}`;
 
@@ -308,7 +339,10 @@ export function LedgerPanel({
         </div>
         <button
           type="button"
-          onClick={() => setShowExpenseChart(true)}
+          onClick={() => {
+            setExpenseChartRange('month');
+            setShowExpenseChart(true);
+          }}
           style={{
             padding: '10px 8px',
             borderRadius: theme.radiusLg,
@@ -436,15 +470,85 @@ export function LedgerPanel({
         </div>
       ) : null}
 
+      <div
+        style={{
+          marginBottom: 16,
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
+      >
+        <button
+          type="button"
+          onClick={openEntryEditorForNew}
+          style={{
+            padding: '10px 14px',
+            borderRadius: 10,
+            border: 'none',
+            background: 'var(--accent)',
+            color: 'var(--bg-card)',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          {t('ledgerOpenEntryEditor')}
+        </button>
+      </div>
+      {entryEditorOpen ? (
+        <>
+          <div
+            role="presentation"
+            onClick={closeEntryEditor}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.45)',
+              zIndex: 57,
+            }}
+          />
+          <div
+            role="dialog"
+            aria-label={editingId ? t('ledgerEditEntryTitle') : t('ledgerAddEntryTitle')}
+            style={{
+              position: 'fixed',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(92vw, 440px)',
+              maxHeight: '82dvh',
+              overflowY: 'auto',
+              zIndex: 58,
+              borderRadius: 14,
+              border: theme.border,
+              background: highContrast ? '#141414' : 'var(--bg-card)',
+              boxShadow: '0 18px 44px rgba(0,0,0,0.28)',
+              padding: 14,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: theme.text }}>
+                {editingId ? t('ledgerEditEntryTitle') : t('ledgerAddEntryTitle')}
+              </div>
+              <button
+                type="button"
+                onClick={closeEntryEditor}
+                style={{
+                  border: '1px solid var(--divider)',
+                  background: 'transparent',
+                  color: theme.textSecondary,
+                  borderRadius: 8,
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                }}
+              >
+                {t('ledgerCloseEditor')}
+              </button>
+            </div>
       <form
         onSubmit={handleSubmit}
         style={{
-          marginBottom: 16,
-          padding: 12,
-          borderRadius: theme.radiusLg,
-          border: theme.border,
-          background: theme.card,
-          boxShadow: theme.cardShadow,
+          padding: 0,
         }}
       >
         <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -598,7 +702,7 @@ export function LedgerPanel({
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="button"
-              onClick={() => resetFormForNew()}
+              onClick={closeEntryEditor}
               style={{
                 flex: '0 0 auto',
                 padding: '12px 14px',
@@ -611,7 +715,7 @@ export function LedgerPanel({
                 cursor: 'pointer',
               }}
             >
-              {t('ledgerCancelEdit')}
+              {t('ledgerCloseEditor')}
             </button>
             <button
               type="submit"
@@ -654,6 +758,9 @@ export function LedgerPanel({
           </button>
         )}
       </form>
+          </div>
+        </>
+      ) : null}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: theme.text }}>{t('ledgerRecent')}</h2>
@@ -819,11 +926,45 @@ export function LedgerPanel({
                 {t('close')}
               </button>
             </div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+              <button
+                type="button"
+                onClick={() => setExpenseChartRange('month')}
+                style={{
+                  padding: '5px 8px',
+                  borderRadius: 999,
+                  border: '1px solid var(--divider)',
+                  background: expenseChartRange === 'month' ? 'var(--accent-light)' : 'transparent',
+                  color: expenseChartRange === 'month' ? 'var(--accent)' : theme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('ledgerChartRangeMonth')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpenseChartRange('threeMonths')}
+                style={{
+                  padding: '5px 8px',
+                  borderRadius: 999,
+                  border: '1px solid var(--divider)',
+                  background: expenseChartRange === 'threeMonths' ? 'var(--accent-light)' : 'transparent',
+                  color: expenseChartRange === 'threeMonths' ? 'var(--accent)' : theme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('ledgerChartRangeThreeMonths')}
+              </button>
+            </div>
             <div style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 10 }}>
-              {t('ledgerSumExpense')}: <strong style={{ color: theme.text }}>{fmtKrw(monthSummary.expense)}</strong>
+              {t('ledgerSumExpense')}: <strong style={{ color: theme.text }}>{fmtKrw(expenseByPaymentMethodChart.total)}</strong>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {expenseByPaymentMethod.map(({ method, amount, ratio }) => (
+              {expenseByPaymentMethodChart.rows.map(({ method, amount, ratio }) => (
                 <div key={method} style={{ display: 'grid', gap: 4 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: theme.text }}>
