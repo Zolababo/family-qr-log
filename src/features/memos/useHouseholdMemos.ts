@@ -46,6 +46,8 @@ export function useHouseholdMemos({
   const lastSavedSharedMemoSnapshotActionRef = useRef('');
   const lastAppliedRemoteMemoAtMsRef = useRef(0);
   const remoteMemoReqSeqRef = useRef(0);
+  /** False until first household memo fetch for this session finishes — avoids upserting empty state before server data loads. */
+  const memoServerStateKnownRef = useRef(false);
 
   const canApplyIncomingSharedMemo = useCallback(() => {
     const typing = Date.now() < sharedMemoTypingUntilRef.current;
@@ -76,6 +78,10 @@ export function useHouseholdMemos({
     },
     [canApplyIncomingSharedMemo, memoKey]
   );
+
+  useEffect(() => {
+    memoServerStateKnownRef.current = false;
+  }, [householdId, userId]);
 
   const refreshSharedMemos = useCallback(async () => {
     if (!householdId) return;
@@ -143,8 +149,7 @@ export function useHouseholdMemos({
     if (!householdId || !userId) return;
     let cancelled = false;
     void (async () => {
-      const loadFromSharedMemoLog = async () => {
-        const reqSeq = ++remoteMemoReqSeqRef.current;
+      const loadFromSharedMemoLog = async (guardSeq: number) => {
         const { data: fallbackLogs } = await supabase
           .from('logs')
           .select('action, created_at')
@@ -152,7 +157,7 @@ export function useHouseholdMemos({
           .like('action', `${sharedMemoLogPrefix}%`)
           .order('created_at', { ascending: false })
           .limit(1);
-        if (cancelled || reqSeq !== remoteMemoReqSeqRef.current) return;
+        if (cancelled || guardSeq !== remoteMemoReqSeqRef.current) return;
         const latest = fallbackLogs?.[0];
         const parsed = parseSharedMemoSnapshot(latest?.action);
         if (!parsed) return;
@@ -161,62 +166,68 @@ export function useHouseholdMemos({
       };
 
       const reqSeq = ++remoteMemoReqSeqRef.current;
-      const { data, error } = await supabase
-        .from('household_memos')
-        .select('content, family_notice, shopping_list, updated_at')
-        .eq('household_id', householdId)
-        .maybeSingle();
-      if (cancelled || reqSeq !== remoteMemoReqSeqRef.current) return;
+      try {
+        const { data, error } = await supabase
+          .from('household_memos')
+          .select('content, family_notice, shopping_list, updated_at')
+          .eq('household_id', householdId)
+          .maybeSingle();
+        if (cancelled || reqSeq !== remoteMemoReqSeqRef.current) return;
 
-      if (error) {
-        if (/relation|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
-          await loadFromSharedMemoLog();
+        if (error) {
+          if (/relation|schema cache|Could not find the table|household_memos/i.test(error.message ?? '')) {
+            await loadFromSharedMemoLog(reqSeq);
+            return;
+          }
+          const { data: fallback } = await supabase.from('household_memos').select('content').eq('household_id', householdId).maybeSingle();
+          if (!cancelled && fallback && typeof fallback.content === 'string') {
+            setMemoContent(fallback.content);
+            try {
+              localStorage.setItem(memoKey, fallback.content);
+            } catch {}
+          }
+          try {
+            const n = localStorage.getItem('family_qr_log_notice');
+            const s = localStorage.getItem('family_qr_log_shopping');
+            if (n) setFamilyNotice(n);
+            if (s) setShoppingList(s);
+          } catch {}
           return;
         }
-        const { data: fallback } = await supabase.from('household_memos').select('content').eq('household_id', householdId).maybeSingle();
-        if (!cancelled && fallback && typeof fallback.content === 'string') {
-          setMemoContent(fallback.content);
+
+        if (!data) return;
+        const row = data as {
+          content?: string;
+          family_notice?: string;
+          shopping_list?: string;
+          updated_at?: string;
+        };
+        const remoteMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+        const applied = applyRemoteMemoSnapshot(row, remoteMs);
+        if (applied) return;
+        if (typeof row.family_notice !== 'string') {
           try {
-            localStorage.setItem(memoKey, fallback.content);
+            const n = localStorage.getItem('family_qr_log_notice');
+            if (n) setFamilyNotice(n);
           } catch {}
         }
-        try {
-          const n = localStorage.getItem('family_qr_log_notice');
-          const s = localStorage.getItem('family_qr_log_shopping');
-          if (n) setFamilyNotice(n);
-          if (s) setShoppingList(s);
-        } catch {}
-        return;
-      }
-
-      if (!data) return;
-      const row = data as {
-        content?: string;
-        family_notice?: string;
-        shopping_list?: string;
-        updated_at?: string;
-      };
-      const remoteMs = row.updated_at ? new Date(row.updated_at).getTime() : 0;
-      const applied = applyRemoteMemoSnapshot(row, remoteMs);
-      if (applied) return;
-      if (typeof row.family_notice !== 'string') {
-        try {
-          const n = localStorage.getItem('family_qr_log_notice');
-          if (n) setFamilyNotice(n);
-        } catch {}
-      }
-      if (typeof row.shopping_list !== 'string') {
-        try {
-          const s = localStorage.getItem('family_qr_log_shopping');
-          if (s) setShoppingList(s);
-        } catch {}
+        if (typeof row.shopping_list !== 'string') {
+          try {
+            const s = localStorage.getItem('family_qr_log_shopping');
+            if (s) setShoppingList(s);
+          } catch {}
+        }
+      } finally {
+        if (!cancelled && reqSeq === remoteMemoReqSeqRef.current) {
+          memoServerStateKnownRef.current = true;
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [householdId, userId, memoKey, sharedMemoLogPrefix, parseSharedMemoSnapshot, canApplyIncomingSharedMemo]);
+  }, [householdId, userId, memoKey, sharedMemoLogPrefix, parseSharedMemoSnapshot, applyRemoteMemoSnapshot]);
 
   useEffect(() => {
     if (!householdId) return;
@@ -293,6 +304,9 @@ export function useHouseholdMemos({
     if (!householdId || !userId) {
       return { ok: false, mode: 'skipped', errorMessage: '로그인이 필요합니다.' };
     }
+    if (!memoServerStateKnownRef.current) {
+      return { ok: false, mode: 'skipped', errorMessage: '메모를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.' };
+    }
 
     const full = {
       household_id: householdId,
@@ -363,6 +377,7 @@ export function useHouseholdMemos({
       localStorage.setItem('family_qr_log_shopping', shoppingList);
     } catch {}
     if (!householdId || !userId) return;
+    if (!memoServerStateKnownRef.current) return;
     if (memoSaveTimerRef.current) clearTimeout(memoSaveTimerRef.current);
     memoSaveTimerRef.current = setTimeout(async () => {
       const result = await persistSharedMemos();
