@@ -56,6 +56,9 @@ function loadAccessibility(): {
   }
 }
 
+/** When the OS omits MIME type, still treat common extensions as video. */
+const VIDEO_FILE_EXTENSIONS = ['mp4', 'webm', 'mov', 'm4v', 'mkv', '3gp', 'ogv', 'avi'] as const;
+
 const MEMBER_LIKE_TAGS: { value: string | null; label: string }[] = [
   { value: null, label: '전체' },
   { value: LOG_SLUG.daily, label: '일상' },
@@ -307,12 +310,16 @@ export default function WriteLogClient() {
         const ext = f.name.split('.').pop()?.toLowerCase() || '';
         return (MOBILE_IMAGE_EXTENSIONS as readonly string[]).includes(ext);
       });
-      const videoFiles = files.filter((f) => f.type.startsWith('video/'));
+      const videoFiles = files.filter((f) => {
+        if (f.type.startsWith('video/')) return true;
+        const ext = f.name.split('.').pop()?.toLowerCase() || '';
+        return (VIDEO_FILE_EXTENSIONS as readonly string[]).includes(ext);
+      });
       const videoFile = videoFiles[0] ?? null;
 
       if (videoFile) {
         if (videoFile.size > VIDEO_MAX_MB * 1024 * 1024) {
-          setStatus(`${VIDEO_MAX_MB}MB`);
+          setStatus(t('writeVideoTooLarge').replace('{max}', String(VIDEO_MAX_MB)));
         } else {
           setVideoCompressing(true);
           setStatus(null);
@@ -383,7 +390,7 @@ export default function WriteLogClient() {
         e.target.value = '';
       })();
     },
-    [imageCompressing, videoCompressing]
+    [imageCompressing, videoCompressing, t]
   );
 
   const handleInsert = async () => {
