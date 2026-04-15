@@ -478,7 +478,16 @@ export function LogFeed({
                         <div style={{ fontSize: 12, fontWeight: 600, color: highContrast ? '#fff' : 'var(--text-primary)', marginBottom: 6 }}>
                           {getMemberName(log.actor_user_id)}
                         </div>
-                        <div style={{ fontSize: 13, color: highContrast ? '#e2e8f0' : 'var(--text-primary)', lineHeight: 1.25, marginBottom: 8 }}>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            color: highContrast ? '#e2e8f0' : 'var(--text-primary)',
+                            lineHeight: 1.25,
+                            marginBottom: 8,
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                          }}
+                        >
                           {getParsedLog(log).text}
                         </div>
                         <LogLocationLink log={log} highContrast={highContrast} />

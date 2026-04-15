@@ -603,7 +603,16 @@ export function CalendarTabPanel({
               return (
                 <div key={`memory-${log.id}`} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--divider)', background: highContrast ? '#1e1e1e' : 'var(--bg-card)' }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: highContrast ? '#ffc107' : 'var(--text-secondary)', marginBottom: 4 }}>{year}년 오늘</div>
-                  <div style={{ fontSize: 13, color: highContrast ? 'var(--divider)' : 'var(--text-primary)' }}>{parsed.text}</div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: highContrast ? 'var(--divider)' : 'var(--text-primary)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {parsed.text}
+                  </div>
                 </div>
               );
             })}

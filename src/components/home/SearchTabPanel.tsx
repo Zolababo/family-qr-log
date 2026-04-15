@@ -192,7 +192,15 @@ export function SearchTabPanel({
                     {formatDateTime(log.created_at)}
                   </span>
                 </div>
-                <div style={{ fontSize: 13, color: highContrast ? 'var(--divider)' : 'var(--text-primary)', lineHeight: 1.35 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: highContrast ? 'var(--divider)' : 'var(--text-primary)',
+                    lineHeight: 1.35,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                  }}
+                >
                   {parsed.text}
                 </div>
               </div>
