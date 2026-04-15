@@ -119,6 +119,8 @@ export default function WriteLogClient() {
   const [editImageFilter, setEditImageFilter] = useState<'none' | 'grayscale' | 'sepia'>('none');
   const logPreviewUrlsRef = useRef<string[]>([]);
   const logVideoPreviewUrlRef = useRef<string | null>(null);
+  /** Edit mode: preserve @@meta fields not edited on this screen (e.g. stickers on photos). */
+  const editBaselineMetaRef = useRef<LogMeta>({});
 
   const fontScale = FONT_STEPS[fontScaleStep];
   const effectivePlaceSlug = selectedLogTag ?? LOG_SLUG.daily;
@@ -214,6 +216,7 @@ export default function WriteLogClient() {
         return;
       }
       const parsed = parseLogMeta(data.action ?? '');
+      editBaselineMetaRef.current = parsed.meta;
       setAction(parsed.text ?? '');
       setLogLocationName(parsed.meta.locationName ?? '');
       setLogLocationUrl(parsed.meta.locationUrl ?? '');
@@ -428,10 +431,16 @@ export default function WriteLogClient() {
       videoUrl = urlData.publicUrl;
     }
 
-    const meta: LogMeta = {
-      locationName: logLocationName.trim() || undefined,
-      locationUrl: logLocationUrl.trim() || undefined,
-    };
+    const meta: LogMeta = isEditMode
+      ? {
+          ...editBaselineMetaRef.current,
+          locationName: logLocationName.trim() || undefined,
+          locationUrl: logLocationUrl.trim() || undefined,
+        }
+      : {
+          locationName: logLocationName.trim() || undefined,
+          locationUrl: logLocationUrl.trim() || undefined,
+        };
 
     const payload: Record<string, unknown> = {
       household_id: householdId,
